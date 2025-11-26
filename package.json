@@ -22,7 +22,7 @@
     "@biomejs/js-api": "^4.0.0",
     "@biomejs/wasm-nodejs": "^2.3.2",
     "@shikijs/markdown-it": "^3.14.0",
-    "chokidar": "^4.0.3",
+    "chokidar": "^5.0.0",
     "fs-extra": "^11.3.2",
     "markdown-it-async": "^2.2.0",
     "pug": "^3.0.3",
