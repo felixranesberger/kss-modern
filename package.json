@@ -3,6 +3,11 @@
   "type": "module",
   "version": "0.0.28",
   "description": "Modern KSS compatible styleguide generator",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felixranesberger/kss-modern.git"
+  },
+  "bugs": "https://github.com/felixranesberger/kss-modern/issues",
   "main": "./dist/node/lib/index.mjs",
   "types": "./dist/node/lib/index.d.ts",
   "files": [
@@ -20,28 +25,28 @@
   "dependencies": {
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^4.0.0",
-    "@biomejs/wasm-nodejs": "^2.3.2",
-    "@shikijs/markdown-it": "^3.14.0",
+    "@biomejs/wasm-nodejs": "^2.3.8",
+    "@shikijs/markdown-it": "^3.18.0",
     "chokidar": "^4.0.3",
     "fs-extra": "^11.3.2",
     "markdown-it-async": "^2.2.0",
     "pug": "^3.0.3",
-    "shiki": "^3.14.0",
+    "shiki": "^3.18.0",
     "tinyglobby": "^0.2.15"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^6.2.0",
-    "@tailwindcss/vite": "^4.1.16",
+    "@tailwindcss/vite": "^4.1.17",
     "@types/bun": "latest",
     "@types/fs-extra": "^11.0.4",
     "axe-core": "^4.11.0",
-    "bumpp": "^10.3.1",
-    "eslint": "^9.39.0",
+    "bumpp": "^10.3.2",
+    "eslint": "^9.39.1",
     "eslint-plugin-format": "^1.0.2",
-    "html-validate": "^10.3.0",
+    "html-validate": "^10.4.0",
     "keyux": "^0.11.3",
-    "motion": "^12.23.24",
+    "motion": "^12.23.25",
     "unbuild": "^3.6.1",
-    "vite": "^7.1.12"
+    "vite": "^7.2.6"
   }
 }
