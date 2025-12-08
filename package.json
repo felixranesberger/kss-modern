@@ -35,18 +35,18 @@
     "tinyglobby": "^0.2.15"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.3.0",
+    "@antfu/eslint-config": "^6.5.1",
     "@tailwindcss/vite": "^4.1.17",
     "@types/bun": "latest",
     "@types/fs-extra": "^11.0.4",
     "axe-core": "^4.11.0",
     "bumpp": "^10.3.2",
     "eslint": "^9.39.1",
-    "eslint-plugin-format": "^1.0.2",
+    "eslint-plugin-format": "^1.1.0",
     "html-validate": "^10.4.0",
     "keyux": "^0.11.3",
     "motion": "^12.23.25",
     "unbuild": "^3.6.1",
-    "vite": "^7.2.6"
+    "vite": "^7.2.7"
   }
 }
