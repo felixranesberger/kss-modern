@@ -41,7 +41,7 @@
     "@types/fs-extra": "^11.0.4",
     "axe-core": "^4.11.0",
     "bumpp": "^10.3.2",
-    "eslint": "^9.39.1",
+    "eslint": "^10.0.0",
     "eslint-plugin-format": "^1.0.2",
     "html-validate": "^10.4.0",
     "keyux": "^0.11.3",
