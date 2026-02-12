@@ -25,7 +25,7 @@
   "dependencies": {
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^4.0.0",
-    "@biomejs/wasm-nodejs": "^2.3.14",
+    "@biomejs/wasm-nodejs": "^2.3.15",
     "@shikijs/markdown-it": "^3.22.0",
     "chokidar": "^5.0.0",
     "fs-extra": "^11.3.3",
