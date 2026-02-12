@@ -228,20 +228,30 @@ else {
 
 // query selector that also searches inside template elements
 window.querySelectorAnywhere = (selector: string) => {
-  // Try regular DOM first
-  const element = document.querySelector(selector)
-  if (element)
-    return element
+  if (!selector.includes('template')) {
+    const element = document.querySelector(selector)
+    if (element)
+      return element
+  }
 
-  // Strip everything up to and including the template segment from the selector,
-  // then search inside each template's content DocumentFragment.
-  const innerSelector = selector.replace(/.*template[^>]*>\s*/i, '')
-  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>('template'))
+  // split the part till template occurs and the string ends or a space occurs
+  const parts = selector.split(/\s+/)
+  const templateIdx = parts.findIndex(p => p.startsWith('template'))
+  if (templateIdx < 0)
+    return null
+  const templateSelector = parts.slice(0, templateIdx + 1).join(' ')
+  const innerSelector = parts.slice(templateIdx + 1).join(' ')
+
+  // search for all elements that match the template selector
+  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>(templateSelector))
+
+  // search through all found templates and query the rest of the selector in their content
   for (const template of templates) {
-    const match = template.content.querySelector(innerSelector)
+    const match = template.content.querySelector(innerSelector || '*')
     if (match)
       return match
   }
 
+  // return null if nothing was found
   return null
 }
