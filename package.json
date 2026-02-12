@@ -35,7 +35,7 @@
     "tinyglobby": "^0.2.15"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.7.3",
+    "@antfu/eslint-config": "^7.0.0",
     "@tailwindcss/vite": "^4.1.18",
     "@types/bun": "latest",
     "@types/fs-extra": "^11.0.4",
