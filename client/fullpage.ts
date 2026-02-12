@@ -3,6 +3,7 @@ import type { CrossTreeSelector, NodeResult, Result } from 'axe-core'
 declare global {
   interface Window {
     runAccessibilityTest: () => Promise<void>
+    querySelectorAnywhere: (selector: string) => Element | null
   }
 }
 
@@ -223,4 +224,24 @@ else {
   if (modifier) {
     ModifierReplacer.fromUrl()
   }
+}
+
+// query selector that also searches inside template elements
+window.querySelectorAnywhere = (selector: string) => {
+  // Try regular DOM first
+  const element = document.querySelector(selector)
+  if (element)
+    return element
+
+  // Strip everything up to and including the template segment from the selector,
+  // then search inside each template's content DocumentFragment.
+  const innerSelector = selector.replace(/.*template[^>]*>\s*/i, '')
+  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>('template'))
+  for (const template of templates) {
+    const match = template.content.querySelector(innerSelector)
+    if (match)
+      return match
+  }
+
+  return null
 }

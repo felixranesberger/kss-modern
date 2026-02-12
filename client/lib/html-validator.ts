@@ -267,7 +267,16 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     }
 
     const renderNodeHtmlValidate = (node: ResultNodeHTMLValidate) => {
-      const element = codeAuditIFrame.contentWindow?.document.querySelector<HTMLElement>(node.selector)
+      let element = codeAuditIFrame.contentWindow?.querySelectorAnywhere(node.selector) as HTMLElement | null | undefined
+
+      // If the element is inside a <template>, point to the template element itself
+      if (element && !element.isConnected) {
+        const templates = codeAuditIFrame.contentDocument?.querySelectorAll<HTMLTemplateElement>('template')
+        element = templates
+          ? Array.from(templates).find(t => t.content.contains(element!)) ?? null
+          : null
+      }
+
       if (!element)
         throw new Error(`Element not found for selector: ${node.selector}`)
 
@@ -275,7 +284,8 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       window.validator.referenceMap.set(refId, element)
 
       return `
-        <button 
+        <button
+            type="button"
             class="block font-mono py-1.5 text-[13px] text-blue-600 text-sm cursor-pointer text-left"
             onclick="console.log(window.validator.referenceMap.get('${refId}')); window.validator.logReferenceAlert(this)"
           >
