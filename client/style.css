@@ -1,5 +1,19 @@
 @import 'tailwindcss';
-@config '../tailwind.config.js';
+
+@source "../lib";
+
+@custom-variant dark (&:is(.theme-dark *));
+
+@theme {
+  --color-styleguide: var(--styleguide-color-regular);
+  --color-styleguide-highlight: var(--styleguide-color-highlight);
+  --color-styleguide-theme-highlight: var(--styleguide-color-theme-highlight);
+  --color-styleguide-bg: var(--styleguide-color-background);
+  --color-styleguide-bg-highlight: var(--styleguide-color-background-highlight);
+  --color-styleguide-border: var(--styleguide-color-border);
+  --font-sans: 'Geist Sans';
+  --font-mono: 'Geist Mono';
+}
 
 /* geist-mono-latin-300-normal */
 @font-face {
@@ -55,16 +69,7 @@
   src: url(/styleguide-assets/fonts/geist-sans-latin-600-normal.woff2) format('woff2');
 }
 
-@layer utilities {
-  html {
-    view-transition-name: none;
-  }
-
-  body:not(.allow-transitions) .transition {
-    transition-duration: 0s !important;
-  }
-
-  :root {
+:root {
     color-scheme: light dark;
 
     /* color primitive black */
@@ -93,6 +98,15 @@
 
     /* Border colors */
     --styleguide-color-border: light-dark(var(--cp-neutral-92), var(--cp-neutral-12));
+}
+
+@layer utilities {
+  html {
+    view-transition-name: none;
+  }
+
+  body:not(.allow-transitions) .transition {
+    transition-duration: 0s !important;
   }
 
   body {

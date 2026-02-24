@@ -30,15 +30,10 @@ export function handleThemeSelect(themeSelectForm: HTMLFormElement) {
 
     const removeClasses = <T extends HTMLElement>(element: T) => {
       Object.values(THEME_CLASSES).forEach(theme => element.classList.remove(theme))
-      element.classList.remove('dark') // Remove Tailwind's dark class
     }
 
     const addClasses = <T extends HTMLElement>(element: T) => {
       element.classList.add(themeClass)
-      // Add Tailwind's dark class if dark theme
-      if (themeClass === THEME_CLASSES.dark) {
-        element.classList.add('dark')
-      }
     }
 
     // Update form classes
