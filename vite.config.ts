@@ -24,6 +24,9 @@ export default defineConfig({
     },
     manifest: true,
   },
+  worker: {
+    format: 'es',
+  },
   plugins: [tailwindcss()],
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),

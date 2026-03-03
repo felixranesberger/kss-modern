@@ -30,12 +30,12 @@
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^4.0.0",
     "@biomejs/wasm-nodejs": "^2.4.5",
-    "@shikijs/markdown-it": "^3.23.0",
+    "@shikijs/markdown-it": "^4.0.1",
     "chokidar": "^5.0.0",
     "fs-extra": "^11.3.3",
     "markdown-it-async": "^2.2.0",
     "pug": "^3.0.3",
-    "shiki": "^3.23.0",
+    "shiki": "^4.0.1",
     "tinyglobby": "^0.2.15"
   },
   "devDependencies": {
