@@ -9,7 +9,7 @@ import type {
 import type { Message as HTMLValidateMessage } from 'html-validate'
 import { each, when } from '../../lib/template-utils.ts'
 import { highlightCode } from '../code-highlight'
-import { id } from '../utils.ts'
+import { id, queryRequired } from '../utils.ts'
 
 declare global {
   interface Window {
@@ -88,16 +88,12 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
   if (!codeAuditIframeSelector)
     throw new Error('No code audit template selector provided')
 
-  const codeAuditIFrame = document.querySelector<HTMLIFrameElement>(`#${codeAuditIframeSelector}`)
-  if (!codeAuditIFrame)
-    throw new Error('Code audit template not found')
+  const codeAuditIFrame = queryRequired<HTMLIFrameElement>(`#${codeAuditIframeSelector}`)
 
   if (!codeAuditIFrame.contentWindow)
     throw new Error('Code audit iframe has no content window')
 
-  const resultsList = auditResultDialog.querySelector<HTMLDivElement>('.audit-results')
-  if (!resultsList)
-    throw new Error('No audit results list found')
+  const resultsList = queryRequired<HTMLDivElement>('.audit-results', auditResultDialog)
 
   window.validator = {
     referenceMap: new Map<string, HTMLElement>(),

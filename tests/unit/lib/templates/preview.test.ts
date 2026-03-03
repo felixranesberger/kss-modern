@@ -1,5 +1,5 @@
 import type { in2SecondLevelSection, in2Section } from '../../../../lib/parser.ts'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createMinimalConfig } from '../../../fixtures/config.ts'
 
 import {
@@ -11,10 +11,6 @@ import {
   getSearchHtml,
   getSidebarMenuHtml,
 } from '../../../../lib/templates/preview.ts'
-
-beforeEach(() => {
-  globalThis.styleguideConfiguration = createMinimalConfig()
-})
 
 function createMockSection(overrides: Partial<in2Section> = {}): in2Section {
   return {
@@ -55,23 +51,22 @@ function createMockSecondLevelSection(overrides: Partial<in2SecondLevelSection> 
 
 describe('getHeaderHtml', () => {
   it('contains the project title', () => {
-    const html = getHeaderHtml()
+    const html = getHeaderHtml(createMinimalConfig())
     expect(html).toContain('Test Styleguide')
   })
 
   it('contains theme toggle fieldset', () => {
-    const html = getHeaderHtml()
+    const html = getHeaderHtml(createMinimalConfig())
     expect(html).toContain('Select a display theme')
   })
 
   it('contains search button with data-open-search', () => {
-    const html = getHeaderHtml()
+    const html = getHeaderHtml(createMinimalConfig())
     expect(html).toContain('data-open-search')
   })
 
   it('omits theme toggle when deactivateDarkMode is true', () => {
-    globalThis.styleguideConfiguration = createMinimalConfig({ deactivateDarkMode: true })
-    const html = getHeaderHtml()
+    const html = getHeaderHtml(createMinimalConfig({ deactivateDarkMode: true }))
     expect(html).not.toContain('Select a display theme')
   })
 })

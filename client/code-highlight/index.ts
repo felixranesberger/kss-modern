@@ -4,46 +4,46 @@ const cache = new Map<string, string>()
 
 const CODE_HIGHLIGHTED_ATTRIBUTE = 'data-highlighted'
 
-interface WorkerEntry {
-  worker: Worker
-  isBusy: boolean
+const POOL_SIZE = 5
+
+// Promise-based worker pool
+const waiters: ((worker: Worker) => void)[] = []
+const freeWorkers: Worker[] = []
+
+Array.from({ length: POOL_SIZE }, () => {
+  const worker = new HighlightWorker()
+  freeWorkers.push(worker)
+  return worker
+})
+
+function acquireWorker(): Promise<Worker> {
+  const worker = freeWorkers.pop()
+  if (worker) {
+    return Promise.resolve(worker)
+  }
+  return new Promise<Worker>(resolve => waiters.push(resolve))
 }
 
-const workerPool = Array.from({ length: 5 }, (): WorkerEntry => ({
-  worker: new HighlightWorker(),
-  isBusy: false,
-}))
-
-function getFreeWorker(): Promise<WorkerEntry> {
-  return new Promise((resolve) => {
-    const freeWorker = workerPool.find(worker => !worker.isBusy)
-    if (freeWorker) {
-      freeWorker.isBusy = true
-      resolve(freeWorker)
-    }
-
-    const interval = setInterval(() => {
-      const freeWorker = workerPool.find(worker => !worker.isBusy)
-      if (freeWorker) {
-        freeWorker.isBusy = true
-        clearInterval(interval)
-        resolve(freeWorker)
-      }
-    }, Math.random() * 100)
-  })
+function releaseWorker(worker: Worker) {
+  const waiter = waiters.shift()
+  if (waiter) {
+    waiter(worker)
+  }
+  else {
+    freeWorkers.push(worker)
+  }
 }
 
 async function runShiki(lang: 'text' | 'html', text: string) {
-  const workerEntry = await getFreeWorker()
-  workerEntry.isBusy = true
+  const worker = await acquireWorker()
 
   return new Promise<string>((resolve) => {
-    workerEntry.worker.onmessage = (event) => {
-      workerEntry.isBusy = false
+    worker.onmessage = (event) => {
+      releaseWorker(worker)
       resolve(event.data)
     }
 
-    workerEntry.worker.postMessage({ lang, text })
+    worker.postMessage({ lang, text })
   })
 }
 

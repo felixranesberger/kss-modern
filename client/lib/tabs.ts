@@ -1,13 +1,12 @@
 import { animate, spring } from 'motion'
+import { queryRequired } from '../utils.ts'
 import { waitForIdleNetwork } from '../utils/network.ts'
 
 export default function tabs(tabs: NodeListOf<HTMLElement>) {
   tabs.forEach((tab) => {
     const tabTriggers = tab.querySelectorAll<HTMLElement>('[role="tab"]')
     const tabContent = Array.from(tab.querySelectorAll<HTMLElement>('[role="tabpanel"]'))
-    const tabTriggerBackground = tab.querySelector<HTMLElement>('.tab-trigger-background')
-    if (!tabTriggerBackground)
-      throw new Error('No tab trigger background found')
+    const tabTriggerBackground = queryRequired<HTMLElement>('.tab-trigger-background', tab)
 
     setupTabInteraction(tabTriggers, tabTriggerBackground)
     setupIframePreloading(tabTriggers, tabContent)
