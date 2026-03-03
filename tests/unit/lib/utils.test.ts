@@ -57,14 +57,12 @@ describe('fixAccessibilityIssues', () => {
 })
 
 describe('sanitizeSpecialCharacters', () => {
-  it('encodes greater-than sign (then double-encodes the ampersand)', () => {
-    // > becomes &gt; then & in &gt; becomes &amp;gt;
-    expect(sanitizeSpecialCharacters('a > b')).toBe('a &amp;gt; b')
+  it('encodes greater-than sign', () => {
+    expect(sanitizeSpecialCharacters('a > b')).toBe('a &gt; b')
   })
 
-  it('encodes less-than sign (then double-encodes the ampersand)', () => {
-    // < becomes &lt; then & in &lt; becomes &amp;lt;
-    expect(sanitizeSpecialCharacters('a < b')).toBe('a &amp;lt; b')
+  it('encodes less-than sign', () => {
+    expect(sanitizeSpecialCharacters('a < b')).toBe('a &lt; b')
   })
 
   it('encodes ampersand', () => {
@@ -79,11 +77,9 @@ describe('sanitizeSpecialCharacters', () => {
     expect(sanitizeSpecialCharacters("it's")).toBe('it&#039;s')
   })
 
-  it('encodes all special characters reflecting replacement order', () => {
-    // Replacement order: > -> &gt;, < -> &lt;, & -> &amp;, " -> &quot;, ' -> &#039;
-    // The & in &gt; and &lt; gets double-encoded to &amp;gt; and &amp;lt;
+  it('encodes all special characters', () => {
     expect(sanitizeSpecialCharacters('<a href="x">&</a>')).toBe(
-      '&amp;lt;a href=&quot;x&quot;&amp;gt;&amp;&amp;lt;/a&amp;gt;',
+      '&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;',
     )
   })
 })

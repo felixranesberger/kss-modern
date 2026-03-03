@@ -53,8 +53,7 @@ describe('generateFullPageFile', () => {
     const data = createBaseData()
     data.page.title = 'Test <script>'
     await generateFullPageFile(data)
-    // sanitizeSpecialCharacters replaces < > first, then & — so &lt; becomes &amp;lt;
-    expect(capturedContent).toContain('<title>Test &amp;lt;script&amp;gt;</title>')
+    expect(capturedContent).toContain('<title>Test &lt;script&gt;</title>')
   })
 
   it('includes viewport meta tag', async () => {

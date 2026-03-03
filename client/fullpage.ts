@@ -143,7 +143,7 @@ if (window.frameElement) {
       }).catch(console.error)
 
       if (!result)
-        throw new Error('No results from html-validate')
+        throw new Error('No results from runAccessibilityTest function')
 
       const targetMap = new Map<CrossTreeSelector, HTMLElement>()
 
@@ -153,7 +153,7 @@ if (window.frameElement) {
             node.target.forEach((selector) => {
               const element = axe.utils.shadowSelect(selector)
               if (!element)
-                throw new Error(`Could not find element for selector: ${selector}`)
+                return
 
               targetMap.set(selector, element as HTMLElement)
             })
@@ -228,26 +228,29 @@ else {
 
 // query selector that also searches inside template elements
 window.querySelectorAnywhere = (selector: string) => {
-  if (!selector.includes('template')) {
-    const element = document.querySelector(selector)
-    if (element)
-      return element
+  // try the regular DOM first
+  const element = document.querySelector(selector)
+  if (element)
+    return element
+
+  // check if the selector root resolves to a <template> element
+  // e.g. "#modal-template > div > button" where #modal-template is a <template>
+  const combinatorIndex = selector.search(/\s*[>+~ ]\s*/)
+  if (combinatorIndex > 0) {
+    const rootPart = selector.slice(0, combinatorIndex)
+    const rootElement = document.querySelector(rootPart)
+    if (rootElement instanceof HTMLTemplateElement) {
+      const rest = selector.slice(combinatorIndex).replace(/^\s*>\s*/, '')
+      const match = rootElement.content.querySelector(rest)
+      if (match)
+        return match
+    }
   }
 
-  // split the part till template occurs and the string ends or a space occurs
-  const parts = selector.split(/\s+/)
-  const templateIdx = parts.findIndex(p => p.startsWith('template'))
-  if (templateIdx < 0)
-    return null
-  const templateSelector = parts.slice(0, templateIdx + 1).join(' ')
-  const innerSelector = parts.slice(templateIdx + 1).join(' ')
-
-  // search for all elements that match the template selector
-  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>(templateSelector))
-
-  // search through all found templates and query the rest of the selector in their content
+  // search through all templates for a match
+  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>('template'))
   for (const template of templates) {
-    const match = template.content.querySelector(innerSelector || '*')
+    const match = template.content.querySelector(selector)
     if (match)
       return match
   }
