@@ -1,0 +1,16 @@
+/* Fullpage-specific styles (applied inside iframe previews) */
+body {
+  margin: 0;
+  padding: var(--space-4);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--color-neutral-900);
+  background-color: #fff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}

@@ -1,0 +1,68 @@
+/*
+Buttons
+
+Markdown: sass/02-elements/buttons.md
+
+Status: Complete
+
+.btn--primary - Primary action button
+.btn--danger - Destructive action button
+.btn--outline - Outlined variant
+.btn--large - Large size variant
+
+Markup: <insert-vite-pug src="templates/source/02-elements/buttons.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>
+
+Styleguide 2.20
+*/
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--color-neutral-800);
+  background-color: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background-color: var(--color-neutral-200);
+  }
+}
+
+.btn--primary {
+  color: #fff;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+
+  &:hover {
+    background-color: var(--color-primary-dark);
+  }
+}
+
+.btn--danger {
+  color: #fff;
+  background-color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.btn--outline {
+  color: var(--color-primary);
+  background-color: transparent;
+  border-color: var(--color-primary);
+
+  &:hover {
+    background-color: var(--color-primary);
+    color: #fff;
+  }
+}
+
+.btn--large {
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-lg);
+}

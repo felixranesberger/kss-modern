@@ -1,0 +1,24 @@
+/*
+Spacing Utilities
+
+Markdown: Utility classes for consistent spacing. Generated from the design token scale.
+
+$size = 1rem - Base spacing unit
+$sides = all - Which sides to apply (all, x, y, top, bottom, left, right)
+
+Styleguide 4.10
+*/
+
+.u-m-1 { margin: var(--space-1); }
+.u-m-2 { margin: var(--space-2); }
+.u-m-4 { margin: var(--space-4); }
+.u-m-8 { margin: var(--space-8); }
+
+.u-p-1 { padding: var(--space-1); }
+.u-p-2 { padding: var(--space-2); }
+.u-p-4 { padding: var(--space-4); }
+.u-p-8 { padding: var(--space-8); }
+
+.u-mt-4 { margin-top: var(--space-4); }
+.u-mb-4 { margin-bottom: var(--space-4); }
+.u-mx-auto { margin-inline: auto; }

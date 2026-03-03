@@ -1,0 +1,52 @@
+:root {
+  /* Brand */
+  --color-primary: #005075;
+  --color-primary-light: #0080b8;
+  --color-primary-dark: #003550;
+  --color-accent: #e85d04;
+
+  /* Neutral */
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f5f5f5;
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-500: #737373;
+  --color-neutral-800: #262626;
+  --color-neutral-900: #171717;
+
+  /* Signal */
+  --color-success: hsl(152deg 69% 40%);
+  --color-warning: hsl(45deg 100% 51%);
+  --color-error: hsl(0deg 84% 60%);
+
+  /* Typography */
+  --font-family-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  /* Border Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px rgb(0 0 0 / 0.07);
+  --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.1);
+}

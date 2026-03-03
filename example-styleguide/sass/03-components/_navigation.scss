@@ -1,0 +1,53 @@
+/*
+Navigation
+
+Markdown: sass/03-components/navigation.md
+
+Status: Feedback
+
+Figma: https://embed.figma.com/design/abc123/Example?node-id=1-2&embed-host=share
+
+Markup: <insert-vite-pug src="templates/source/03-components/navigation.pug"></insert-vite-pug>
+
+Styleguide 3.30
+*/
+
+.c-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  background-color: #fff;
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.c-nav__brand {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-neutral-900);
+  text-decoration: none;
+}
+
+.c-nav__list {
+  display: flex;
+  gap: var(--space-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.c-nav__link {
+  color: var(--color-neutral-800);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.c-nav__link--active {
+  color: var(--color-primary);
+}
