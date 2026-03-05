@@ -79,6 +79,18 @@ interface CommentRegex {
   multiFinish: RegExp
 }
 
+// Static regexes hoisted to module level to avoid recompilation
+const MODIFIER_LINE_REGEX = /^\s*(?:\S.*?|[\t\v\f \xA0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF])\s+-\s/
+const COMMENT_REGEX: CommentRegex = {
+  single: /^\s*\/\/.*$/,
+  docblockStart: /^\s*\/\*\*\s*$/,
+  multiStart: /^\s*\/\*+\s*$/,
+  multiFinish: /^\s*\*\/\s*$/,
+}
+const REFERENCE_REGEX = /^style\s?guide\s?[-:]?\s?/i
+const prefixRegexCache = new Map<string, RegExp>()
+const propertyRegexCache = new Map<string, RegExp>()
+
 /**
  * Convert colors doc block to a collection of color objects
  */
@@ -211,6 +223,7 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
         if (reference) {
           newSection.reference = reference
           paragraphs.splice(i, 1)
+          break
         }
       }
 
@@ -254,7 +267,7 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
         let lastModifier = 0
 
         for (let j = 0; j < numModifierLines; j++) {
-          if (rawModifiers[j].match(/^\s*(?:\S.*?|[\t\v\f \xA0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF])\s+-\s/g)) {
+          if (MODIFIER_LINE_REGEX.test(rawModifiers[j])) {
             lastModifier = j
           }
           else if (j === 0) {
@@ -262,7 +275,7 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
             j = numModifierLines
           }
           else {
-            rawModifiers[lastModifier] += ` ${rawModifiers[j].replace(/^\s+|\s+$/g, '')}`
+            rawModifiers[lastModifier] += ` ${rawModifiers[j].trim()}`
             rawModifiers[j] = ''
           }
         }
@@ -293,7 +306,7 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
 
       // Handle header option
       if (options.header) {
-        if (newSection.description.match(/\n{2,}/)) {
+        if (newSection.description.includes('\n\n')) {
           newSection.description = newSection.description.replace(/^.*\n{2,}/, '')
         }
         else {
@@ -312,13 +325,6 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
  * Find comment blocks in input string
  */
 function findCommentBlocks(input: string): CommentBlock[] {
-  const commentRegex: CommentRegex = {
-    single: /^\s*\/\/.*$/,
-    docblockStart: /^\s*\/\*\*\s*$/,
-    multiStart: /^\s*\/\*+\s*$/,
-    multiFinish: /^\s*\*\/\s*$/,
-  }
-
   input = input.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 
   const blocks: CommentBlock[] = []
@@ -329,6 +335,7 @@ function findCommentBlocks(input: string): CommentBlock[] {
   }
 
   let indentAmount: string | false = false
+  let indentRegex: RegExp | null = null
   let insideSingleBlock = false
   let insideMultiBlock = false
   let insideDocblock = false
@@ -337,9 +344,9 @@ function findCommentBlocks(input: string): CommentBlock[] {
   const lines = input.split('\n')
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].replace(/\s*$/, '')
+    const line = lines[i].trimEnd()
 
-    if (!insideMultiBlock && !insideDocblock && line.match(commentRegex.single)) {
+    if (!insideMultiBlock && !insideDocblock && COMMENT_REGEX.single.test(line)) {
       block.raw += `${line}\n`
       block.text += `${line.replace(/^\s*\/\/\s?/, '')}\n`
       if (!insideSingleBlock) {
@@ -349,18 +356,19 @@ function findCommentBlocks(input: string): CommentBlock[] {
       continue
     }
 
-    if (insideSingleBlock || (insideMultiBlock || insideDocblock) && line.match(commentRegex.multiFinish)) {
+    if (insideSingleBlock || (insideMultiBlock || insideDocblock) && COMMENT_REGEX.multiFinish.test(line)) {
       const doneWithCurrentLine = !insideSingleBlock
       block.text = block.text.replace(/^\n+/, '').replace(/\n+$/, '')
       blocks.push({ ...block })
       insideMultiBlock = insideDocblock = insideSingleBlock = false
       indentAmount = false
+      indentRegex = null
       block = { line: 0, text: '', raw: '' }
       if (doneWithCurrentLine)
         continue
     }
 
-    if (line.match(commentRegex.docblockStart)) {
+    if (COMMENT_REGEX.docblockStart.test(line)) {
       insideDocblock = true
       block.raw += `${line}\n`
       block.line = i + 1
@@ -373,7 +381,7 @@ function findCommentBlocks(input: string): CommentBlock[] {
       continue
     }
 
-    if (line.match(commentRegex.multiStart)) {
+    if (COMMENT_REGEX.multiStart.test(line)) {
       insideMultiBlock = true
       block.raw += `${line}\n`
       block.line = i + 1
@@ -386,8 +394,9 @@ function findCommentBlocks(input: string): CommentBlock[] {
         if (line === '')
           continue
         indentAmount = line.match(/^\s*/)![0]
+        indentRegex = new RegExp(`^${indentAmount}`)
       }
-      block.text += `${line.replace(new RegExp(`^${indentAmount}`), '')}\n`
+      block.text += `${line.replace(indentRegex!, '')}\n`
     }
   }
 
@@ -440,10 +449,9 @@ function createParameters(rawParameters: string[]): Parameter[] {
  */
 function findReference(text: string): string | false {
   text = text.trim().replace(/\s+/g, ' ')
-  const regex = /^style\s?guide\s?[-:]?\s?/i
 
-  if (regex.test(text)) {
-    return text.replace(regex, '')
+  if (REFERENCE_REGEX.test(text)) {
+    return text.replace(REFERENCE_REGEX, '')
   }
   return false
 }
@@ -462,10 +470,13 @@ function processProperty(
 
   for (let i = 0; i < paragraphs.length; i++) {
     if (hasPrefix(paragraphs[i], propertyName)) {
-      let value: unknown = paragraphs[i].replace(
-        new RegExp(`^\\s*${propertyName}\\:\\s+?`, 'gim'),
-        '',
-      )
+      let propRegex = propertyRegexCache.get(propertyName)
+      if (!propRegex) {
+        propRegex = new RegExp(`^\\s*${propertyName}\\:\\s+?`, 'gim')
+        propertyRegexCache.set(propertyName, propRegex)
+      }
+      propRegex.lastIndex = 0
+      let value: unknown = paragraphs[i].replace(propRegex, '')
       if (typeof processValue === 'function') {
         value = processValue(value as string)
       }
@@ -484,7 +495,13 @@ function processProperty(
  * Check if description has a specific prefix
  */
 function hasPrefix(description: string, prefix: string): boolean {
-  return new RegExp(`^\\s*${prefix}\\:`, 'gim').test(description)
+  let regex = prefixRegexCache.get(prefix)
+  if (!regex) {
+    regex = new RegExp(`^\\s*${prefix}\\:`, 'gim')
+    prefixRegexCache.set(prefix, regex)
+  }
+  regex.lastIndex = 0
+  return regex.test(description)
 }
 
 function extractMarkdownPath(input: string): string | null {
