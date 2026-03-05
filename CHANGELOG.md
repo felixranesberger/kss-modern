@@ -14,6 +14,7 @@
 
 ### Performance Improvements
 
+* **parser:** cache and hoist regex objects to avoid recompilation in hot loops (~16-27% faster parsing) ([ed4b16c](https://github.com/felixranesberger/styleguide-generator/commit/ed4b16c))
 * **pug:** rewrite worker pool from poll-based busy loop to promise-based acquire/release queue (~19% faster builds) ([ab57114](https://github.com/felixranesberger/styleguide-generator/commit/ab57114))
 * **watcher:** merge separate CSS and Markdown chokidar watchers into a single watcher ([ab57114](https://github.com/felixranesberger/styleguide-generator/commit/ab57114))
 
