@@ -1,9 +1,10 @@
-import type { HighlighterCore } from 'shiki'
+import type { HighlighterCore } from '@shikijs/core'
+import { createHighlighterCore } from '@shikijs/core'
+import { createOnigurumaEngine } from '@shikijs/engine-oniguruma'
+import shikiWasm from '@shikijs/engine-oniguruma/wasm-inlined'
 import htmlLang from '@shikijs/langs/html'
 import auroraX from '@shikijs/themes/aurora-x'
 import githubLightDefault from '@shikijs/themes/github-light-default'
-import { createHighlighterCore, createOnigurumaEngine } from 'shiki'
-import shikiWasm from 'shiki/wasm'
 
 let highlighter: HighlighterCore
 
