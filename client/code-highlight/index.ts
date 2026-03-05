@@ -1,3 +1,4 @@
+import { formatHtmlComments } from './format-html-comments.ts'
 import HighlightWorker from './worker.ts?worker'
 
 const cache = new Map<string, string>()
@@ -66,6 +67,8 @@ export async function highlightCode(element: HTMLElement, modifierClass?: string
   if (modifierClass) {
     source = source.replaceAll('{{modifier_class}}', modifierClass)
   }
+
+  source = formatHtmlComments(source)
 
   let code = ''
   const cacheKey = `${lang}:::${source}`
