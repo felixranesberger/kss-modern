@@ -428,14 +428,17 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
     <!-- Preview Box -->
     <div class="mt-4 overflow-hidden rounded-2xl border border-styleguide-border">
         <div class="w-full border-b p-6 bg-styleguide-bg-highlight border-styleguide-border">
-            <iframe
-                  id="preview-fullpage-${sectionSanitizeId(section.id)}"
-                  src="/${section.fullpageFileName}"
-                  class="preview-iframe"
-                  data-preview="true"
-                  title="${section.header} Preview"
-                  scrolling="no"
-            ></iframe>
+            <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none">
+                <iframe
+                      id="preview-fullpage-${sectionSanitizeId(section.id)}"
+                      src="/${section.fullpageFileName}"
+                      class="preview-iframe"
+                      data-preview="true"
+                      title="${section.header} Preview"
+                      scrolling="no"
+                ></iframe>
+                <div class="preview-resize-handle absolute top-0 right-0 w-3 h-full cursor-col-resize hidden md:flex items-center justify-center touch-none after:content-[''] after:w-1 after:h-[80%] after:rounded-full after:bg-current after:opacity-0 after:transition-opacity after:duration-150 group-hover/resize:after:opacity-[0.12] hover:after:opacity-[0.3] group-[.is-resized]/resize:after:opacity-[0.12] group-[.is-resizing]/resize:after:opacity-[0.3]" aria-hidden="true"></div>
+            </div>
         </div>
 
         <!-- Code -->
@@ -581,14 +584,17 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
                         </a>
                     </div>
     
-                    <iframe
-                          src="/${section.fullpageFileName}"
-                          class="preview-iframe mt-2"
-                          data-preview="true"
-                          data-modifier="${modifier.value}"
-                          title="${section.header} Preview - Modifier: ${modifier.value}"
-                          scrolling="no"
-                    ></iframe>
+                    <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none mt-2">
+                        <iframe
+                              src="/${section.fullpageFileName}"
+                              class="preview-iframe"
+                              data-preview="true"
+                              data-modifier="${modifier.value}"
+                              title="${section.header} Preview - Modifier: ${modifier.value}"
+                              scrolling="no"
+                        ></iframe>
+                        <div class="preview-resize-handle absolute top-0 right-0 w-3 h-full cursor-col-resize hidden md:flex items-center justify-center touch-none after:content-[''] after:w-1 after:h-[80%] after:rounded-full after:bg-current after:opacity-0 after:transition-opacity after:duration-150 group-hover/resize:after:opacity-[0.12] hover:after:opacity-[0.3] group-[.is-resized]/resize:after:opacity-[0.12] group-[.is-resizing]/resize:after:opacity-[0.3]" aria-hidden="true"></div>
+                    </div>
                 </div>
             </li>
           `).join('\n')}
