@@ -1,6 +1,3 @@
-// eslint-disable-next-line ts/ban-ts-comment
-// @ts-nocheck
-
 import type { StyleguideConfiguration } from './index.ts'
 import path from 'node:path'
 import { parseMarkdown } from './markdown'
@@ -33,17 +30,18 @@ interface Section {
   deprecated?: boolean
   experimental?: boolean
   colors?: ColorObject[]
+  icons?: IconObject[]
   figma?: string
   status?: string
   wrapper?: string
   htmlclass?: string
   bodyclass?: string
+  weight?: number
   source: {
     filename: string
     path: string
     line: number
   }
-  [key: string]: any // For custom properties
 }
 
 interface Modifier {
@@ -221,19 +219,20 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
       }
 
       // Process properties
-      processProperty.call(newSection, paragraphs, 'Colors', parseColors)
-      processProperty.call(newSection, paragraphs, 'Wrapper', x => x.trim())
-      processProperty.call(newSection, paragraphs, 'htmlclass', x => x.trim())
-      processProperty.call(newSection, paragraphs, 'bodyclass', x => x.trim())
-      processProperty.call(newSection, paragraphs, 'Icons', parseIcons)
-      processProperty.call(newSection, paragraphs, 'Figma', x => x.trim())
-      processProperty.call(newSection, paragraphs, 'Status', x => x.trim().toLowerCase())
-      processProperty.call(newSection, paragraphs, 'Markup')
-      processProperty.call(newSection, paragraphs, 'Weight', toFloat)
+      const sectionRecord = newSection as unknown as Record<string, unknown>
+      processProperty(sectionRecord, paragraphs, 'Colors', parseColors)
+      processProperty(sectionRecord, paragraphs, 'Wrapper', x => x.trim())
+      processProperty(sectionRecord, paragraphs, 'htmlclass', x => x.trim())
+      processProperty(sectionRecord, paragraphs, 'bodyclass', x => x.trim())
+      processProperty(sectionRecord, paragraphs, 'Icons', parseIcons)
+      processProperty(sectionRecord, paragraphs, 'Figma', x => x.trim())
+      processProperty(sectionRecord, paragraphs, 'Status', x => x.trim().toLowerCase())
+      processProperty(sectionRecord, paragraphs, 'Markup')
+      processProperty(sectionRecord, paragraphs, 'Weight', toFloat)
 
       // Process custom properties
-      for (const customProperty of options.custom) {
-        processProperty.call(newSection, paragraphs, customProperty)
+      for (const customProperty of options.custom!) {
+        processProperty(sectionRecord, paragraphs, customProperty)
       }
 
       // Process section content
@@ -246,16 +245,16 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
       else {
         newSection.header = paragraphs[0]
         const possibleModifiers = paragraphs.pop() || ''
-        newSection.modifiers = possibleModifiers.split('\n')
+        let rawModifiers = possibleModifiers.split('\n')
         newSection.description = paragraphs.join('\n\n')
 
         // Process modifiers
-        const numModifierLines = newSection.modifiers.length
+        const numModifierLines = rawModifiers.length
         let hasModifiers = true
         let lastModifier = 0
 
         for (let j = 0; j < numModifierLines; j++) {
-          if (newSection.modifiers[j].match(/^\s*(?:\S.*?|[\t\v\f \xA0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF])\s+-\s/g)) {
+          if (rawModifiers[j].match(/^\s*(?:\S.*?|[\t\v\f \xA0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF])\s+-\s/g)) {
             lastModifier = j
           }
           else if (j === 0) {
@@ -263,19 +262,19 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
             j = numModifierLines
           }
           else {
-            newSection.modifiers[lastModifier] += ` ${newSection.modifiers[j].replace(/^\s+|\s+$/g, '')}`
-            newSection.modifiers[j] = ''
+            rawModifiers[lastModifier] += ` ${rawModifiers[j].replace(/^\s+|\s+$/g, '')}`
+            rawModifiers[j] = ''
           }
         }
 
-        newSection.modifiers = newSection.modifiers.filter(line => line !== '')
+        rawModifiers = rawModifiers.filter(line => line !== '')
 
         if (hasModifiers) {
           if (newSection.markup) {
-            newSection.modifiers = createModifiers(newSection.modifiers)
+            newSection.modifiers = createModifiers(rawModifiers)
           }
           else {
-            newSection.parameters = createParameters(newSection.modifiers)
+            newSection.parameters = createParameters(rawModifiers)
             newSection.modifiers = []
           }
         }
@@ -453,23 +452,24 @@ function findReference(text: string): string | false {
  * Process a property in the comment block
  */
 function processProperty(
-  this: Section,
+  section: Record<string, unknown>,
   paragraphs: string[],
   propertyName: string,
-  processValue?: (value: string) => any,
+  processValue?: (value: string) => unknown,
 ): void {
   let indexToRemove: number | false = false
   propertyName = propertyName.toLowerCase()
 
   for (let i = 0; i < paragraphs.length; i++) {
     if (hasPrefix(paragraphs[i], propertyName)) {
-      this[propertyName] = paragraphs[i].replace(
+      let value: unknown = paragraphs[i].replace(
         new RegExp(`^\\s*${propertyName}\\:\\s+?`, 'gim'),
         '',
       )
       if (typeof processValue === 'function') {
-        this[propertyName] = processValue(this[propertyName])
+        value = processValue(value as string)
       }
+      section[propertyName] = value
       indexToRemove = i
       break
     }
@@ -629,12 +629,13 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
     if (isFirstLevelSection) {
       const { description, hasMarkdownDescription } = await computeDescription(section.description, 1)
 
-      const isSectionIdDuplicated = !!output[sectionIds[0]]
+      const firstIndex = Number(sectionIds[0])
+      const isSectionIdDuplicated = !!output[firstIndex]
       if (isSectionIdDuplicated) {
         overwrittenSectionsIds.push(section.reference)
       }
 
-      output[sectionIds[0]] = {
+      output[firstIndex] = {
         id: section.reference,
         sectionLevel: 'first',
         header: section.header,
@@ -659,7 +660,8 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
       }
     }
     else {
-      const firstLevelParentSection = output[sectionIds[0]]
+      const firstIndex = Number(sectionIds[0])
+      const firstLevelParentSection = output[firstIndex]
       if (!firstLevelParentSection)
         throw new Error(`First level parent section ${firstLevelParentSection} not found for section ${section.reference}`)
 
@@ -667,14 +669,15 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
       const isThirdLevelSection = sectionIds.length >= 3
 
       if (isThirdLevelSection) {
-        const secondLevelParentSection = firstLevelParentSection.sections[sectionIds[1]]
+        const secondIndex = Number(sectionIds[1])
+        const secondLevelParentSection = firstLevelParentSection.sections[secondIndex]
 
         if (!secondLevelParentSection)
           throw new Error(`Second level parent section ${sectionIds[0]}.${sectionIds[1]} not found for section ${section.reference}`)
 
         const { description, hasMarkdownDescription } = await computeDescription(section.description, 2)
 
-        const isSectionIdDuplicated = secondLevelParentSection.sections.some(s => s.id === section.reference)
+        const isSectionIdDuplicated = secondLevelParentSection.sections.some((s: in2Section) => s.id === section.reference)
         if (isSectionIdDuplicated) {
           overwrittenSectionsIds.push(section.reference)
         }
@@ -706,12 +709,13 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
       else {
         const { description, hasMarkdownDescription } = await computeDescription(section.description, 1)
 
-        const isSectionIdDuplicated = !!firstLevelParentSection.sections[sectionIds[1]]
+        const secondIndex = Number(sectionIds[1])
+        const isSectionIdDuplicated = !!firstLevelParentSection.sections[secondIndex]
         if (isSectionIdDuplicated) {
           overwrittenSectionsIds.push(section.reference)
         }
 
-        firstLevelParentSection.sections[sectionIds[1]] = {
+        firstLevelParentSection.sections[secondIndex] = {
           id: section.reference,
           sectionLevel: 'second',
           header: section.header,

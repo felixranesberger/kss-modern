@@ -1,0 +1,66 @@
+/*
+Alert
+
+Markdown: Contextual feedback messages for user actions.
+
+## Usage
+- **Info**: General information or tips
+- **Warning**: Actions that need attention
+- **Error**: Something went wrong
+
+.c-alert--warning - Warning alert
+.c-alert--error - Error alert
+
+Markup: <insert-vite-pug src="templates/source/03-components/alert.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>
+
+Styleguide 3.20
+*/
+
+.c-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: hsl(200deg 80% 95%);
+  border-left: 4px solid var(--color-primary);
+  font-size: var(--font-size-sm);
+}
+
+.c-alert__icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-primary);
+}
+
+.c-alert__content {
+  flex: 1;
+}
+
+.c-alert__close {
+  flex-shrink: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-neutral-500);
+}
+
+.c-alert--warning {
+  background-color: hsl(45deg 100% 94%);
+  border-left-color: var(--color-warning);
+
+  .c-alert__icon {
+    color: var(--color-warning);
+  }
+}
+
+.c-alert--error {
+  background-color: hsl(0deg 84% 96%);
+  border-left-color: var(--color-error);
+
+  .c-alert__icon {
+    color: var(--color-error);
+  }
+}

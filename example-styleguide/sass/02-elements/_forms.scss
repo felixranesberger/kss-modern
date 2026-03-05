@@ -1,0 +1,63 @@
+/*
+Form Elements
+
+Markdown: Standard form elements including text inputs, selects, textareas, and checkboxes.
+Uses native browser validation via `:user-invalid` where possible.
+
+## Accessibility
+- All inputs require associated `<label>` elements
+- Error messages are linked via `aria-describedby`
+
+Status: Complete
+
+Markup: <insert-vite-pug src="templates/source/02-elements/forms.pug"></insert-vite-pug>
+
+Styleguide 2.30
+*/
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-neutral-800);
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-base);
+  color: var(--color-neutral-900);
+  background-color: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s;
+
+  &:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+    border-color: var(--color-primary);
+  }
+}
+
+.form-textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.form-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.form-error {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+}

@@ -8,14 +8,11 @@ import { fixAccessibilityIssues } from '../utils.ts'
 
 const MAX_POOL_SIZE = os.cpus().length
 
-let workerPool: {
-  worker: Worker
-  busy: boolean
-  currentTaskId?: string
-}[] = []
+let workerPool: Worker[] = []
 
 async function terminateAllWorkers() {
-  await Promise.all(workerPool.map(({ worker }) => worker.terminate))
+  await Promise.all(workerPool.map(worker => worker.terminate()))
+  workerPool = []
 }
 
 const processCache = new Map<string, string>()
@@ -56,60 +53,60 @@ export async function compilePugMarkup(
     })
   }
 
-  // spawn workers based on files which need processing and max number of cpu cores
-  workerPool = Array.from({ length: Math.min(needsProcessingIds.length, MAX_POOL_SIZE) }, (_, index) => ({
-    worker: new Worker(workerFilePathResolved, {
-      name: `pug-worker-${index}`,
-    }),
-    busy: false,
-    currentTaskId: undefined as string | undefined,
-  }))
+  const poolSize = Math.min(needsProcessingIds.length, MAX_POOL_SIZE)
 
-  // handle worker messages
-  workerPool.forEach((workerNode) => {
-    workerNode.worker.on('message', (result: PugWorkerOutput) => {
-      if ('error' in result) {
-        console.error(result.error)
-        workerNode.busy = false
-        return
-      }
+  // Promise-based queue: waiters resolve when a worker becomes free
+  const waiters: ((worker: Worker) => void)[] = []
+  const freeWorkers: Worker[] = []
 
-      const { id, html } = result
-      clonedRepository.set(id, { markup: fixAccessibilityIssues(html) })
-      workerNode.busy = false
-    })
-  })
-
-  // process all files in the queue
-  // while we have items or some worker is still busy
-  while (needsProcessingIds.length > 0 || workerPool.some(worker => worker.busy)) {
-    if (needsProcessingIds.length === 0 && workerPool.some(worker => worker.busy)) {
-      await new Promise(resolve => setTimeout(resolve, 25))
-      continue
-    }
-
-    // Find available worker
-    const availableWorker = workerPool.find(worker => !worker.busy)
-    if (availableWorker) {
-      const id = needsProcessingIds.pop()!
-      const { markup } = clonedRepository.get(id)!
-
-      availableWorker.busy = true
-      availableWorker.currentTaskId = id
-
-      availableWorker.worker.postMessage({
-        id,
-        mode,
-        html: markup,
-        contentDir,
-      })
+  function releaseWorker(worker: Worker) {
+    const waiter = waiters.shift()
+    if (waiter) {
+      waiter(worker)
     }
     else {
-      // No worker available or no tasks - wait a bit
-      await new Promise(resolve => setTimeout(resolve, 25))
+      freeWorkers.push(worker)
     }
   }
 
+  function acquireWorker(): Promise<Worker> {
+    const worker = freeWorkers.pop()
+    if (worker) {
+      return Promise.resolve(worker)
+    }
+    return new Promise<Worker>(resolve => waiters.push(resolve))
+  }
+
+  // spawn workers
+  workerPool = Array.from({ length: poolSize }, (_, index) => {
+    const worker = new Worker(workerFilePathResolved, {
+      name: `pug-worker-${index}`,
+    })
+    freeWorkers.push(worker)
+    return worker
+  })
+
+  // process all files concurrently using the worker pool
+  const tasks = needsProcessingIds.map(async (id) => {
+    const { markup } = clonedRepository.get(id)!
+    const worker = await acquireWorker()
+
+    const result = await new Promise<PugWorkerOutput>((resolve) => {
+      worker.once('message', resolve)
+      worker.postMessage({ id, mode, html: markup, contentDir })
+    })
+
+    releaseWorker(worker)
+
+    if ('error' in result) {
+      console.error(result.error)
+      return
+    }
+
+    clonedRepository.set(id, { markup: fixAccessibilityIssues(result.html) })
+  })
+
+  await Promise.all(tasks)
   await terminateAllWorkers()
 
   return clonedRepository

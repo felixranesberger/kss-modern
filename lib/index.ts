@@ -22,15 +22,6 @@ import {
 import { compilePugMarkup } from './vite-pug'
 import { watchStyleguideForChanges } from './watcher.ts'
 
-declare global {
-  // eslint-disable-next-line vars-on-top
-  var isWatchMode: boolean
-  // eslint-disable-next-line vars-on-top
-  var styleguideConfiguration: StyleguideConfiguration
-}
-
-globalThis.isWatchMode = false
-
 export interface StyleguideConfiguration {
   mode: 'development' | 'production'
   outDir: string
@@ -79,8 +70,6 @@ interface StyleguideBuildOutput {
  * @param config - The configuration for the styleguide
  */
 export async function buildStyleguide(config: StyleguideConfiguration): Promise<StyleguideBuildOutput> {
-  globalThis.styleguideConfiguration = config
-
   // find all files in the content directory that have .css or .scss extension recursive
   // and also contain the styleguide comment
   const styleguideContentPaths = await glob(`${config.contentDir}/**/*.{css,scss}`)
@@ -242,7 +231,7 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
   })
 
   // generate all preview pages
-  const headerHtml = getHeaderHtml()
+  const headerHtml = getHeaderHtml(config)
   const searchHtml = getSearchHtml(searchSectionMapping)
   parsedContent.forEach((firstLevelSection, indexFirstLevel) => {
     firstLevelSection.sections.forEach((secondLevelSection, indexSecondLevel) => {
@@ -316,6 +305,7 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
             preloadIframes,
           },
           theme: config.theme,
+          deactivateDarkMode: config.deactivateDarkMode,
           ogImageUrl: config.plugins?.ogImage
             ? config.plugins.ogImage(secondLevelSection)
             : undefined,
@@ -368,7 +358,6 @@ export async function watchStyleguide(
   onChange?: () => void,
   onError?: (errorData: StyleguideBuildOutput['errors']) => void,
 ) {
-  globalThis.isWatchMode = true
   const initialBuild = await buildStyleguide(config)
   if (onError && initialBuild.errors) {
     onError(initialBuild.errors)
@@ -386,6 +375,8 @@ export async function watchStyleguide(
       if (onError && localBuild.errors) {
         onError(localBuild.errors)
       }
-    })()
+    })().catch((error) => {
+      console.error('[Styleguide] Error during rebuild:', error)
+    })
   })
 }

@@ -11,7 +11,7 @@ import { watchStyleguide } from './dist/node/lib/index.mjs';
   await watchStyleguide({
     mode: 'development',
     outDir: './styleguide-export',
-    contentDir: './test/',
+    contentDir: './example-styleguide/',
     projectTitle: 'Project name',
     html: {
       lang: 'de',

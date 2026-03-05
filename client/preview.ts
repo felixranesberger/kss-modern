@@ -3,7 +3,8 @@ import { highlightCode } from './code-highlight'
 import { useDialog } from './hooks/use-dialog.ts'
 import { useElementHorizontalOverflow } from './hooks/use-overflow.ts'
 import initTabs from './lib/tabs.ts'
-import './accessibility.ts'
+import { queryRequired } from './utils.ts'
+import './keyboard-shortcuts.ts'
 import './style.css'
 import './lib/menu.ts'
 import './lib/search.ts'
@@ -24,10 +25,7 @@ if (tabs.length > 0) {
 const codeDetails = document.querySelectorAll<HTMLDetailsElement>('details:has(.code-highlight)')
 if (codeDetails.length > 0) {
   codeDetails.forEach((detail) => {
-    const codeElement = detail.querySelector<HTMLElement>('.code-highlight')
-    if (!codeElement)
-      throw new Error('No code element found')
-
+    const codeElement = queryRequired<HTMLElement>('.code-highlight', detail)
     highlightCode(codeElement).catch(console.error)
   })
 }
@@ -81,17 +79,9 @@ if (copyButtons.length > 0) {
 const markdownFolded = document.querySelectorAll<HTMLElement>('.markdown-container-folded')
 if (markdownFolded.length > 0) {
   markdownFolded.forEach((container) => {
-    const markdownContainer = container.querySelector<HTMLElement>('.markdown-container')
-    if (!markdownContainer)
-      throw new Error('No markdown container found')
-
-    const showMoreContainer = container.querySelector('.markdown-show-more-container')
-    if (!showMoreContainer)
-      throw new Error('No show more container found')
-
-    const showMoreButton = container.querySelector<HTMLButtonElement>('.markdown-show-more')
-    if (!showMoreButton)
-      throw new Error('No show more button found')
+    const markdownContainer = queryRequired<HTMLElement>('.markdown-container', container)
+    const showMoreContainer = queryRequired<HTMLElement>('.markdown-show-more-container', container)
+    const showMoreButton = queryRequired<HTMLButtonElement>('.markdown-show-more', container)
 
     const { $isOverflowingVertically } = useElementHorizontalOverflow(container)
     const handleOverflow = () => {

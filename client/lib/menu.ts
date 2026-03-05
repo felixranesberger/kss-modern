@@ -1,7 +1,7 @@
+import { queryRequired } from '../utils.ts'
+
 function handleHeader() {
-  const header = document.querySelector('header')
-  if (!header)
-    throw new Error('No header found')
+  const header = queryRequired<HTMLElement>('header')
 
   const getHeaderHeight = () => header.getBoundingClientRect().height
 
@@ -14,10 +14,7 @@ function handleHeader() {
 }
 
 function handleMenuScrollbar() {
-  const asideMenu = document.querySelector<HTMLElement>('aside')
-  if (!asideMenu) {
-    throw new Error('No aside menu found')
-  }
+  const asideMenu = queryRequired<HTMLElement>('aside')
 
   // Save scroll position as a percentage when user scrolls
   asideMenu.addEventListener('scroll', (): void => {

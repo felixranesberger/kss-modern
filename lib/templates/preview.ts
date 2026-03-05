@@ -12,37 +12,37 @@ function getHasSectionExternalFullpage(section: in2Section) {
     && (section.colors === undefined || section.colors.length === 0)
 }
 
-function getLogoContent() {
-  if (!globalThis.styleguideConfiguration.logoSignet)
-    return globalThis.styleguideConfiguration.projectTitle
+function getLogoContent(config: StyleguideConfiguration) {
+  if (!config.logoSignet)
+    return config.projectTitle
 
   let signetContent = ''
 
-  if ('href' in globalThis.styleguideConfiguration.logoSignet) {
-    signetContent += `<img 
-      src="${globalThis.styleguideConfiguration.logoSignet.href}"
+  if ('href' in config.logoSignet) {
+    signetContent += `<img
+      src="${config.logoSignet.href}"
       width="24"
       height="24"
-      alt="${globalThis.styleguideConfiguration.projectTitle} Logo"
+      alt="${config.projectTitle} Logo"
     >`
   }
-  else if ('svgContent' in globalThis.styleguideConfiguration.logoSignet) {
-    signetContent += `${globalThis.styleguideConfiguration.logoSignet.svgContent}`
+  else if ('svgContent' in config.logoSignet) {
+    signetContent += `${config.logoSignet.svgContent}`
   }
 
-  signetContent += globalThis.styleguideConfiguration.projectTitle
+  signetContent += config.projectTitle
 
   return signetContent
 }
 
-export function getHeaderHtml() {
+export function getHeaderHtml(config: StyleguideConfiguration) {
   return `
 <header class="sticky top-0 z-10 mx-auto flex w-full min-[1222px]:border-x border-b pr-6 max-w-[1600px] border-styleguide-border bg-styleguide-bg-highlight">
-    <a 
-      class="mr-4 flex gap-4 items-center border-r py-4 pr-4 pl-6 border-styleguide-border w-[260px] font-semibold tracking-tight text-styleguide-theme-highlight [&>svg]:!size-6 [&>img]:!size-6" 
+    <a
+      class="mr-4 flex gap-4 items-center border-r py-4 pr-4 pl-6 border-styleguide-border w-[260px] font-semibold tracking-tight text-styleguide-theme-highlight [&>svg]:!size-6 [&>img]:!size-6"
       href="/"
     >
-        ${getLogoContent()}
+        ${getLogoContent(config)}
     </a>
 
     <div class="flex grow items-center justify-end py-4 md:justify-between">
@@ -67,7 +67,7 @@ export function getHeaderHtml() {
         </button>
 
         <div class="flex gap-4">
-          ${globalThis.styleguideConfiguration.launchInEditor
+          ${config.launchInEditor
             ? `
               <form class="hidden editor-select md:block">
                 <fieldset class="flex items-center rounded-3xl border border-styleguide-border">
@@ -107,7 +107,7 @@ export function getHeaderHtml() {
             `
             : ``}
         
-          ${!(globalThis.styleguideConfiguration.deactivateDarkMode ?? false)
+          ${!(config.deactivateDarkMode ?? false)
             ? `
               <form class="hidden theme-select md:block">
                 <fieldset class="flex items-center rounded-3xl border border-styleguide-border">
@@ -428,14 +428,17 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
     <!-- Preview Box -->
     <div class="mt-4 overflow-hidden rounded-2xl border border-styleguide-border">
         <div class="w-full border-b p-6 bg-styleguide-bg-highlight border-styleguide-border">
-            <iframe
-                  id="preview-fullpage-${sectionSanitizeId(section.id)}"
-                  src="/${section.fullpageFileName}"
-                  class="preview-iframe"
-                  data-preview="true"
-                  title="${section.header} Preview"
-                  scrolling="no"
-            ></iframe>
+            <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none">
+                <iframe
+                      id="preview-fullpage-${sectionSanitizeId(section.id)}"
+                      src="/${section.fullpageFileName}"
+                      class="preview-iframe"
+                      data-preview="true"
+                      title="${section.header} Preview"
+                      scrolling="no"
+                ></iframe>
+                <div class="preview-resize-handle absolute top-0 right-0 w-3 h-full cursor-col-resize hidden md:flex items-center justify-center touch-none after:content-[''] after:w-1 after:h-[80%] after:rounded-full after:bg-current after:opacity-0 after:transition-opacity after:duration-150 group-hover/resize:after:opacity-[0.12] hover:after:opacity-[0.3] group-[.is-resized]/resize:after:opacity-[0.12] group-[.is-resizing]/resize:after:opacity-[0.3]" aria-hidden="true"></div>
+            </div>
         </div>
 
         <!-- Code -->
@@ -581,14 +584,17 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
                         </a>
                     </div>
     
-                    <iframe
-                          src="/${section.fullpageFileName}"
-                          class="preview-iframe mt-2"
-                          data-preview="true"
-                          data-modifier="${modifier.value}"
-                          title="${section.header} Preview - Modifier: ${modifier.value}"
-                          scrolling="no"
-                    ></iframe>
+                    <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none mt-2">
+                        <iframe
+                              src="/${section.fullpageFileName}"
+                              class="preview-iframe"
+                              data-preview="true"
+                              data-modifier="${modifier.value}"
+                              title="${section.header} Preview - Modifier: ${modifier.value}"
+                              scrolling="no"
+                        ></iframe>
+                        <div class="preview-resize-handle absolute top-0 right-0 w-3 h-full cursor-col-resize hidden md:flex items-center justify-center touch-none after:content-[''] after:w-1 after:h-[80%] after:rounded-full after:bg-current after:opacity-0 after:transition-opacity after:duration-150 group-hover/resize:after:opacity-[0.12] hover:after:opacity-[0.3] group-[.is-resized]/resize:after:opacity-[0.12] group-[.is-resizing]/resize:after:opacity-[0.3]" aria-hidden="true"></div>
+                    </div>
                 </div>
             </li>
           `).join('\n')}
@@ -881,6 +887,7 @@ export async function generatePreviewFile(data: {
     preloadIframes: string[]
   }
   theme: StyleguideConfiguration['theme']
+  deactivateDarkMode?: boolean
   ogImageUrl?: string
 }) {
   const computedScriptTags = data.js
@@ -937,7 +944,7 @@ export async function generatePreviewFile(data: {
         }
     </style>
 </head>
-<body class="relative min-h-screen antialiased text-styleguide${globalThis.styleguideConfiguration.deactivateDarkMode ? ' theme-light' : ''}">
+<body class="relative min-h-screen antialiased text-styleguide${data.deactivateDarkMode ? ' theme-light' : ''}">
     ${data.html.header}
   
     <main class="relative flex h-full min-h-screen min-[1222px]:border-x min-[1220px]:mx-auto max-w-[1600px] border-styleguide-border">

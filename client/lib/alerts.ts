@@ -1,13 +1,12 @@
 import { debounce } from '@antfu/utils'
 import { animate } from 'motion'
+import { queryRequired } from '../utils.ts'
 import { PausableInterval } from '../utils/pausable-interval.ts'
 import { signal } from './signal.ts'
 
 const ALERT_INTERVAL = 3000
 
-const alertContainer = document.querySelector('#alerts')
-if (!alertContainer)
-  throw new Error('Alert container not found')
+const alertContainer = queryRequired<HTMLElement>('#alerts')
 
 const animations: {
   element: HTMLDivElement

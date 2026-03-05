@@ -1,0 +1,38 @@
+/*
+Links
+
+Wrapper: <nav aria-label="Link examples"><wrapper-content/></nav>
+
+Markup: <p><a href="#">Inline link in text</a> — followed by more content.</p>
+  <a class="link--standalone" href="#">Standalone Link <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+  <p><a class="link--external" href="https://example.com" target="_blank" rel="noopener">External link</a></p>
+
+Styleguide 2.40
+*/
+
+a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--color-primary-dark);
+  }
+}
+
+.link--external::after {
+  content: ' \2197';
+}
+
+.link--standalone {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

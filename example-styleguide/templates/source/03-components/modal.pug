@@ -1,0 +1,11 @@
+button.btn.c-modal__trigger Open Modal
+
+template#modal-template
+  .c-modal
+    .c-modal__backdrop
+    .c-modal__dialog(role="dialog" aria-labelledby="modal-title")
+      h2#modal-title.c-modal__title Modal Title
+      p.c-modal__body This is a modal component rendered from a template tag.
+      .c-modal__actions
+        button.btn.btn--primary Confirm
+        button.btn Cancel

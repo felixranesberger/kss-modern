@@ -1,4 +1,5 @@
 import { animate, spring } from 'motion'
+import { queryRequired } from '../utils.ts'
 
 export default (input: HTMLInputElement, list: HTMLUListElement, inputReset: HTMLButtonElement) => {
   input.addEventListener('input', () => {
@@ -21,13 +22,8 @@ export default (input: HTMLInputElement, list: HTMLUListElement, inputReset: HTM
 
   const listItems = list.querySelectorAll<HTMLLIElement>('.icon-search-list__item')
   listItems.forEach((item) => {
-    const copyButton = item.querySelector<HTMLButtonElement>('.icon-search-list__item-copy')
-    if (!copyButton)
-      throw new Error('No copy button found')
-
-    const icon = item.querySelector<SVGElement>('svg:not(.icon-search-list__item-copy-icon), i')
-    if (!icon)
-      throw new Error('No icon found')
+    const copyButton = queryRequired<HTMLButtonElement>('.icon-search-list__item-copy', item)
+    const icon = queryRequired<SVGElement>('svg:not(.icon-search-list__item-copy-icon), i', item)
 
     const iconContent = icon.outerHTML
     // replace new lines
@@ -36,9 +32,7 @@ export default (input: HTMLInputElement, list: HTMLUListElement, inputReset: HTM
       .replace(/\s{2,}/g, ' ')
       .trim()
 
-    const copyIcon = item.querySelector<SVGElement>('.icon-search-list__item-copy-icon')
-    if (!copyIcon)
-      throw new Error('No copy icon found')
+    const copyIcon = queryRequired<SVGElement>('.icon-search-list__item-copy-icon', item)
 
     copyButton.addEventListener('click', async () => {
       copyButton.setAttribute('disabled', '')

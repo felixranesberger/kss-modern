@@ -56,9 +56,9 @@ export function fixAccessibilityIssues(html: string): string {
  */
 export function sanitizeSpecialCharacters(text: string): string {
   return text
-    .replaceAll('>', '&gt;')
-    .replaceAll('<', '&lt;')
     .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll('\'', '&#039;')
 }

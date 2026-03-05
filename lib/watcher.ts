@@ -6,6 +6,26 @@ import chokidar from 'chokidar'
  */
 type WatchCallback = () => void
 
+const VALID_CSS_FILE_TYPES = ['.css', '.scss', '.sass', '.less']
+
+function isCssFile(filePath: string): boolean {
+  return VALID_CSS_FILE_TYPES.some(type => filePath.endsWith(type))
+}
+
+function isMarkdownFile(filePath: string): boolean {
+  return filePath.endsWith('.md')
+}
+
+function matchArraysEqual(a: RegExpMatchArray | null, b: RegExpMatchArray | null): boolean {
+  if (a === null && b === null)
+    return true
+  if (a === null || b === null)
+    return false
+  if (a.length !== b.length)
+    return false
+  return a.every((value, index) => value === b[index])
+}
+
 /**
  * Watches for changes in file contents that match a specific regex pattern
  * @param path - File path or glob pattern to watch
@@ -20,11 +40,7 @@ function watchForFileContentChanges(path: string | string[], regex: RegExp, call
   // Store file contents matches in a Map
   const regexFileContents = new Map<string, RegExpMatchArray | null>()
 
-  /**
-   * Register initial file content matches
-   * @param filePath - Path to the file being processed
-   */
-  const registerCSSFileContentMatches = (filePath: string): void => {
+  const handleCSSAdd = (filePath: string): void => {
     const currentFileContent = readFileSync(filePath, 'utf8')
     const currentFileMatches = currentFileContent.match(regex)
 
@@ -36,11 +52,7 @@ function watchForFileContentChanges(path: string | string[], regex: RegExp, call
     callback()
   }
 
-  /**
-   * Handle changes in file content
-   * @param filePath - Path to the changed file
-   */
-  const handleCSSContentChanges = (filePath: string): void => {
+  const handleCSSChange = (filePath: string): void => {
     const previousFileMatches = regexFileContents.get(filePath)
     const hasFileBeenReadBefore = previousFileMatches !== undefined
 
@@ -56,8 +68,7 @@ function watchForFileContentChanges(path: string | string[], regex: RegExp, call
       return
     }
 
-    const haveFileMatchesChanged = JSON.stringify(previousFileMatches) !== JSON.stringify(currentFileMatches)
-    if (!haveFileMatchesChanged) {
+    if (matchArraysEqual(previousFileMatches, currentFileMatches)) {
       return
     }
 
@@ -65,39 +76,38 @@ function watchForFileContentChanges(path: string | string[], regex: RegExp, call
     callback()
   }
 
-  /**
-   * Handle file removal
-   * @param filePath - Path to the removed file
-   */
-  const handleCSSFileRemoval = (filePath: string): void => {
+  const handleCSSUnlink = (filePath: string): void => {
     regexFileContents.delete(filePath)
     callback()
   }
 
-  // Set up file watcher for css files
-  const validCSSFileTypes = ['.css', '.scss', '.sass', '.less']
+  // Single watcher with file-extension routing in handlers
+  const validFileTypes = [...VALID_CSS_FILE_TYPES, '.md']
   chokidar.watch(path, {
     ignoreInitial: true,
     // @ts-expect-error - chokidar types seem to be incomplete, ignore
     ignored: (path, stats) => {
-      return stats?.isFile() && !validCSSFileTypes.some(type => path.endsWith(type))
+      return stats?.isFile() && !validFileTypes.some(type => path.endsWith(type))
     },
   })
-    .on('add', registerCSSFileContentMatches)
-    .on('change', handleCSSContentChanges)
-    .on('unlink', handleCSSFileRemoval)
-
-  // watch Markdown documents
-  chokidar.watch(path, {
-    ignoreInitial: true,
-    // @ts-expect-error - chokidar types seem to be incomplete, ignore
-    ignored: (path, stats) => {
-      return stats?.isFile() && !path.endsWith('.md')
-    },
-  })
-    .on('add', callback)
-    .on('change', callback)
-    .on('unlink', callback)
+    .on('add', (filePath: string) => {
+      if (isCssFile(filePath))
+        handleCSSAdd(filePath)
+      else if (isMarkdownFile(filePath))
+        callback()
+    })
+    .on('change', (filePath: string) => {
+      if (isCssFile(filePath))
+        handleCSSChange(filePath)
+      else if (isMarkdownFile(filePath))
+        callback()
+    })
+    .on('unlink', (filePath: string) => {
+      if (isCssFile(filePath))
+        handleCSSUnlink(filePath)
+      else if (isMarkdownFile(filePath))
+        callback()
+    })
 }
 
 /**

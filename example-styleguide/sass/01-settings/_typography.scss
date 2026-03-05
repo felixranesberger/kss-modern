@@ -1,0 +1,28 @@
+/*
+Typography
+
+Markdown: The typography system uses a modular scale based on CSS custom properties.
+Font sizes are responsive and adjust at the `tablet` breakpoint.
+
+## Font Families
+- **Sans-Serif**: System font stack for body text
+- **Monospace**: Used for code blocks and technical content
+
+## Scale
+Sizes range from `--font-size-xs` (0.75rem) to `--font-size-3xl` (3rem).
+
+Styleguide 1.20
+*/
+
+body {
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--color-neutral-900);
+}
+
+code,
+pre {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}

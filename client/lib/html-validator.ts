@@ -8,13 +8,20 @@ import type {
 } from 'axe-core'
 import type { Message as HTMLValidateMessage } from 'html-validate'
 import { each, when } from '../../lib/template-utils.ts'
+import { sanitizeSpecialCharacters } from '../../lib/utils.ts'
 import { highlightCode } from '../code-highlight'
-import { id } from '../utils.ts'
+import { id, queryRequired } from '../utils.ts'
+
+interface ValidatorReference {
+  element: HTMLElement
+  templateParent?: HTMLTemplateElement
+}
 
 declare global {
   interface Window {
     validator: {
-      referenceMap: Map<string, HTMLElement>
+      referenceMap: Map<string, ValidatorReference>
+      logReference: (ref: ValidatorReference) => void
       logReferenceAlert: (element: HTMLElement) => void
     }
   }
@@ -88,19 +95,26 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
   if (!codeAuditIframeSelector)
     throw new Error('No code audit template selector provided')
 
-  const codeAuditIFrame = document.querySelector<HTMLIFrameElement>(`#${codeAuditIframeSelector}`)
-  if (!codeAuditIFrame)
-    throw new Error('Code audit template not found')
+  const codeAuditIFrame = queryRequired<HTMLIFrameElement>(`#${codeAuditIframeSelector}`)
 
   if (!codeAuditIFrame.contentWindow)
     throw new Error('Code audit iframe has no content window')
 
-  const resultsList = auditResultDialog.querySelector<HTMLDivElement>('.audit-results')
-  if (!resultsList)
-    throw new Error('No audit results list found')
+  const resultsList = queryRequired<HTMLDivElement>('.audit-results', auditResultDialog)
 
   window.validator = {
-    referenceMap: new Map<string, HTMLElement>(),
+    referenceMap: new Map<string, ValidatorReference>(),
+    logReference: (ref: ValidatorReference) => {
+      if (ref.templateParent) {
+        console.group('%cElement inside <template>', styles.header)
+        console.info('%c<template>:', styles.elementStyle, ref.templateParent)
+        console.info('%cAffected element:', styles.elementStyle, ref.element)
+        console.groupEnd()
+      }
+      else {
+        console.info(ref.element)
+      }
+    },
     logReferenceAlert: (element: HTMLElement) => {
       const initialText = element.textContent
       element.textContent = 'Logged to console'
@@ -241,6 +255,17 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       return aIndex - bIndex
     })
 
+    const findTemplateParent = (element: HTMLElement): HTMLTemplateElement | undefined => {
+      if (element.isConnected)
+        return undefined
+
+      const templates = codeAuditIFrame.contentDocument?.querySelectorAll<HTMLTemplateElement>('template')
+      if (!templates)
+        return undefined
+
+      return Array.from(templates).find(t => t.content.contains(element))
+    }
+
     const renderNodeAxe = (node: ResultNodeAxe) => {
       const elements = node.target
         .map(selector => axeTargetMap.get(selector))
@@ -252,12 +277,15 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       return `
         ${each(elements, (element) => {
           const refId = id.next().value
-          window.validator.referenceMap.set(refId, element)
+          const ref: ValidatorReference = { element }
+          ref.templateParent = findTemplateParent(element)
+
+          window.validator.referenceMap.set(refId, ref)
 
           return `
-            <button 
+            <button
                 class="block font-mono py-1.5 text-[13px] text-blue-600 text-sm cursor-pointer text-left"
-                onclick="console.log(window.validator.referenceMap.get('${refId}')); window.validator.logReferenceAlert(this)"
+                onclick="window.validator.logReference(window.validator.referenceMap.get('${refId}')); window.validator.logReferenceAlert(this)"
               >
                 ${node.target.join(' ')}
             </button>
@@ -267,27 +295,22 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     }
 
     const renderNodeHtmlValidate = (node: ResultNodeHTMLValidate) => {
-      let element = codeAuditIFrame.contentWindow?.querySelectorAnywhere(node.selector) as HTMLElement | null | undefined
-
-      // If the element is inside a <template>, point to the template element itself
-      if (element && !element.isConnected) {
-        const templates = codeAuditIFrame.contentDocument?.querySelectorAll<HTMLTemplateElement>('template')
-        element = templates
-          ? Array.from(templates).find(t => t.content.contains(element!)) ?? null
-          : null
-      }
+      const element = codeAuditIFrame.contentWindow?.querySelectorAnywhere(node.selector) as HTMLElement | null | undefined
 
       if (!element)
         throw new Error(`Element not found for selector: ${node.selector}`)
 
+      const ref: ValidatorReference = { element }
+      ref.templateParent = findTemplateParent(element)
+
       const refId = id.next().value
-      window.validator.referenceMap.set(refId, element)
+      window.validator.referenceMap.set(refId, ref)
 
       return `
         <button
             type="button"
             class="block font-mono py-1.5 text-[13px] text-blue-600 text-sm cursor-pointer text-left"
-            onclick="console.log(window.validator.referenceMap.get('${refId}')); window.validator.logReferenceAlert(this)"
+            onclick="window.validator.logReference(window.validator.referenceMap.get('${refId}')); window.validator.logReferenceAlert(this)"
           >
             ${node.selector}
         </button>
@@ -323,9 +346,11 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
                       </summary>
                       
                       <div class="pt-2 pb-6 text-sm code-audit-container">
-                        <p class="mb-3">
-                            ${result.description}
-                        </p>
+                        <div class="markdown-container mb-3">
+                            <p>
+                                ${sanitizeSpecialCharacters(result.description).replace(/`([^`]+)`/g, '<code>$1</code>')}
+                            </p>
+                        </div>
                         
                         <p class="mb-3 pb-3 border-b border-styleguide-border">
                           <a 

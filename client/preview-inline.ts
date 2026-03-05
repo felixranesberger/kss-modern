@@ -1,3 +1,4 @@
+import { initResizeHandles } from './lib/iframe-resize.ts'
 import initPreviewIframes, { removeDocumentLoadingClass } from './lib/iframe.ts'
 import { handleThemeSelect } from './lib/theme-select'
 
@@ -14,4 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
   else {
     removeDocumentLoadingClass()
   }
+
+  initResizeHandles()
 })
