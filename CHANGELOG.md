@@ -26,6 +26,7 @@
 
 ### Documentation
 
+* rewrite README with project overview, quick start, and links to docs/changelog ([3f710ca](https://github.com/felixranesberger/styleguide-generator/commit/3f710ca))
 * add setup and usage guides ([cc92a0f](https://github.com/felixranesberger/styleguide-generator/commit/cc92a0f))
 * add example styleguide with documented components ([65e05e4](https://github.com/felixranesberger/styleguide-generator/commit/65e05e4))
 
