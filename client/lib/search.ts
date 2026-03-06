@@ -1,5 +1,6 @@
 import type { MenuSearchKeywords } from '../../lib/templates/preview.ts'
 import { useDialog } from '../hooks/use-dialog.ts'
+import { signal } from '../lib/signal.ts'
 import { queryRequired } from '../utils.ts'
 
 const dialog = queryRequired<HTMLDialogElement>('#search-dialog')
@@ -12,13 +13,21 @@ if (openSearchTriggers.length === 0)
 const searchInput = queryRequired<HTMLInputElement>('#search-input')
 const searchList = queryRequired<HTMLElement>('#search-list')
 
-const searchResults = document.querySelectorAll<HTMLElement>('.search-category__item--active')
-if (!searchResults)
+const allItems = document.querySelectorAll<HTMLElement>('.search-category__item')
+if (!allItems.length)
   throw new Error('No search results found')
 
 const searchNoResults = queryRequired<HTMLElement>('#search-no-results')
+const categories = document.querySelectorAll<HTMLElement>('.search-category')
+const tabs = document.querySelectorAll<HTMLButtonElement>('[data-search-tab]')
 
 const { show, close } = useDialog(dialog, dialogBackdrop)
+
+const closeButton = queryRequired<HTMLButtonElement>('#search-dialog-close', dialog)
+closeButton.addEventListener('click', () => close())
+
+const activeTab = signal<string>('all')
+const activeIndex = signal(-1)
 
 async function showDialog() {
   await show(
@@ -40,11 +49,24 @@ async function showDialog() {
   )
 }
 
+function getVisibleItems(): HTMLElement[] {
+  const items: HTMLElement[] = []
+  for (const item of allItems) {
+    if (!item.classList.contains('search-category__item--active'))
+      continue
+    const category = item.closest<HTMLElement>('.search-category')
+    if (category && category.classList.contains('search-category--hidden'))
+      continue
+    items.push(item)
+  }
+  return items
+}
+
 function handleSearchFilter() {
   const searchValue = searchInput.value.toLowerCase().trim()
   let hasSearchResults = false
 
-  searchResults.forEach((result) => {
+  allItems.forEach((result) => {
     const link = queryRequired<HTMLLinkElement>('a', result, 'No link found inside search result item')
 
     let isValidResult = false
@@ -82,11 +104,91 @@ function handleSearchFilter() {
       hasSearchResults = true
   })
 
+  // Apply tab filtering
+  const tab = activeTab.value
+  categories.forEach((category) => {
+    if (tab === 'all') {
+      category.classList.remove('search-category--hidden')
+    }
+    else {
+      const isMatch = category.getAttribute('data-category-index') === tab
+      category.classList.toggle('search-category--hidden', !isMatch)
+    }
+  })
+
+  // Recheck if any results are visible after tab filtering
+  if (tab !== 'all') {
+    hasSearchResults = getVisibleItems().length > 0
+  }
+
   searchList.classList.toggle('hidden', !hasSearchResults)
   searchNoResults.classList.toggle('hidden', hasSearchResults)
 }
 
-searchInput.addEventListener('input', handleSearchFilter)
+// Tab click handlers
+tabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    activeTab.value = tab.getAttribute('data-search-tab') ?? 'all'
+  })
+})
+
+// Update tab visual state and re-filter when active tab changes
+activeTab.effect(() => {
+  tabs.forEach((tab) => {
+    const isActive = tab.getAttribute('data-search-tab') === activeTab.value
+    tab.setAttribute('aria-selected', String(isActive))
+    tab.classList.toggle('font-medium', isActive)
+    tab.classList.toggle('bg-[rgb(242,242,242)]', isActive)
+    tab.classList.toggle('dark:bg-[rgb(26,26,26)]', isActive)
+  })
+  activeIndex.value = -1
+  handleSearchFilter()
+})
+
+// Update focused item visual state when active index changes
+activeIndex.effect(() => {
+  const visibleItems = getVisibleItems()
+  visibleItems.forEach((item, i) => {
+    const isFocused = i === activeIndex.value
+    item.classList.toggle('search-category__item--focused', isFocused)
+    item.setAttribute('aria-selected', String(isFocused))
+  })
+
+  if (activeIndex.value >= 0 && activeIndex.value < visibleItems.length) {
+    const activeItem = visibleItems[activeIndex.value]
+    searchInput.setAttribute('aria-activedescendant', activeItem.id)
+    activeItem.scrollIntoView({ block: 'nearest' })
+  }
+  else {
+    searchInput.removeAttribute('aria-activedescendant')
+  }
+})
+
+searchInput.addEventListener('input', () => {
+  activeIndex.value = -1
+  handleSearchFilter()
+})
+
+searchInput.addEventListener('keydown', (event) => {
+  const visibleItems = getVisibleItems()
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    activeIndex.value = Math.min(activeIndex.value + 1, visibleItems.length - 1)
+  }
+  else if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    activeIndex.value = Math.max(activeIndex.value - 1, 0)
+  }
+  else if (event.key === 'Enter') {
+    if (activeIndex.value >= 0 && activeIndex.value < visibleItems.length) {
+      event.preventDefault()
+      const link = visibleItems[activeIndex.value].querySelector<HTMLAnchorElement>('a')
+      link?.click()
+    }
+  }
+})
+
 openSearchTriggers.forEach(button => button.addEventListener('click', showDialog))
 
 // detect custom event to open search

@@ -51,12 +51,15 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
     const yScrollPos = window.scrollY
     dialog!.showModal()
 
-    await new Promise(resolve => setTimeout(resolve, 50))
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        window.scrollTo(0, yScrollPos)
+        resolve()
+      })
+    })
 
     // reset scroll position to avoid jumping
-    window.scrollTo(0, yScrollPos)
     setTimeout(() => window.scrollTo(0, yScrollPos), 0)
-    setTimeout(() => window.scrollTo(0, yScrollPos), 50)
 
     dialogBackdrop!.style.display = 'block'
 

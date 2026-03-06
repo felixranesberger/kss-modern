@@ -812,13 +812,14 @@ export function getSearchHtml(sections: {
     class="fixed inset-0 top-8 z-30 backdrop:hidden -mb-px size-full max-sm:max-h-none md:h-auto overflow-y-hidden max-w-none rounded-t-2xl border bg-styleguide-bg border-styleguide-border text-styleguide md:max-w-[720px] md:top-12 md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl mx-0 lg:top-24"
 >
     <h2 class="sr-only">Search</h2>
-    <div class="h-[53px] border-b px-4 py-3 border-styleguide-border">
+    <div class="flex items-center h-[53px] border-b px-4 py-3 border-styleguide-border">
         <label for="search-input" class="sr-only">Search styleguide</label>
         <input
             id="search-input"
-            class="w-full bg-transparent text-[18px] h-[28px] focus:outline-hidden"
+            class="grow bg-transparent text-[18px] h-[28px] focus:outline-hidden"
             placeholder="Search..."
             aria-autocomplete="list"
+            aria-controls="search-list"
             autocomplete="off"
             role="combobox"
             spellcheck="false"
@@ -826,24 +827,41 @@ export function getSearchHtml(sections: {
             value=""
             aria-expanded="false"
         >
+        <button id="search-dialog-close" class="md:hidden -mr-1 p-1 rounded-md text-styleguide hover:bg-styleguide-bg-highlight transition" type="button" aria-label="Close search">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-5">
+                <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+            </svg>
+        </button>
     </div>
 
-    <nav 
-      id="search-list" 
-      class="grid gap-4 px-4 py-3 text-sm overflow-y-auto max-h-[calc(100%-2rem-53px)] md:max-h-[calc(85dvh-53px)]"
+    <div role="tablist" aria-label="Filter by category" class="flex gap-1 px-4 py-2 border-b border-styleguide-border overflow-x-auto">
+        <button role="tab" data-search-tab="all" aria-selected="true" class="search-tab text-sm px-3 py-1.5 rounded-md whitespace-nowrap font-medium bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)]">All</button>
+        ${sections.map((section, i) => `
+            <button role="tab" data-search-tab="${i}" aria-selected="false" class="search-tab text-sm px-3 py-1.5 rounded-md whitespace-nowrap">${section.title}</button>
+        `).join('\n')}
+    </div>
+
+    <div
+      id="search-list"
+      role="listbox"
+      class="grid gap-4 px-4 py-3 text-sm overflow-y-auto max-h-[calc(100%-2rem-53px-45px)] md:max-h-[calc(85dvh-53px-45px)]"
     >
-        ${sections.map(section => `
-            <div class="search-category">
+        ${sections.map((section, categoryIdx) => `
+            <div class="search-category" id="search-category-${categoryIdx}" data-category-index="${categoryIdx}">
                 <h3 class="mb-2">${section.title}</h3>
                 <ul>
-                    ${section.items.map(item => `
-                        <li 
-                            class="search-category__item search-category__item--active" 
+                    ${section.items.map((item, itemIdx) => `
+                        <li
+                            id="search-item-${categoryIdx}-${itemIdx}"
+                            role="option"
+                            aria-selected="false"
+                            class="search-category__item search-category__item--active"
                             data-search-keywords="${encodeURIComponent(JSON.stringify(item.searchKeywords))}"
                           >
-                            <a 
-                                class="flex items-center gap-4 px-1.5 py-2.5 group rounded-md hover:bg-[rgb(242,242,242)] focus:bg-[rgb(242,242,242)] dark:hover:bg-[rgb(26,26,26)] dark:focus:bg-[rgb(26,26,26)] transition" 
+                            <a
+                                class="flex items-center gap-4 px-1.5 py-2.5 group rounded-md hover:bg-[rgb(242,242,242)] focus:bg-[rgb(242,242,242)] dark:hover:bg-[rgb(26,26,26)] dark:focus:bg-[rgb(26,26,26)] transition"
                                 href="${item.href}"
+                                tabindex="-1"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="transition-all size-5 group-hover:translate-x-0.5 group-focus:translate-x-0.5">
                                     <path fill-rule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clip-rule="evenodd" />
@@ -854,9 +872,9 @@ export function getSearchHtml(sections: {
                         </li>
                     `).join('\n')}
                 </ul>
-            </div>          
+            </div>
         `).join('\n')}
-    </nav>
+    </div>
 
     <p id="search-no-results" class="hidden px-6 py-8 text-center text-sm">
         No results found

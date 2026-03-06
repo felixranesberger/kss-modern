@@ -204,6 +204,14 @@
         display: block;
     }
 
+    .search-category--hidden {
+        display: none !important;
+    }
+
+    .search-category__item--focused a {
+        @apply bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)];
+    }
+
     .icon-search-list__item-copy-icon {
         @apply opacity-0 pointer-events-none absolute left-1/2 -translate-x-1/2;
     }
