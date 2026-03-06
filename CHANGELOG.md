@@ -4,6 +4,7 @@
 
 ### Features
 
+* add spring-animated sliding background to search category tabs ([c28bcee](https://github.com/felixranesberger/styleguide-generator/commit/c28bcee))
 * add draggable resize handles to preview iframes with responsive breakpoint snapping (320/768/1024/1200px) ([9840fe3](https://github.com/felixranesberger/styleguide-generator/commit/9840fe3))
 * setup Vitest unit/integration tests and Playwright e2e test suite ([4b42a69](https://github.com/felixranesberger/styleguide-generator/commit/4b42a69))
 
