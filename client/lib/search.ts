@@ -1,4 +1,5 @@
 import type { MenuSearchKeywords } from '../../lib/templates/preview.ts'
+import { animate, spring } from 'motion'
 import { useDialog } from '../hooks/use-dialog.ts'
 import { signal } from '../lib/signal.ts'
 import { queryRequired } from '../utils.ts'
@@ -20,6 +21,28 @@ if (!allItems.length)
 const searchNoResults = queryRequired<HTMLElement>('#search-no-results')
 const categories = document.querySelectorAll<HTMLElement>('.search-category')
 const tabs = document.querySelectorAll<HTMLButtonElement>('[data-search-tab]')
+const searchTabBackground = queryRequired<HTMLElement>('.search-tab-background')
+
+function calculateSearchTabBackground(activeTab: HTMLButtonElement, shouldAnimate: boolean) {
+  const width = activeTab.offsetWidth
+  const offset = activeTab.offsetLeft
+
+  if (shouldAnimate) {
+    animate(searchTabBackground, {
+      width,
+      x: `${offset}px`,
+    }, {
+      duration: 0.3,
+      easing: 'ease-out',
+      type: spring,
+      bounce: 0.1,
+    })
+  }
+  else {
+    searchTabBackground.style.width = `${width}px`
+    searchTabBackground.style.transform = `translateX(${offset}px)`
+  }
+}
 
 const { show, close } = useDialog(dialog, dialogBackdrop)
 
@@ -43,6 +66,11 @@ async function showDialog() {
 
       openSearchTriggers.forEach(trigger => trigger.ariaExpanded = 'true')
       searchInput.ariaExpanded = 'true'
+
+      // Position background on active tab now that dialog is visible
+      const currentTab = dialog.querySelector<HTMLButtonElement>('[data-search-tab][aria-selected="true"]')
+      if (currentTab)
+        calculateSearchTabBackground(currentTab, false)
 
       handleSearchFilter()
     },
@@ -138,8 +166,9 @@ activeTab.effect(() => {
     const isActive = tab.getAttribute('data-search-tab') === activeTab.value
     tab.setAttribute('aria-selected', String(isActive))
     tab.classList.toggle('font-medium', isActive)
-    tab.classList.toggle('bg-[rgb(242,242,242)]', isActive)
-    tab.classList.toggle('dark:bg-[rgb(26,26,26)]', isActive)
+    tab.classList.toggle('text-styleguide-highlight', isActive)
+    if (isActive)
+      calculateSearchTabBackground(tab, true)
   })
   activeIndex.value = -1
   handleSearchFilter()
@@ -169,7 +198,7 @@ searchInput.addEventListener('input', () => {
   handleSearchFilter()
 })
 
-searchInput.addEventListener('keydown', (event) => {
+function handleListKeydown(event: KeyboardEvent) {
   const visibleItems = getVisibleItems()
 
   if (event.key === 'ArrowDown') {
@@ -187,7 +216,10 @@ searchInput.addEventListener('keydown', (event) => {
       link?.click()
     }
   }
-})
+}
+
+searchInput.addEventListener('keydown', handleListKeydown)
+tabs.forEach(tab => tab.addEventListener('keydown', handleListKeydown))
 
 openSearchTriggers.forEach(button => button.addEventListener('click', showDialog))
 

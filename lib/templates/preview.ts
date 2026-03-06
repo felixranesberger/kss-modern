@@ -834,10 +834,11 @@ export function getSearchHtml(sections: {
         </button>
     </div>
 
-    <div role="tablist" aria-label="Filter by category" class="flex gap-1 px-4 py-2 border-b border-styleguide-border overflow-x-auto">
-        <button role="tab" data-search-tab="all" aria-selected="true" class="search-tab text-sm px-3 py-1.5 rounded-md whitespace-nowrap font-medium bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)]">All</button>
+    <div role="tablist" aria-label="Filter by category" class="relative flex gap-1 px-4 py-2 border-b border-styleguide-border overflow-x-auto">
+        <div class="search-tab-background absolute inset-y-2 left-0 bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)] rounded-md"></div>
+        <button role="tab" data-search-tab="all" aria-selected="true" class="search-tab relative text-sm px-3 py-1.5 rounded-md whitespace-nowrap cursor-pointer font-medium text-styleguide-highlight">All</button>
         ${sections.map((section, i) => `
-            <button role="tab" data-search-tab="${i}" aria-selected="false" class="search-tab text-sm px-3 py-1.5 rounded-md whitespace-nowrap">${section.title}</button>
+            <button role="tab" data-search-tab="${i}" aria-selected="false" class="search-tab relative text-sm px-3 py-1.5 rounded-md whitespace-nowrap cursor-pointer">${section.title}</button>
         `).join('\n')}
     </div>
 
