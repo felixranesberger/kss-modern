@@ -7,6 +7,7 @@ const getIsMobileScreen = () => window.matchMedia('(max-width: 768px)').matches
  */
 export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement) {
   let closeDialogEventController: AbortController | undefined
+  let savedScrollY = 0
 
   const close = async (beforeAnimation?: (isMobileScreen: boolean) => void, afterAnimation?: (isMobileScreen: boolean) => void) => {
     if (!dialog!.open)
@@ -18,6 +19,7 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
     if (isMobileScreen) {
       animate(dialog!, { opacity: 0, y: [0, 250] }, { duration: 0.3, ease: 'easeOut' })
       await animate(dialogBackdrop!, { opacity: 0 }, { duration: 0.3, ease: 'easeOut' })
+        .then(() => dialogBackdrop!.style.display = 'none')
     }
     else {
       animate(dialog!, { opacity: 0, scale: [1, 0.98] }, { duration: 0.3, ease: 'easeOut' })
@@ -27,6 +29,10 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
 
     afterAnimation?.(isMobileScreen)
     dialog!.close()
+
+    document.body.style.overflow = ''
+    document.body.style.height = ''
+    window.scrollTo({ top: savedScrollY, behavior: 'instant' })
 
     if (closeDialogEventController)
       closeDialogEventController.abort()
@@ -48,18 +54,10 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
   const show = async (beforeAnimation?: (isMobileScreen: boolean) => void, afterAnimation?: (isMobileScreen: boolean) => void) => {
     closeDialogEventController = new AbortController()
 
-    const yScrollPos = window.scrollY
+    savedScrollY = window.scrollY
+    document.body.style.overflow = 'hidden'
+    document.body.style.height = '100dvh'
     dialog!.showModal()
-
-    await new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, yScrollPos)
-        resolve()
-      })
-    })
-
-    // reset scroll position to avoid jumping
-    setTimeout(() => window.scrollTo(0, yScrollPos), 0)
 
     dialogBackdrop!.style.display = 'block'
 
@@ -87,12 +85,9 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
     }), 0)
 
     // detect closes using escape and execute custom animation sequence instead
-    dialog!.addEventListener('keydown', async (event) => {
-      if (event.key !== 'Escape')
-        return
-
+    dialog!.addEventListener('cancel', (event) => {
       event.preventDefault()
-      await close()
+      close()
     }, { signal: closeDialogEventController?.signal })
   }
 
