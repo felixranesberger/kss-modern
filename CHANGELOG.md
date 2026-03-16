@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.36](https://github.com/felixranesberger/styleguide-generator/compare/v0.0.35...v0.0.36) (2026-03-16)
+
+### Bug Fixes
+
+* fix content cut off when `<details>` elements are toggled inside markdown containers and preview iframes ([c876974](https://github.com/felixranesberger/styleguide-generator/commit/c876974))
+* remove debug `console.log` from `querySelectorAnywhere` ([f2a591c](https://github.com/felixranesberger/styleguide-generator/commit/f2a591c))
+
+### Dependencies
+
+* update minor dependencies (shiki, pug, motion, vitest, eslint, html-validate, biome)
+
+### Miscellaneous
+
+* update example styleguide modal and headings content ([f2a591c](https://github.com/felixranesberger/styleguide-generator/commit/f2a591c))
+
 ## [0.0.35](https://github.com/felixranesberger/styleguide-generator/compare/v0.0.34...v0.0.35) (2026-03-05)
 
 ### Features
