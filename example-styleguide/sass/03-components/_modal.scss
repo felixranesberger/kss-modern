@@ -3,7 +3,22 @@ Modal
 
 Markdown: A modal dialog component using a `<template>` tag. The template content is cloned into the DOM via JavaScript when the modal is triggered.
 
-Markup: <insert-vite-pug src="templates/source/03-components/modal.pug"></insert-vite-pug>
+Markup:
+<div>
+  <template id="modal-template">
+    <div class="c-modal__backdrop"></div>
+    <div class="c-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title" class="c-modal__title">Modal Title</h2>
+      <div class="c-modal__body">
+        Modal body content goes here.
+      </div>
+      <div class="c-modal__actions">
+        <button class="c-button c-button--primary">Confirm</button>
+        <button type="button" class="c-button c-button--secondary">Cancel</button>
+      </div>
+    </div>
+  </template>
+<div>
 
 Styleguide 3.50
 */
