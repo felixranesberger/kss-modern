@@ -70,6 +70,11 @@ export default async (iframes: HTMLIFrameElement[]) => {
 
     const observer = new ResizeObserver(() => calculateIframeHeight(iframe))
     observer.observe(iframeWindow.document.body)
+
+    // <details> toggle doesn't trigger ResizeObserver when body is constrained by iframe height
+    iframeWindow.document.body.querySelectorAll('details').forEach((details) => {
+      details.addEventListener('toggle', () => calculateIframeHeight(iframe))
+    })
   })
 
   // calculate new when window size changes

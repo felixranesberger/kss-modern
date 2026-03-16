@@ -93,6 +93,11 @@ if (markdownFolded.length > 0) {
     handleOverflow()
     const cleanup = $isOverflowingVertically.effect(handleOverflow)
 
+    // <details> toggle doesn't trigger ResizeObserver when container has constrained height
+    markdownContainer.querySelectorAll('details').forEach((details) => {
+      details.addEventListener('toggle', handleOverflow)
+    })
+
     showMoreButton.addEventListener('click', async () => {
       cleanup()
 
