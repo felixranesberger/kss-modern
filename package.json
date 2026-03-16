@@ -29,13 +29,13 @@
   "dependencies": {
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^4.0.0",
-    "@biomejs/wasm-nodejs": "^2.4.6",
-    "@shikijs/markdown-it": "^4.0.1",
+    "@biomejs/wasm-nodejs": "^2.4.7",
+    "@shikijs/markdown-it": "^4.0.2",
     "chokidar": "^5.0.0",
     "fs-extra": "^11.3.4",
     "markdown-it-async": "^2.2.0",
-    "pug": "^3.0.3",
-    "shiki": "^4.0.1",
+    "pug": "^3.0.4",
+    "shiki": "^4.0.2",
     "tinyglobby": "^0.2.15"
   },
   "devDependencies": {
@@ -44,17 +44,17 @@
     "@tailwindcss/vite": "^4.2.1",
     "@types/bun": "latest",
     "@types/fs-extra": "^11.0.4",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^4.1.0",
     "axe-core": "^4.11.1",
     "bumpp": "^10.4.1",
-    "eslint": "^9.39.3",
+    "eslint": "^9.39.4",
     "eslint-plugin-format": "^1.5.0",
-    "html-validate": "^10.11.1",
+    "html-validate": "^10.11.2",
     "jsdom": "^28.1.0",
     "keyux": "^0.11.3",
-    "motion": "^12.35.0",
+    "motion": "^12.37.0",
     "unbuild": "^3.6.1",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   }
 }
