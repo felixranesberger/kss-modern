@@ -24,7 +24,7 @@
     "test:e2e": "bun run build && playwright test"
   },
   "peerDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3 || ^6.0.0"
   },
   "dependencies": {
     "@antfu/utils": "^9.3.0",
