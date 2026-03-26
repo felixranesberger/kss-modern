@@ -50,7 +50,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-format": "^1.5.0",
     "html-validate": "^10.11.2",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.0.0",
     "keyux": "^0.11.3",
     "motion": "^12.37.0",
     "unbuild": "^3.6.1",
