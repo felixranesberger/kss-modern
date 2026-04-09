@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.37](https://github.com/felixranesberger/styleguide-generator/compare/v0.0.36...v0.0.37) (2026-04-09)
+
+### Bug Fixes
+
+* fix search dialog overflowing viewport by replacing `100dvh` scroll-lock with `position: fixed` approach ([baca801](https://github.com/felixranesberger/styleguide-generator/commit/baca801))
+* prevent search dialog from exceeding screen height on desktop with proper `max-h` constraints ([0dd1006](https://github.com/felixranesberger/styleguide-generator/commit/0dd1006))
+
+### Dependencies
+
+* update major dependencies: vite 8, eslint 10, typescript 6, @antfu/eslint-config 8, bumpp 11, eslint-plugin-format 2, jsdom 29 ([65f5c8e](https://github.com/felixranesberger/styleguide-generator/commit/65f5c8e))
+
 ## [0.0.36](https://github.com/felixranesberger/styleguide-generator/compare/v0.0.35...v0.0.36) (2026-03-16)
 
 ### Bug Fixes
