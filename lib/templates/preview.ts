@@ -809,7 +809,7 @@ export function getSearchHtml(sections: {
   return `
 <dialog
     id="search-dialog"
-    class="fixed inset-0 top-8 z-30 backdrop:hidden -mb-px size-full max-sm:max-h-none md:h-auto overflow-y-hidden max-w-none rounded-t-2xl border bg-styleguide-bg border-styleguide-border text-styleguide md:max-w-[720px] md:top-12 md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl mx-0 lg:top-24"
+    class="fixed inset-0 top-8 z-30 backdrop:hidden -mb-px w-full max-h-[calc(100%-4rem)] max-sm:max-h-[calc(100%-4rem)] md:h-auto overflow-y-hidden max-w-none rounded-t-2xl border bg-styleguide-bg border-styleguide-border text-styleguide md:max-w-[720px] md:top-12 md:max-h-[calc(100%-5rem)] md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl mx-0 lg:top-24 lg:max-h-[calc(100%-8rem)]"
 >
     <h2 class="sr-only">Search</h2>
     <div class="flex items-center h-[53px] border-b px-4 py-3 border-styleguide-border">

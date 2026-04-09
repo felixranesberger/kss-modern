@@ -31,7 +31,9 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
     dialog!.close()
 
     document.body.style.overflow = ''
-    document.body.style.height = ''
+    document.body.style.position = ''
+    document.body.style.top = ''
+    document.body.style.width = ''
     window.scrollTo({ top: savedScrollY, behavior: 'instant' })
 
     if (closeDialogEventController)
@@ -56,7 +58,9 @@ export function useDialog(dialog: HTMLDialogElement, dialogBackdrop: HTMLElement
 
     savedScrollY = window.scrollY
     document.body.style.overflow = 'hidden'
-    document.body.style.height = '100dvh'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${savedScrollY}px`
+    document.body.style.width = '100%'
     dialog!.showModal()
 
     dialogBackdrop!.style.display = 'block'
