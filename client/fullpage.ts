@@ -1,5 +1,8 @@
 import type { CrossTreeSelector, NodeResult, Result } from 'axe-core'
 
+const CSS_COMBINATOR_RE = /\s*[>+~ ]\s*/
+const LEADING_CHILD_COMBINATOR_RE = /^\s*>\s*/
+
 declare global {
   interface Window {
     runAccessibilityTest: () => Promise<void>
@@ -235,12 +238,12 @@ window.querySelectorAnywhere = (selector: string) => {
 
   // check if the selector root resolves to a <template> element
   // e.g. "#modal-template > div > button" where #modal-template is a <template>
-  const combinatorIndex = selector.search(/\s*[>+~ ]\s*/)
+  const combinatorIndex = selector.search(CSS_COMBINATOR_RE)
   if (combinatorIndex > 0) {
     const rootPart = selector.slice(0, combinatorIndex)
     const rootElement = document.querySelector(rootPart)
     if (rootElement instanceof HTMLTemplateElement) {
-      const rest = selector.slice(combinatorIndex).replace(/^\s*>\s*/, '')
+      const rest = selector.slice(combinatorIndex).replace(LEADING_CHILD_COMBINATOR_RE, '')
       const match = rootElement.content.querySelector(rest)
       if (match)
         return match

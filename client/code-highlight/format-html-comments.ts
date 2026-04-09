@@ -1,9 +1,11 @@
+const LEADING_WHITESPACE_RE = /^(\s*)/
+
 export function formatHtmlComments(source: string): string {
   return source.split('\n').flatMap((line) => {
     if (!line.includes('<!--'))
       return [line]
 
-    const indent = line.match(/^(\s*)/)?.[1] ?? ''
+    const indent = line.match(LEADING_WHITESPACE_RE)?.[1] ?? ''
     const trimmed = line.trim()
 
     // Line is already only a comment — keep as is

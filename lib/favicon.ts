@@ -2,8 +2,10 @@ import type { StyleguideConfiguration } from './index.ts'
 import path from 'node:path'
 import fs from 'fs-extra'
 
+const HEX_COLOR_RE = /^#[0-9A-F]{6}$/i
+
 function isValidHexColor(hexCode: string) {
-  return /^#[0-9A-F]{6}$/i.test(hexCode)
+  return HEX_COLOR_RE.test(hexCode)
 }
 
 function shadeColor(hexColor: string, percent: number) {

@@ -4,6 +4,9 @@ import { parentPort } from 'node:worker_threads'
 import { Biome, Distribution } from '@biomejs/js-api'
 import pug from 'pug'
 
+const PUG_SRC_RE = /src="(.+?)"/
+const PUG_MODIFIER_CLASS_RE = /modifierClass="(.+?)"/
+
 let biomeInstance: Biome
 let biomePromise: Promise<Biome>
 let projectKey: number
@@ -87,12 +90,12 @@ export async function compilePug(contentDir: `${string}/`, mode: StyleguideConfi
   let markupOutput = html
 
   await Promise.all(vitePugTags.map(async (vitePugTag) => {
-    const pugSourcePath = vitePugTag.match(/src="(.+?)"/)?.[1]
+    const pugSourcePath = vitePugTag.match(PUG_SRC_RE)?.[1]
     if (!pugSourcePath) {
       return undefined
     }
 
-    const pugModifierClass = vitePugTag.match(/modifierClass="(.+?)"/)
+    const pugModifierClass = vitePugTag.match(PUG_MODIFIER_CLASS_RE)
     let pugLocals = {}
 
     if (pugModifierClass && pugModifierClass[1]) {
