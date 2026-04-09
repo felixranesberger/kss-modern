@@ -23,9 +23,6 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "bun run build && playwright test"
   },
-  "peerDependencies": {
-    "typescript": "^6.0.2"
-  },
   "dependencies": {
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^4.0.0",
