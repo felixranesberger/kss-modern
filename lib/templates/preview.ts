@@ -809,10 +809,10 @@ export function getSearchHtml(sections: {
   return `
 <dialog
     id="search-dialog"
-    class="fixed inset-0 top-8 z-30 backdrop:hidden -mb-px size-full max-sm:max-h-none md:h-auto overflow-y-hidden max-w-none rounded-t-2xl border bg-styleguide-bg border-styleguide-border text-styleguide md:max-w-[720px] md:top-12 md:max-h-[calc(100%-5rem)] md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl mx-0 lg:top-24 lg:max-h-[calc(100%-8rem)]"
+    class="fixed inset-0 top-8 z-30 backdrop:hidden -mb-px size-full max-sm:max-h-none open:md:flex open:md:flex-col md:h-auto overflow-y-hidden max-w-none rounded-t-2xl border bg-styleguide-bg border-styleguide-border text-styleguide md:max-w-[720px] md:top-12 md:max-h-[calc(100%-5rem)] md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl mx-0 lg:top-24 lg:max-h-[calc(100%-8rem)]"
 >
     <h2 class="sr-only">Search</h2>
-    <div class="flex items-center h-[53px] border-b px-4 py-3 border-styleguide-border">
+    <div class="flex items-center h-[53px] border-b px-4 py-3 border-styleguide-border shrink-0">
         <label for="search-input" class="sr-only">Search styleguide</label>
         <input
             id="search-input"
@@ -834,7 +834,7 @@ export function getSearchHtml(sections: {
         </button>
     </div>
 
-    <div role="tablist" aria-label="Filter by category" class="relative flex gap-1 px-4 py-2 border-b border-styleguide-border overflow-x-auto">
+    <div role="tablist" aria-label="Filter by category" class="relative flex gap-1 px-4 py-2 border-b border-styleguide-border overflow-x-auto shrink-0">
         <div class="search-tab-background absolute inset-y-2 left-0 bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)] rounded-md"></div>
         <button role="tab" data-search-tab="all" aria-selected="true" class="search-tab relative text-sm px-3 py-1.5 rounded-md whitespace-nowrap cursor-pointer font-medium text-styleguide-highlight">All</button>
         ${sections.map((section, i) => `
@@ -845,7 +845,7 @@ export function getSearchHtml(sections: {
     <div
       id="search-list"
       role="listbox"
-      class="grid gap-4 px-4 py-3 text-sm overflow-y-auto max-h-[calc(100%-2rem-53px-45px)] md:max-h-[calc(85dvh-53px-45px)]"
+      class="grid gap-4 px-4 py-3 text-sm overflow-y-auto max-h-[calc(100%-2rem-53px-45px)] md:min-h-0 md:max-h-none"
     >
         ${sections.map((section, categoryIdx) => `
             <div class="search-category" id="search-category-${categoryIdx}" data-category-index="${categoryIdx}">
