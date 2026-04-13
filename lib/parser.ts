@@ -604,8 +604,15 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
 
     let sourceMarkup: in2Section['source']['markup'] = undefined
 
-    const hasExtractableMarkupFile = section.markup.includes('<insert-vite-pug src="')
-    if (hasExtractableMarkupFile) {
+    const trimmedMarkup = section.markup.trim()
+    const isHtmlFilePath = trimmedMarkup.endsWith('.html') && !trimmedMarkup.includes('<') && !trimmedMarkup.includes('\n')
+
+    if (isHtmlFilePath) {
+      sourceMarkup = {
+        file: path.join(config.contentDir, trimmedMarkup),
+      }
+    }
+    else if (section.markup.includes('<insert-vite-pug src="')) {
       // eslint-disable-next-line regexp/no-super-linear-backtracking
       const regexModifierLine = /<insert-vite-pug src="(.+?)".*(?:[\n\r\u2028\u2029]\s*)?(modifierClass="(.+?)")? *><\/insert-vite-pug>/g
       const vitePugTags = section.markup.match(regexModifierLine)

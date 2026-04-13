@@ -1,4 +1,5 @@
 import type { StyleguideConfiguration } from '../index'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import { parentPort } from 'node:worker_threads'
 import { Biome, Distribution } from '@biomejs/js-api'
@@ -153,10 +154,23 @@ parentPort.on('message', async (data: PugWorkerInput) => {
 
   let result = html
 
+  // If markup is an HTML file path, read its contents
+  const trimmed = html.trim()
+  if (trimmed.endsWith('.html') && !trimmed.includes('<') && !trimmed.includes('\n')) {
+    const htmlFilePath = path.join(contentDir, trimmed)
+    try {
+      result = await fs.readFile(htmlFilePath, 'utf-8')
+    }
+    catch {
+      parentPort!.postMessage({ error: `HTML markup file not found: "${htmlFilePath}"` } satisfies PugWorkerOutput)
+      return
+    }
+  }
+
   const needsFormatting = (mode === 'development' && !result.includes('<insert-vite-pug'))
     || mode === 'production'
 
-  result = await compilePug(contentDir, mode, html)
+  result = await compilePug(contentDir, mode, result)
 
   if (needsFormatting) {
     result = await biomeFormat(result)
