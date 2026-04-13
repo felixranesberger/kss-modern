@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.40](https://github.com/felixranesberger/kss-modern/compare/v0.0.39...v0.0.40) (2026-04-13)
+
+### Features
+
+* support HTML file references in `Markup:` declarations — the worker now reads `.html` file contents instead of treating the path as literal markup ([39f1494](https://github.com/felixranesberger/kss-modern/commit/39f1494))
+* track HTML markup files as source for "open in editor" links ([39f1494](https://github.com/felixranesberger/kss-modern/commit/39f1494))
+
+### Miscellaneous
+
+* add badge example component to exercise HTML file markup feature ([39f1494](https://github.com/felixranesberger/kss-modern/commit/39f1494))
+
 ## [0.0.39](https://github.com/felixranesberger/kss-modern/compare/v0.0.38...v0.0.39) (2026-04-13)
 
 ### Bug Fixes
