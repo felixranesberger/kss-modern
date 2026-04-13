@@ -67,7 +67,7 @@ export function getHeaderHtml(config: StyleguideConfiguration) {
         </button>
 
         <div class="flex gap-4">
-          ${config.launchInEditor
+          ${config.mode === 'development' && config.launchInEditor
             ? `
               <form class="hidden editor-select md:block">
                 <fieldset class="flex items-center rounded-3xl border border-styleguide-border">
@@ -408,7 +408,7 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
   // group-hover/vscode:saturate-100
   const renderOpenInEditorLink = (editorType: 'phpstorm' | 'vscode', contentType: 'CSS' | 'HTML' | 'Pug', link: string) => `
     <a
-        class="hidden editor-${editorType}-only @md:inline-flex items-center group/${editorType} gap-1.5 p-4 desktop-device-only cursor-pointer active:scale-90 transition hover:text-styleguide-highlight duration-200" 
+        class="hidden editor-${editorType}-only @md:inline-flex items-center group/${editorType} gap-1.5 p-4 desktop-device-only cursor-pointer active:scale-90 transition hover:text-styleguide-highlight duration-200"
         href="${link}"
     >
         <span class="hidden @2xl:inline-block">Open ${contentType}</span>
