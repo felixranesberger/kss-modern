@@ -66,13 +66,12 @@ interface StyleguideBuildOutput {
 }
 
 /**
- * Builds the styleguide
- * @param config - The configuration for the styleguide
+ * Parse given contentDir and get structured data for further processing
  */
-export async function buildStyleguide(config: StyleguideConfiguration): Promise<StyleguideBuildOutput> {
+export async function parseStyleguide(contentDir: StyleguideConfiguration['contentDir']) {
   // find all files in the content directory that have .css or .scss extension recursive
   // and also contain the styleguide comment
-  const styleguideContentPaths = await glob(`${config.contentDir}/**/*.{css,scss}`)
+  const styleguideContentPaths = await glob(`${contentDir}/**/*.{css,scss}`)
   const styleguideContent: FileObject[] = await Promise.all(
     styleguideContentPaths.map(async filePath => ({
       path: filePath,
@@ -80,11 +79,19 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
     })),
   )
 
-  const rawParsedOutput = await parse(styleguideContent, config)
+  const rawParsedOutput = await parse(styleguideContent, contentDir)
   if (!rawParsedOutput)
     throw new Error('Could not parse content')
 
-  const { content: parsedContent, overwrittenSectionsIds } = rawParsedOutput
+  return rawParsedOutput
+}
+
+/**
+ * Builds the styleguide
+ * @param config - The configuration for the styleguide
+ */
+export async function buildStyleguide(config: StyleguideConfiguration): Promise<StyleguideBuildOutput> {
+  const { content: parsedContent, overwrittenSectionsIds } = await parseStyleguide(config.contentDir)
 
   // ensure clean output directory and delete all html files
   if (config.mode === 'production' && await fs.exists(config.outDir)) {

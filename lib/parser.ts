@@ -564,7 +564,7 @@ export interface in2SecondLevelSection extends in2Section {
   sections: in2Section[]
 }
 
-export async function parse(input: string | (string | FileObject)[], config: StyleguideConfiguration) {
+export async function parse(input: string | (string | FileObject)[], contentDir: StyleguideConfiguration['contentDir']) {
   const data = kssParser(input).sections.filter(section => Boolean(section.reference))
 
   // stores the ids of the sections that are overwritten because the ids are duplicated
@@ -594,7 +594,7 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
     }
 
     return {
-      description: await parseMarkdown({ filePath: path.join(config.contentDir, markdownPath), rootHeadingLevel }),
+      description: await parseMarkdown({ filePath: path.join(contentDir, markdownPath), rootHeadingLevel }),
       hasMarkdownDescription: true,
     }
   }
@@ -609,7 +609,7 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
 
     if (isHtmlFilePath) {
       sourceMarkup = {
-        file: path.join(config.contentDir, trimmedMarkup),
+        file: path.join(contentDir, trimmedMarkup),
       }
     }
     else if (section.markup.includes('<insert-vite-pug src="')) {
@@ -625,7 +625,7 @@ export async function parse(input: string | (string | FileObject)[], config: Sty
           throw new Error('No or invalid Pug source path found')
         }
 
-        pugSourcePath = path.join(config.contentDir, pugSourcePath)
+        pugSourcePath = path.join(contentDir, pugSourcePath)
 
         sourceMarkup = {
           file: pugSourcePath,
