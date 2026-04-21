@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.41](https://github.com/felixranesberger/kss-modern/compare/v0.0.40...v0.0.41) (2026-04-21)
+
+### Bug Fixes
+
+* disable lightningcss `light-dark()` transpilation in Vite config — the lowering broke dark mode in the styleguide ([311a3b8](https://github.com/felixranesberger/kss-modern/commit/311a3b8))
+
 ## [0.0.40](https://github.com/felixranesberger/kss-modern/compare/v0.0.39...v0.0.40) (2026-04-13)
 
 ### Features
