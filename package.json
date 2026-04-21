@@ -1,7 +1,7 @@
 {
   "name": "kss-modern",
   "type": "module",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "description": "Modern KSS compatible styleguide generator",
   "repository": {
     "type": "git",
