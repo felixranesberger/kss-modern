@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.42](https://github.com/felixranesberger/kss-modern/compare/v0.0.41...v0.0.42) (2026-04-21)
+
+### Features
+
+* export `parseStyleguide(contentDir)` so consumers can access the parsed KSS data without running a full build ([25366d3](https://github.com/felixranesberger/kss-modern/commit/25366d3))
+
 ## [0.0.41](https://github.com/felixranesberger/kss-modern/compare/v0.0.40...v0.0.41) (2026-04-21)
 
 ### Bug Fixes
