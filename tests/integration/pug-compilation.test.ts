@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { compilePugMarkup } from '../../lib/vite-pug/index.ts'
 
 describe('pug compilation pipeline', () => {
@@ -54,5 +54,47 @@ describe('pug compilation pipeline', () => {
     // The pug template should have been compiled to HTML
     expect(output).not.toContain('<insert-vite-pug')
     expect(output.length).toBeGreaterThan(0)
+  })
+
+  it('reads a bare .html file path as the markup source', async () => {
+    const repository = new Map<string, { markup: string }>([
+      ['html.1', { markup: 'templates/source/03-components/badge.html' }],
+    ])
+
+    const result = await compilePugMarkup('production', 'example-styleguide/', repository)
+    const output = result.get('html.1')!.markup
+
+    expect(output).toContain('c-badge')
+    expect(output).toContain('Success')
+    expect(output).not.toContain('.html')
+  })
+
+  it('compiles a bare .pug file path statically (no vite-pug tags)', async () => {
+    const repository = new Map<string, { markup: string }>([
+      ['pug.1', { markup: 'templates/source/03-components/card.pug' }],
+    ])
+
+    const result = await compilePugMarkup('production', 'example-styleguide/', repository)
+    const output = result.get('pug.1')!.markup
+
+    // Should be HTML, not raw pug syntax
+    expect(output).toContain('class="c-card"')
+    expect(output).toContain('Card Title')
+    expect(output).not.toMatch(/^article\.c-card/m)
+    expect(output).not.toContain('.pug')
+  })
+
+  it('reports an error for a missing .pug file path', async () => {
+    const repository = new Map<string, { markup: string }>([
+      ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
+    ])
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await compilePugMarkup('production', 'example-styleguide/', repository)
+
+    // On error the worker pool drops the entry; the original repository value remains untouched
+    expect(result.get('pug.missing')!.markup).toBe('templates/does-not-exist.pug')
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
   })
 })

@@ -1,0 +1,42 @@
+/*
+Tag
+
+Removable tag chip. Markup is authored as a static `.pug` file and compiled at build time without Vite HMR.
+
+Markup: templates/source/03-components/tag.pug
+
+Styleguide 3.70
+*/
+
+.c-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 10px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-neutral-100);
+  color: var(--color-neutral-800);
+  border: 1px solid var(--color-neutral-200);
+}
+
+.c-tag__label {
+  line-height: 1;
+}
+
+.c-tag__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-full, 9999px);
+}
+
+.c-tag__remove:hover {
+  background-color: var(--color-neutral-200);
+}

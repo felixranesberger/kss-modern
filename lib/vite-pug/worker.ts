@@ -154,15 +154,30 @@ parentPort.on('message', async (data: PugWorkerInput) => {
 
   let result = html
 
-  // If markup is an HTML file path, read its contents
+  // If markup is a static file path (.html or .pug), resolve it.
+  // .html files are read as-is. .pug files are compiled statically (no vite HMR).
   const trimmed = html.trim()
-  if (trimmed.endsWith('.html') && !trimmed.includes('<') && !trimmed.includes('\n')) {
+  const isBarePath = !trimmed.includes('<') && !trimmed.includes('\n')
+
+  if (isBarePath && trimmed.endsWith('.html')) {
     const htmlFilePath = path.join(contentDir, trimmed)
     try {
       result = await fs.readFile(htmlFilePath, 'utf-8')
     }
     catch {
       parentPort!.postMessage({ error: `HTML markup file not found: "${htmlFilePath}"` } satisfies PugWorkerOutput)
+      return
+    }
+  }
+  else if (isBarePath && trimmed.endsWith('.pug')) {
+    const pugFilePath = path.join(contentDir, trimmed)
+    try {
+      const pugFn = pug.compileFile(pugFilePath, { doctype: 'html' })
+      result = pugFn({})
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      parentPort!.postMessage({ error: `Pug markup file failed to compile: "${pugFilePath}" — ${message}` } satisfies PugWorkerOutput)
       return
     }
   }

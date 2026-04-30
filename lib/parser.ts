@@ -605,9 +605,10 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
     let sourceMarkup: in2Section['source']['markup'] = undefined
 
     const trimmedMarkup = section.markup.trim()
-    const isHtmlFilePath = trimmedMarkup.endsWith('.html') && !trimmedMarkup.includes('<') && !trimmedMarkup.includes('\n')
+    const isBarePath = !trimmedMarkup.includes('<') && !trimmedMarkup.includes('\n')
+    const isStaticFilePath = isBarePath && (trimmedMarkup.endsWith('.html') || trimmedMarkup.endsWith('.pug'))
 
-    if (isHtmlFilePath) {
+    if (isStaticFilePath) {
       sourceMarkup = {
         file: path.join(contentDir, trimmedMarkup),
       }
