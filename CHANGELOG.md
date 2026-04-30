@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.43](https://github.com/felixranesberger/kss-modern/compare/v0.0.42...v0.0.43) (2026-04-30)
+
+### Features
+
+* support static `.pug` file references in `Markup:` declarations — bare `.pug` paths are compiled to HTML at build time via the existing pug worker pool ([1eb683f](https://github.com/felixranesberger/kss-modern/commit/1eb683f))
+* track `.pug` markup files as source for "open in editor" links ([1eb683f](https://github.com/felixranesberger/kss-modern/commit/1eb683f))
+
+### Dependencies
+
+* update minor dependencies ([c2427c1](https://github.com/felixranesberger/kss-modern/commit/c2427c1))
+
+### Miscellaneous
+
+* add tag example component to exercise static pug markup feature ([1eb683f](https://github.com/felixranesberger/kss-modern/commit/1eb683f))
+* add integration tests for static `.html` and `.pug` markup paths and parser source resolution ([1eb683f](https://github.com/felixranesberger/kss-modern/commit/1eb683f), [b78d8d9](https://github.com/felixranesberger/kss-modern/commit/b78d8d9))
+
 ## [0.0.42](https://github.com/felixranesberger/kss-modern/compare/v0.0.41...v0.0.42) (2026-04-21)
 
 ### Features
