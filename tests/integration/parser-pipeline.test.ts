@@ -30,7 +30,7 @@ describe('parser pipeline with real SCSS files', () => {
     const files = await loadScssFiles()
     expect(files.length).toBeGreaterThan(0)
 
-    const result = await parse(files, config)
+    const result = await parse(files, config.contentDir)
     expect(result).toBeDefined()
     expect(result!.content).toBeDefined()
     expect(result!.content.length).toBeGreaterThan(0)
@@ -38,7 +38,7 @@ describe('parser pipeline with real SCSS files', () => {
 
   it('output has correct first/second/third level hierarchy', async () => {
     const files = await loadScssFiles()
-    const result = await parse(files, config)
+    const result = await parse(files, config.contentDir)
 
     for (const firstLevel of result!.content) {
       expect(firstLevel.sectionLevel).toBe('first')
@@ -59,7 +59,7 @@ describe('parser pipeline with real SCSS files', () => {
 
   it('all sections have required fields', async () => {
     const files = await loadScssFiles()
-    const result = await parse(files, config)
+    const result = await parse(files, config.contentDir)
 
     function assertSectionFields(section: any) {
       expect(section.id).toBeDefined()
@@ -92,7 +92,7 @@ describe('parser pipeline with real SCSS files', () => {
 
   it('section references are correctly extracted', async () => {
     const files = await loadScssFiles()
-    const result = await parse(files, config)
+    const result = await parse(files, config.contentDir)
 
     for (const firstLevel of result!.content) {
       expect(firstLevel.id).toMatch(/^\d+(\.\d+)?$/)
@@ -109,7 +109,7 @@ describe('parser pipeline with real SCSS files', () => {
 
   it('has no empty sections in output', async () => {
     const files = await loadScssFiles()
-    const result = await parse(files, config)
+    const result = await parse(files, config.contentDir)
 
     expect(result!.content.every(section => Boolean(section))).toBe(true)
 
@@ -122,5 +122,44 @@ describe('parser pipeline with real SCSS files', () => {
         expect(secondLevel.sections.every((s: any) => Boolean(s))).toBe(true)
       }
     }
+  })
+
+  it('resolves source.markup.file for bare .html and .pug markup paths', async () => {
+    const synthetic: FileObject[] = [
+      {
+        path: 'synthetic.scss',
+        contents: `
+/*
+Static HTML
+
+Markup: templates/modules/studies-list.html
+
+Styleguide 9.1
+*/
+
+/*
+Static Pug
+
+Markup: templates/modules/studies-list.pug
+
+Styleguide 9.2
+*/
+
+/*
+Static Container
+
+Styleguide 9
+*/
+`,
+      },
+    ]
+
+    const result = await parse(synthetic, config.contentDir)
+    const container = result!.content.find(s => s.id === '9')!
+    const htmlSection = container.sections.find(s => s.id === '9.1')!
+    const pugSection = container.sections.find(s => s.id === '9.2')!
+
+    expect(htmlSection.source.markup?.file).toBe('example-styleguide/templates/modules/studies-list.html')
+    expect(pugSection.source.markup?.file).toBe('example-styleguide/templates/modules/studies-list.pug')
   })
 })
