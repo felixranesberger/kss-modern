@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.0.44](https://github.com/felixranesberger/kss-modern/compare/v0.0.43...v0.0.44) (2026-05-06)
+
+### Features
+
+* support legacy kss-scheibo `<insert-markup>` syntax for cross-referencing another section's markup — `<insert-markup>3.95.10</insert-markup>` inlines section 3.95.10's markup, the `-N` suffix variant (`<insert-markup>3.95.10-0</insert-markup>`) additionally substitutes every `{{modifier_class}}` placeholder with the name of `modifiers[N]` of the referenced section ([7787b89](https://github.com/felixranesberger/kss-modern/commit/7787b89))
+* resolve nested `<insert-markup>` references recursively with cycle detection — circular references and missing section IDs render an inline `<pre class="kss-modern-insert-markup-error">` block and log a `console.warn` instead of failing the build ([7787b89](https://github.com/felixranesberger/kss-modern/commit/7787b89))
+
+### Dependencies
+
+* update minor dependencies ([df3f599](https://github.com/felixranesberger/kss-modern/commit/df3f599))
+
+### Documentation
+
+* document `<insert-markup>` syntax variants and error behavior in `docs/usage.md` ([7787b89](https://github.com/felixranesberger/kss-modern/commit/7787b89))
+
+### Miscellaneous
+
+* add insert-markup demo component to example styleguide showing simple, trailing-dash, modifier-index, nested, and missing-reference variants ([7787b89](https://github.com/felixranesberger/kss-modern/commit/7787b89))
+
 ## [0.0.43](https://github.com/felixranesberger/kss-modern/compare/v0.0.42...v0.0.43) (2026-04-30)
 
 ### Features
