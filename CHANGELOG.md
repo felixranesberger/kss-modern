@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.45](https://github.com/felixranesberger/kss-modern/compare/v0.0.44...v0.0.45) (2026-05-06)
+
+### Bug Fixes
+
+* resolve `<insert-markup>` tags hidden inside loaded `.html`/`.pug` files and inside compiled pug output by running the resolver after `compilePugMarkup()` instead of before — previously the repository only contained file paths at resolve time, so tags inside referenced files were never substituted ([f0fa045](https://github.com/felixranesberger/kss-modern/commit/f0fa045))
+* resolve `<insert-markup>` tags transitively through chains of `.html`/`.pug` includes — a section that references another section whose markup file references yet another section now resolves all levels ([f0fa045](https://github.com/felixranesberger/kss-modern/commit/f0fa045))
+
+### Miscellaneous
+
+* extend insert-markup demo with cases for `<insert-markup>` inside an `.html` file and a three-level transitive chain through HTML files ([f0fa045](https://github.com/felixranesberger/kss-modern/commit/f0fa045))
+
 ## [0.0.44](https://github.com/felixranesberger/kss-modern/compare/v0.0.43...v0.0.44) (2026-05-06)
 
 ### Features
