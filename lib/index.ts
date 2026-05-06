@@ -168,11 +168,12 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
       })
     })
   })
-  // resolve <insert-markup> cross-references before pug compilation so included
-  // pug snippets and <insert-vite-pug> tags inside referenced markup are processed too
-  resolveInsertMarkupInRepository(markupRepository, sectionsById)
   // compile all pug markup inside repository
   markupRepository = await compilePugMarkup(config.mode, config.contentDir, markupRepository)
+
+  // resolve <insert-markup> cross-references after pug compilation and file loading,
+  // so that tags hidden inside included .html/.pug files or compiled pug output are also resolved
+  resolveInsertMarkupInRepository(markupRepository, sectionsById)
 
   // generate all full-pages and collect data for preview generation
   parsedContent.forEach((firstLevelSection, indexFirstLevel) => {

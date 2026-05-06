@@ -69,3 +69,39 @@ Markup: <insert-markup>99.99</insert-markup>
 
 Styleguide 3.95.60
 */
+
+/*
+Include Inside An HTML File
+
+Markdown: The `Markup:` field references an `.html` file that contains `<insert-markup>` somewhere inside its body. The tag is resolved after the file is loaded.
+
+Markup: templates/source/03-components/insert-markup-from-file.html
+
+Styleguide 3.95.70
+*/
+
+/*
+Transitive Chain Through HTML Files
+
+Markdown: This section references 3.95.80, whose markup is an HTML file referencing 3.95.81, whose markup is another HTML file referencing 3.95.10. All three levels must resolve.
+
+Markup: <insert-markup>3.95.80</insert-markup>
+
+Styleguide 3.95.79
+*/
+
+/*
+Chain Step 1
+
+Markup: templates/source/03-components/insert-markup-chain-1.html
+
+Styleguide 3.95.80
+*/
+
+/*
+Chain Step 2
+
+Markup: templates/source/03-components/insert-markup-chain-2.html
+
+Styleguide 3.95.81
+*/
