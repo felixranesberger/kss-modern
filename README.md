@@ -69,6 +69,21 @@ Styleguide 2.1
 .btn { /* styles */ }
 ```
 
+## Markup Includes
+
+The `Markup:` field accepts three formats. File paths are resolved relative to `contentDir`.
+
+```scss
+/* Inline HTML */
+Markup: <button class="btn {{modifier_class}}">Click me</button>
+
+/* Static .html file — contents are inlined as-is */
+Markup: templates/components/badge.html
+
+/* Static .pug file — compiled to HTML at build time */
+Markup: templates/components/card.pug
+```
+
 ## Development
 
 ```bash

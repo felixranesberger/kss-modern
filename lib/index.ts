@@ -1,3 +1,4 @@
+import type { SectionMeta } from './insert-markup.ts'
 import type { FileObject, in2Section } from './parser.ts'
 import type { MenuSearchKeywords } from './templates/preview.ts'
 import path from 'node:path'
@@ -7,6 +8,7 @@ import fs from 'fs-extra'
 import { glob } from 'tinyglobby'
 import { sectionSanitizeId } from '../client/utils.ts'
 import { generateFaviconFiles } from './favicon.ts'
+import { resolveInsertMarkupInRepository } from './insert-markup.ts'
 import { parse } from './parser.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
@@ -152,17 +154,23 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
 
   const fileWriteTasks: Promise<void>[] = []
   let markupRepository = new Map<string, { markup: string }>()
+  const sectionsById = new Map<string, SectionMeta>()
   parsedContent.forEach((firstLevelSection) => {
     firstLevelSection.sections.forEach((secondLevelSection) => {
+      sectionsById.set(secondLevelSection.id, { modifiers: secondLevelSection.modifiers.map(m => ({ name: m.value })) })
       if (secondLevelSection.markup)
         markupRepository.set(secondLevelSection.id, { markup: secondLevelSection.markup })
 
       secondLevelSection.sections.forEach((thirdLevelSection) => {
+        sectionsById.set(thirdLevelSection.id, { modifiers: thirdLevelSection.modifiers.map(m => ({ name: m.value })) })
         if (thirdLevelSection.markup)
           markupRepository.set(thirdLevelSection.id, { markup: thirdLevelSection.markup })
       })
     })
   })
+  // resolve <insert-markup> cross-references before pug compilation so included
+  // pug snippets and <insert-vite-pug> tags inside referenced markup are processed too
+  resolveInsertMarkupInRepository(markupRepository, sectionsById)
   // compile all pug markup inside repository
   markupRepository = await compilePugMarkup(config.mode, config.contentDir, markupRepository)
 

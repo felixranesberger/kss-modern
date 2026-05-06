@@ -1,0 +1,71 @@
+/*
+Insert Markup Demo
+
+Markdown: Demonstrates the `<insert-markup>` cross-reference feature backported from kss-scheibo.
+
+Styleguide 3.95
+*/
+
+/*
+Source Button
+
+Markdown: Source section that other sections will include via `<insert-markup>`.
+The `{{modifier_class}}` placeholder is substituted when this section is included with a modifier index.
+
+.c-badge--success - Success variant
+.c-badge--warning - Warning variant
+
+Markup: <span class="c-badge {{modifier_class}}">Status</span>
+
+Styleguide 3.95.10
+*/
+
+/*
+Simple Include
+
+Markdown: Includes section 3.95.10 directly via `<insert-markup>3.95.10</insert-markup>`. The `{{modifier_class}}` placeholder remains literal because no modifier index was given.
+
+Markup: <insert-markup>3.95.10</insert-markup>
+
+Styleguide 3.95.20
+*/
+
+/*
+Trailing-Dash Include
+
+Markdown: Trailing dash without index is treated identically to the bare reference.
+
+Markup: <insert-markup>3.95.10-</insert-markup>
+
+Styleguide 3.95.30
+*/
+
+/*
+Modifier-Index Include
+
+Markdown: With a modifier index `-0`, all `{{modifier_class}}` placeholders in the included markup are substituted with the name of `modifiers[0]` of the referenced section.
+
+Markup: <insert-markup>3.95.10-0</insert-markup>
+
+Styleguide 3.95.40
+*/
+
+/*
+Nested Include
+
+Markdown: Section 3.95.20 itself includes 3.95.10. Including 3.95.20 here verifies that nested resolution works recursively.
+
+Markup: <insert-markup>3.95.20</insert-markup>
+
+Styleguide 3.95.50
+*/
+
+/*
+Missing-Reference Include
+
+Markdown: References a non-existent section. The build does not fail; an inline error block is rendered and a warning is logged to the console.
+
+Markup: <insert-markup>99.99</insert-markup>
+
+Styleguide 3.95.60
+*/

@@ -60,7 +60,9 @@ Lower values appear first. Sections without a weight are sorted by their referen
 
 ### Markup
 
-Define live HTML previews for components. Supports raw HTML or Pug templates:
+Define live HTML previews for components. The `Markup:` field accepts three formats:
+
+**1. Inline HTML**
 
 ```scss
 /*
@@ -72,21 +74,69 @@ Styleguide 2.1
 */
 ```
 
-With Pug templates:
+**2. Static `.html` file**
+
+A bare path ending in `.html` is read from disk and inlined as-is.
 
 ```scss
 /*
-Card
+Badge
 
-Markup: <insert-vite-pug src="templates/source/card.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>
+Markup: templates/source/components/badge.html
 
 Styleguide 3.1
 */
 ```
 
-The `src` path is relative to `contentDir`. Pug templates are compiled via a worker thread pool.
+**3. Static `.pug` file**
 
-The `{{modifier_class}}` placeholder is replaced with each modifier's CSS class in the live previews.
+A bare path ending in `.pug` is compiled to HTML at build time.
+
+```scss
+/*
+Tag
+
+Markup: templates/source/components/tag.pug
+
+Styleguide 3.2
+*/
+```
+
+File paths are resolved relative to `contentDir`. Pug compilation runs in a Node.js worker thread pool sized to the available CPU cores. The `{{modifier_class}}` placeholder is replaced with each modifier's CSS class in the live previews.
+
+### Including Markup From Other Sections
+
+Reference another section's markup with the `<insert-markup>` tag. Useful for composing examples without duplicating HTML.
+
+| Form | Effect |
+|---|---|
+| `<insert-markup>4.95.10</insert-markup>` | Inline the markup of section `4.95.10` |
+| `<insert-markup>4.95.10-</insert-markup>` | Identical to the bare reference (trailing dash, no index) |
+| `<insert-markup>4.95.10-0</insert-markup>` | Inline the markup of section `4.95.10` and substitute every `{{modifier_class}}` with the name of the referenced section's `modifiers[0]` |
+
+```scss
+/*
+Source Button
+
+.button--primary - Primary variant
+
+Markup: <button class="button {{modifier_class}}">Click me</button>
+
+Styleguide 4.95.10
+*/
+
+/*
+Primary Button In Context
+
+Markup: <div class="container"><insert-markup>4.95.10-0</insert-markup></div>
+
+Styleguide 4.95.20
+*/
+```
+
+The cross-reference is resolved before Pug compilation, so an included section may itself reference Pug files or further `<insert-markup>` tags — nested includes work recursively.
+
+If the referenced section does not exist, the modifier index is out of range, or a circular reference is detected, the build does not fail; an inline `<pre class="kss-modern-insert-markup-error">` block is rendered and a warning is logged to the console.
 
 ### Modifiers
 
@@ -306,7 +356,7 @@ Figma: https://embed.figma.com/design/FILE_ID?node-id=123-456
 
 Wrapper: <div style="max-width: 400px">{{wrapper-content}}</div>
 
-Markup: <insert-vite-pug src="templates/source/card.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>
+Markup: templates/source/card.pug
 
 Styleguide 3.10
 */
