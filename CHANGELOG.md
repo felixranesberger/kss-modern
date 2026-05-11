@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.46](https://github.com/felixranesberger/kss-modern/compare/v0.0.45...v0.0.46) (2026-05-11)
+
+### Bug Fixes
+
+* use `fs.remove` instead of `fs.unlink` when clearing stale `.html` files at the start of a production `buildStyleguide()` — concurrent builds (e.g. a file-watcher rebuild firing while a previous build is still running) raced on the same files and crashed Node with `ENOENT` from the second build's unlink call ([7d65f24](https://github.com/felixranesberger/kss-modern/commit/7d65f24))
+
+### Miscellaneous
+
+* add missing demo fixtures (`insert-markup-chain-1.html`, `insert-markup-chain-2.html`, `insert-markup-from-file.html`) for the `<insert-markup>` chain-through-HTML examples shipped in v0.0.45 ([b089946](https://github.com/felixranesberger/kss-modern/commit/b089946))
+
 ## [0.0.45](https://github.com/felixranesberger/kss-modern/compare/v0.0.44...v0.0.45) (2026-05-06)
 
 ### Bug Fixes
