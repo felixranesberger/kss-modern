@@ -98,7 +98,7 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
   // ensure clean output directory and delete all html files
   if (config.mode === 'production' && await fs.exists(config.outDir)) {
     const files = await glob(`${config.outDir}/**/*.html`)
-    await Promise.all(files.map(file => fs.unlink(file)))
+    await Promise.all(files.map(file => fs.remove(file)))
   }
 
   const baseDirectory = path.relative(process.cwd(), config.outDir)
