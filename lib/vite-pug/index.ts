@@ -4,7 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
-import { fixAccessibilityIssues } from '../utils.ts'
+import { fixAccessibilityIssues } from '../shared.ts'
 
 const MAX_POOL_SIZE = os.cpus().length
 

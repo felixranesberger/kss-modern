@@ -1,4 +1,4 @@
-import { sanitizeSpecialCharacters } from './utils.ts'
+import { sanitizeSpecialCharacters } from './shared.ts'
 
 export interface SectionMeta {
   modifiers: { name: string }[]

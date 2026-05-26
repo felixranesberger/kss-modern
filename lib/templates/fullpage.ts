@@ -1,5 +1,6 @@
 import type { StyleguideConfiguration } from '../index.ts'
-import { logicalWriteFile, sanitizeSpecialCharacters } from '../utils.ts'
+import { sanitizeSpecialCharacters } from '../shared.ts'
+import { logicalWriteFile } from '../utils.ts'
 
 export async function generateFullPageFile(data: {
   id: string

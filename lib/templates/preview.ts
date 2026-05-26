@@ -4,7 +4,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, logicalWriteFile, sanitizeSpecialCharacters } from '../utils.ts'
+import { ensureStartingSlash, generateId, sanitizeSpecialCharacters } from '../shared.ts'
+import { logicalWriteFile } from '../utils.ts'
 
 function getHasSectionExternalFullpage(section: in2Section) {
   return section.markup.length > 0

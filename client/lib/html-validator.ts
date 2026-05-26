@@ -7,8 +7,8 @@ import type {
   UnlabelledFrameSelector,
 } from 'axe-core'
 import type { Message as HTMLValidateMessage } from 'html-validate'
+import { sanitizeSpecialCharacters } from '../../lib/shared.ts'
 import { each, when } from '../../lib/template-utils.ts'
-import { sanitizeSpecialCharacters } from '../../lib/utils.ts'
 import { highlightCode } from '../code-highlight'
 import { id, queryRequired } from '../utils.ts'
 
