@@ -42,15 +42,14 @@ export async function generateFullPageFile(data: {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="styleguide">
+    <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/fullpage.svg">
+    ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
     ${typeof data.theme === 'object' && 'dark' in data.theme && 'light' in data.theme
       ? `
-          <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/fullpage.svg">
+          <meta name="theme-color" media="(prefers-color-scheme: light)" content="${data.theme.light}">
+          <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.theme.dark}">
       `
-      : `
-        <meta name="theme-color" content="${data.theme}">
-        <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/fullpage-light.svg">
-      `}
-    ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
+      : `<meta name="theme-color" content="${data.theme}">`}
     <script type="module" src="/styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
     ${computedStyleTags}
 </head>
