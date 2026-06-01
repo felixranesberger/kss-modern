@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0](https://github.com/felixranesberger/kss-modern/compare/v0.0.48...v1.0.0) (2026-06-01)
+
+### Bug Fixes
+
+* stop preview and fullpage pages from requesting non-existent `favicon/preview-light.svg` and `favicon/fullpage-light.svg` assets (HTTP 404) when `theme` is configured as a single color string instead of a `{ light, dark }` object — the favicon generator only ever emits `favicon/preview.svg` and `favicon/fullpage.svg`, so both templates now link to those files regardless of the theme shape ([48a4201](https://github.com/felixranesberger/kss-modern/commit/48a4201))
+
+### Dependencies
+
+* update dependencies ([400123a](https://github.com/felixranesberger/kss-modern/commit/400123a))
+
+### Miscellaneous
+
+* deduplicate the favicon `<link>` in the preview and fullpage templates by hoisting it out of the theme-shape conditional, which now only governs the `theme-color` meta tag(s) ([48a4201](https://github.com/felixranesberger/kss-modern/commit/48a4201))
+
 ## [0.0.46](https://github.com/felixranesberger/kss-modern/compare/v0.0.45...v0.0.46) (2026-05-11)
 
 ### Bug Fixes
