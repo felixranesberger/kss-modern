@@ -3,6 +3,23 @@
   "type": "module",
   "version": "0.0.48",
   "description": "Modern KSS compatible styleguide generator",
+  "keywords": [
+    "kss",
+    "kss-node",
+    "styleguide",
+    "living-styleguide",
+    "design-system",
+    "component-library",
+    "pattern-library",
+    "documentation",
+    "sass",
+    "pug",
+    "static-site-generator",
+    "accessibility",
+    "a11y",
+    "figma",
+    "dark-mode"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/felixranesberger/kss-modern.git"
