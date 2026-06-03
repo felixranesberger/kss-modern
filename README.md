@@ -47,7 +47,7 @@ This scans all `.css` and `.scss` files in `contentDir` for KSS comment blocks a
 ## Documentation
 
 - **[Setup Guide](docs/setup.md)** — Installation, configuration reference, watch mode, project structure, and API reference
-- **[Usage Guide](docs/usage.md)** — Writing KSS comments, all available properties (markup, modifiers, colors, icons, Markdown, Figma, status, etc.), and styleguide UI features
+- **[Usage Guide](docs/usage.md)** — Writing KSS comments, all available properties (markup, modifiers, colors, icons, Markdown, Figma, status, wrapper, html/body classes, etc.), and styleguide UI features
 - **[Changelog](CHANGELOG.md)** — Version history and release notes
 
 ## Basic KSS Example
