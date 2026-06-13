@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@antfu/utils": "^9.3.0",
-    "@biomejs/js-api": "^4.0.0",
+    "@biomejs/js-api": "^6.0.0",
     "@biomejs/wasm-nodejs": "^2.4.16",
     "@shikijs/markdown-it": "^4.1.0",
     "chokidar": "^5.0.0",
