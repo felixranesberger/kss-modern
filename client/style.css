@@ -366,6 +366,28 @@
         :not(:is(pre)) > code {
             @apply px-1.5 py-0.5 text-sm bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)] font-mono text-styleguide-highlight rounded-md;
         }
+
+        /* markdown table */
+
+        table {
+            @apply w-full text-sm border-collapse text-left;
+        }
+
+        :is(th, td) {
+            @apply px-3 py-2 align-top border-b border-styleguide-border;
+        }
+
+        th {
+            @apply font-semibold text-styleguide-highlight;
+        }
+
+        thead th {
+            @apply bg-styleguide-bg-highlight;
+        }
+
+        tbody tr:last-child :is(th, td) {
+            @apply border-b-0;
+        }
     }
 
     :is(.markdown-container, .code-audit-container) {
