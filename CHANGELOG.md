@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.0](https://github.com/felixranesberger/kss-modern/compare/v1.0.0...v1.1.0) (2026-06-15)
+
+### Features
+
+* style Markdown tables rendered inside `.markdown-container` — full-width, border-collapsed layout with padded cells, bottom borders between rows, and a highlighted header row (semibold text on a tinted background) ([76655ee](https://github.com/felixranesberger/kss-modern/commit/76655ee))
+
+### Bug Fixes
+
+* stop the page (and the sticky navigation menu) from shifting horizontally when the search dialog opens — locking body scroll via `position: fixed` removed the root scrollbar and reclaimed its width, nudging the layout right; the root element now permanently reserves the scrollbar gutter with `scrollbar-gutter: stable` so toggling the lock no longer reflows the page (no-op on overlay scrollbars such as macOS) ([0e99cc2](https://github.com/felixranesberger/kss-modern/commit/0e99cc2))
+
 ## [1.0.0](https://github.com/felixranesberger/kss-modern/compare/v0.0.48...v1.0.0) (2026-06-01)
 
 ### Bug Fixes
