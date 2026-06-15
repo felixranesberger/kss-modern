@@ -105,6 +105,7 @@
 @layer utilities {
     html {
         view-transition-name: none;
+        scrollbar-gutter: stable;
     }
 
     body:not(.allow-transitions) .transition {
