@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1](https://github.com/felixranesberger/kss-modern/compare/v1.1.0...v1.1.1) (2026-06-17)
+
+### Bug Fixes
+
+* collapse the full set of HTML boolean attributes (not just `required`, `disabled`, `checked`, `selected`, `multiple`, `readonly`, and `open`) in `fixAccessibilityIssues()` — Pug emits boolean attributes in the verbose `attr="attr"` / `attr=""` form, which `html-validate` flags as accessibility/markup errors, so the helper now also normalizes `allowfullscreen`, `async`, `autofocus`, `autoplay`, `controls`, `default`, `defer`, `formnovalidate`, `inert`, `ismap`, `itemscope`, `loop`, `muted`, `nomodule`, `novalidate`, `playsinline`, and `reversed` down to their bare boolean form ([a43a4a7](https://github.com/felixranesberger/kss-modern/commit/a43a4a7))
+
 ## [1.1.0](https://github.com/felixranesberger/kss-modern/compare/v1.0.0...v1.1.0) (2026-06-15)
 
 ### Features
