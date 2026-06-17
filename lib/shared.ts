@@ -10,7 +10,33 @@
 export function fixAccessibilityIssues(html: string): string {
   let parsedMarkup = html
 
-  const omitValue = ['required', 'disabled', 'checked', 'selected', 'multiple', 'readonly', 'open']
+  const omitValue = [
+    'allowfullscreen',
+    'async',
+    'autofocus',
+    'autoplay',
+    'checked',
+    'controls',
+    'default',
+    'defer',
+    'disabled',
+    'formnovalidate',
+    'inert',
+    'ismap',
+    'itemscope',
+    'loop',
+    'multiple',
+    'muted',
+    'nomodule',
+    'novalidate',
+    'open',
+    'playsinline',
+    'readonly',
+    'required',
+    'reversed',
+    'selected',
+  ]
+
   omitValue.forEach((value) => {
     parsedMarkup = parsedMarkup
       .replaceAll(`${value}="${value}"`, value)
