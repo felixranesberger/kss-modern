@@ -14,8 +14,14 @@ declare module 'pug' {
     name?: string
   }
 
+  interface CompiledTemplate {
+    (locals?: any): string
+    /** Absolute paths of all files this template includes/extends (entry file not included). */
+    dependencies: string[]
+  }
+
   const pug: {
-    compileFile: (source: string, options?: Options) => (locals?: any) => string
+    compileFile: (source: string, options?: Options) => CompiledTemplate
   }
   export = pug
 }

@@ -1,12 +1,23 @@
+import type { FSWatcher } from 'chokidar'
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import chokidar from 'chokidar'
 
-/**
- * Type definition for the file watcher callback function
- */
-type WatchCallback = () => void
+export interface StyleguideWatchHandlers {
+  /**
+   * A `.css/.scss/.sass/.less` file whose KSS section comment changed, or any `.md` change.
+   * These can alter section structure, so the whole styleguide is rebuilt.
+   */
+  onStructuralChange: () => void
+  /**
+   * A `.pug` (or source `.html`) markup file changed. Only the sections depending on it are
+   * recompiled and rewritten. Receives the absolute path of the changed file.
+   */
+  onMarkupChange: (changedFile: string) => void
+}
 
 const VALID_CSS_FILE_TYPES = ['.css', '.scss', '.sass', '.less']
+const MARKUP_FILE_TYPES = ['.pug', '.html']
 
 function isCssFile(filePath: string): boolean {
   return VALID_CSS_FILE_TYPES.some(type => filePath.endsWith(type))
@@ -14,6 +25,10 @@ function isCssFile(filePath: string): boolean {
 
 function isMarkdownFile(filePath: string): boolean {
   return filePath.endsWith('.md')
+}
+
+function isMarkupFile(filePath: string): boolean {
+  return MARKUP_FILE_TYPES.some(type => filePath.endsWith(type))
 }
 
 function matchArraysEqual(a: RegExpMatchArray | null, b: RegExpMatchArray | null): boolean {
@@ -26,45 +41,48 @@ function matchArraysEqual(a: RegExpMatchArray | null, b: RegExpMatchArray | null
   return a.every((value, index) => value === b[index])
 }
 
+// Matches the KSS section comment block
+// (file must start with "/*", "/**" and end with "*/", "**/" and contain "Styleguide"
+const kssSectionRegex = /\/\*{1,2}[\s\S]*?Styleguide[\s\S]*?\*\//g
+
 /**
- * Watches for changes in file contents that match a specific regex pattern
- * @param path - File path or glob pattern to watch
- * @param regex - Regular expression to match file contents
- * @param callback - Function to call when matching content changes
+ * Watch the content directory and route file changes to the appropriate rebuild strategy:
+ * structural changes (CSS sections / markdown) trigger a full rebuild, while markup changes
+ * (`.pug`/`.html`) trigger an incremental rebuild of only the dependent sections.
  */
-function watchForFileContentChanges(path: string | string[], regex: RegExp, callback: WatchCallback): void {
-  if (typeof callback !== 'function') {
-    throw new TypeError('styleguide watch requires a callback function')
+export function watchStyleguideForChanges(
+  watchPath: string | string[],
+  handlers: StyleguideWatchHandlers,
+): FSWatcher {
+  if (typeof handlers.onStructuralChange !== 'function' || typeof handlers.onMarkupChange !== 'function') {
+    throw new TypeError('styleguide watch requires onStructuralChange and onMarkupChange callbacks')
   }
 
-  // Store file contents matches in a Map
+  // Store the KSS section matches per CSS file so unrelated edits don't trigger a rebuild.
   const regexFileContents = new Map<string, RegExpMatchArray | null>()
 
-  const handleCSSAdd = (filePath: string): void => {
-    const currentFileContent = readFileSync(filePath, 'utf8')
-    const currentFileMatches = currentFileContent.match(regex)
-
+  const handleCssAdd = (filePath: string): void => {
+    const currentFileMatches = readFileSync(filePath, 'utf8').match(kssSectionRegex)
     if (currentFileMatches === null) {
       return
     }
 
     regexFileContents.set(filePath, currentFileMatches)
-    callback()
+    handlers.onStructuralChange()
   }
 
-  const handleCSSChange = (filePath: string): void => {
+  const handleCssChange = (filePath: string): void => {
     const previousFileMatches = regexFileContents.get(filePath)
     const hasFileBeenReadBefore = previousFileMatches !== undefined
 
-    const currentFileContent = readFileSync(filePath, 'utf8')
-    const currentFileMatches = currentFileContent.match(regex)
+    const currentFileMatches = readFileSync(filePath, 'utf8').match(kssSectionRegex)
 
     if (!hasFileBeenReadBefore) {
       regexFileContents.set(filePath, currentFileMatches)
       if (currentFileMatches === null) {
         return
       }
-      callback()
+      handlers.onStructuralChange()
       return
     }
 
@@ -73,56 +91,45 @@ function watchForFileContentChanges(path: string | string[], regex: RegExp, call
     }
 
     regexFileContents.set(filePath, currentFileMatches)
-    callback()
+    handlers.onStructuralChange()
   }
 
-  const handleCSSUnlink = (filePath: string): void => {
+  const handleCssUnlink = (filePath: string): void => {
     regexFileContents.delete(filePath)
-    callback()
+    handlers.onStructuralChange()
   }
 
   // Single watcher with file-extension routing in handlers
-  const validFileTypes = [...VALID_CSS_FILE_TYPES, '.md']
-  chokidar.watch(path, {
+  const validFileTypes = [...VALID_CSS_FILE_TYPES, '.md', ...MARKUP_FILE_TYPES]
+  return chokidar.watch(watchPath, {
     ignoreInitial: true,
     // @ts-expect-error - chokidar types seem to be incomplete, ignore
-    ignored: (path, stats) => {
-      return stats?.isFile() && !validFileTypes.some(type => path.endsWith(type))
+    ignored: (filePath, stats) => {
+      return stats?.isFile() && !validFileTypes.some(type => filePath.endsWith(type))
     },
   })
     .on('add', (filePath: string) => {
       if (isCssFile(filePath))
-        handleCSSAdd(filePath)
+        handleCssAdd(filePath)
       else if (isMarkdownFile(filePath))
-        callback()
+        handlers.onStructuralChange()
+      else if (isMarkupFile(filePath))
+        handlers.onMarkupChange(path.resolve(filePath))
     })
     .on('change', (filePath: string) => {
       if (isCssFile(filePath))
-        handleCSSChange(filePath)
+        handleCssChange(filePath)
       else if (isMarkdownFile(filePath))
-        callback()
+        handlers.onStructuralChange()
+      else if (isMarkupFile(filePath))
+        handlers.onMarkupChange(path.resolve(filePath))
     })
     .on('unlink', (filePath: string) => {
       if (isCssFile(filePath))
-        handleCSSUnlink(filePath)
+        handleCssUnlink(filePath)
       else if (isMarkdownFile(filePath))
-        callback()
+        handlers.onStructuralChange()
+      else if (isMarkupFile(filePath))
+        handlers.onMarkupChange(path.resolve(filePath))
     })
-}
-
-/**
- * Watch for changes in KSS section comment blocks
- * @param path - File path or glob pattern to watch
- * @param callback - Function to call when KSS sections change
- */
-export function watchStyleguideForChanges(path: string | string[], callback: WatchCallback): void {
-  // Matches the KSS section comment block
-  // (file must start with "/*", "/**" and end with "*/", "**/" and contain "Styleguide"
-  const kssSectionRegex = /\/\*{1,2}[\s\S]*?Styleguide[\s\S]*?\*\//g
-
-  watchForFileContentChanges(
-    path,
-    kssSectionRegex,
-    callback,
-  )
 }

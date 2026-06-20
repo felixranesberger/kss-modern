@@ -1,0 +1,35 @@
+/*
+Components
+
+Styleguide 1.0
+*/
+
+/*
+Card
+
+A card component assembled from a pug partial.
+
+Markup: <insert-vite-pug src="pug/card.pug"></insert-vite-pug>
+
+Styleguide 1.1
+*/
+
+/*
+Button
+
+A button component.
+
+Markup: <insert-vite-pug src="pug/button.pug"></insert-vite-pug>
+
+Styleguide 1.2
+*/
+
+/*
+Composed
+
+Embeds the card via insert-markup.
+
+Markup: <div class="c-composed"><insert-markup>1.1</insert-markup></div>
+
+Styleguide 1.3
+*/

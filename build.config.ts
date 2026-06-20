@@ -326,7 +326,7 @@ const previewInlineContent = `<script>
 
 export default defineBuildConfig({
   outDir: 'dist/node',
-  entries: ['./lib/index', './lib/vite-pug/worker'],
+  entries: ['./lib/index', './lib/pug/worker'],
   declaration: true,
   failOnWarn: false,
   externals: ['@antfu/utils', ...shikiExternalPackages],
