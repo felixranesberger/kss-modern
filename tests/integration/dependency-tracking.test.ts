@@ -133,20 +133,22 @@ describe.skipIf(!distAssetsExist)('dependency tracking', () => {
       expect(await read(fullpage('1.3'))).toContain('Extra')
     })
 
-    it('keeps the last good output when a referenced file is deleted', async () => {
+    it('renders an inline error overlay when a referenced file is deleted (development)', async () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const bBefore = await read(fullpage('1.4'))
 
       await fs.remove(pug('_shared.pug'))
       // the graph edge survives a delete, so the consumers are still picked up
       const ids = affected(pug('_shared.pug'))
       expect(ids).toContain('1.4')
 
+      // the rebuild does not throw in development — it degrades to an overlay per failing section
       await expect(rebuildSections(config, context, ids)).resolves.toBeUndefined()
 
-      // 1.4 retains its last-good HTML rather than crashing or emitting an empty page
-      expect(await read(fullpage('1.4'))).toBe(bBefore)
-      expect(await read(fullpage('1.4'))).toContain('Shared v2')
+      // 1.4 now shows the compile-error overlay in its own preview instead of stale output
+      const html = await read(fullpage('1.4'))
+      expect(html).toContain('Pug compile error')
+      expect(html).toContain('1.4')
+      expect(html).not.toContain('Shared v2')
       expect(errorSpy).toHaveBeenCalled()
       errorSpy.mockRestore()
     })

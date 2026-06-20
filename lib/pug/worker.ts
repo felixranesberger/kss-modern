@@ -16,7 +16,10 @@ interface PugWorkerSuccess {
 }
 interface PugWorkerError {
   id: string
+  /** Raw pug error message (includes the code frame). */
   error: string
+  /** Path of the failing `.pug` file, if pug reported one. */
+  file?: string
 }
 export type PugWorkerOutput = PugWorkerSuccess | PugWorkerError
 
@@ -33,6 +36,8 @@ parentPort.on('message', async (data: PugWorkerInput) => {
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    parentPort!.postMessage({ id, error: `Pug markup failed to compile for section "${id}": ${message}` } satisfies PugWorkerOutput)
+    const file = (error as { path?: string, filename?: string } | null)?.path
+      ?? (error as { path?: string, filename?: string } | null)?.filename
+    parentPort!.postMessage({ id, error: message, file } satisfies PugWorkerOutput)
   }
 })

@@ -7,8 +7,18 @@ import { Worker } from 'node:worker_threads'
 import { computeDepSignatures, PugCompileCache } from './cache.ts'
 import { compileMarkup } from './compile-core.ts'
 import { PugDependencyGraph } from './dependency-graph.ts'
+import { renderPugErrorOverlay } from './error-overlay.ts'
 
 type Mode = 'production' | 'development'
+
+export interface PugCompileError {
+  /** Section id whose markup failed to compile. */
+  id: string
+  /** Absolute path of the `.pug` file that failed, if pug reported one. */
+  file?: string
+  /** Raw pug error message — includes the code frame pointing at the offending line. */
+  message: string
+}
 
 const MAX_POOL_SIZE = os.cpus().length
 // Below this many cache misses, compile on the main thread instead of spawning a worker pool.
@@ -22,6 +32,13 @@ const graph = new PugDependencyGraph()
 
 export function getPugDependencyGraph(): PugDependencyGraph {
   return graph
+}
+
+/** Resolve the absolute path of the `.pug` file a pug error points at, if it carries one. */
+function extractPugErrorFile(error: unknown): string | undefined {
+  const candidate = (error as { path?: string, filename?: string } | null)?.path
+    ?? (error as { path?: string, filename?: string } | null)?.filename
+  return candidate ? path.resolve(candidate) : undefined
 }
 
 /** Test helper: clear the module-level cache + dependency graph between cases. */
@@ -54,11 +71,24 @@ function storeResult(id: string, markupSource: string, html: string, dependencie
   })
 }
 
-/** On a compile failure keep the last good output if we have one; otherwise leave the raw markup. */
-function keepLastGood(repository: Map<string, { markup: string }>, id: string): void {
-  const lastGood = cache.get(id)
-  if (lastGood)
-    repository.set(id, { markup: lastGood.compiledHtml })
+/**
+ * Record a compile failure. In development the section's markup is replaced with an inline error
+ * overlay so the broken section shows the error right in its own preview, and the build keeps going
+ * so every other section still renders. In production nothing is patched in — the accumulated errors
+ * are thrown by `compileIds`, which breaks the build. Either way the failure is logged to the
+ * console; it is not surfaced through any return value or callback.
+ */
+function recordFailure(
+  mode: Mode,
+  repository: Map<string, { markup: string }>,
+  errors: PugCompileError[],
+  pugError: PugCompileError,
+): void {
+  console.error(`Pug markup failed to compile for section "${pugError.id}": ${pugError.message}`)
+  errors.push(pugError)
+  if (mode === 'development') {
+    repository.set(pugError.id, { markup: renderPugErrorOverlay(pugError) })
+  }
 }
 
 async function compileInline(
@@ -66,6 +96,7 @@ async function compileInline(
   contentDir: `${string}/`,
   repository: Map<string, { markup: string }>,
   id: string,
+  errors: PugCompileError[],
 ): Promise<void> {
   const markupSource = repository.get(id)!.markup
   try {
@@ -75,8 +106,7 @@ async function compileInline(
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error(`Pug markup failed to compile for section "${id}": ${message}`)
-    keepLastGood(repository, id)
+    recordFailure(mode, repository, errors, { id, file: extractPugErrorFile(error), message })
   }
 }
 
@@ -85,6 +115,7 @@ async function compileViaWorkerPool(
   contentDir: `${string}/`,
   repository: Map<string, { markup: string }>,
   ids: string[],
+  errors: PugCompileError[],
 ): Promise<void> {
   const poolSize = Math.min(ids.length, MAX_POOL_SIZE)
 
@@ -130,8 +161,11 @@ async function compileViaWorkerPool(
     releaseWorker(worker)
 
     if ('error' in result) {
-      console.error(result.error)
-      keepLastGood(repository, id)
+      recordFailure(mode, repository, errors, {
+        id,
+        file: result.file ? path.resolve(result.file) : undefined,
+        message: result.error,
+      })
       return
     }
 
@@ -177,12 +211,22 @@ async function compileIds(
   if (misses.length === 0)
     return clonedRepository
 
+  const errors: PugCompileError[] = []
   const useInline = mode === 'development' && misses.length <= INLINE_THRESHOLD
   if (useInline) {
-    await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id)))
+    await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors)))
   }
   else {
-    await compileViaWorkerPool(mode, contentDir, clonedRepository, misses)
+    await compileViaWorkerPool(mode, contentDir, clonedRepository, misses, errors)
+  }
+
+  // production has no graceful degradation: any compile failure breaks the build
+  if (mode === 'production' && errors.length > 0) {
+    throw new Error(
+      `Pug compilation failed for ${errors.length} section(s):\n\n${
+        errors.map(error => `  • ${error.id}${error.file ? ` (${error.file})` : ''}\n${error.message}`).join('\n\n')
+      }`,
+    )
   }
 
   return clonedRepository

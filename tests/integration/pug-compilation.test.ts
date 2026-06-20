@@ -115,16 +115,32 @@ describe('pug compilation pipeline', () => {
     expect(first.get('4.1')!.markup).toBe(second.get('4.1')!.markup)
   })
 
-  it('reports an error for a missing .pug file path', async () => {
+  it('breaks the build on a missing .pug file path in production', async () => {
     const repository = new Map<string, { markup: string }>([
       ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
     ])
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await compilePugMarkup('production', 'example-styleguide/', repository)
 
-    // On error the worker pool drops the entry; the original repository value remains untouched
-    expect(result.get('pug.missing')!.markup).toBe('templates/does-not-exist.pug')
+    // production has no graceful degradation: the failure throws so the build fails
+    await expect(compilePugMarkup('production', 'example-styleguide/', repository))
+      .rejects.toThrow(/Pug compilation failed/)
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('renders an inline error overlay for a missing .pug file path in development', async () => {
+    const repository = new Map<string, { markup: string }>([
+      ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
+    ])
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // development degrades gracefully: the broken section's markup becomes the error overlay
+    const result = await compilePugMarkup('development', 'example-styleguide/', repository)
+
+    const markup = result.get('pug.missing')!.markup
+    expect(markup).toContain('Pug compile error')
+    expect(markup).toContain('pug.missing')
     expect(errorSpy).toHaveBeenCalled()
     errorSpy.mockRestore()
   })
