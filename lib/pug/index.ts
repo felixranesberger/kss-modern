@@ -1,5 +1,5 @@
 import type { Mode } from './compile-core.ts'
-import type { PugWorkerOutput } from './worker.ts'
+import type { PugWorkerInput, PugWorkerOutput } from './worker.ts'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -20,9 +20,10 @@ export interface PugCompileError {
   message: string
 }
 
-const MAX_POOL_SIZE = os.cpus().length
-// Below this many cache misses, compile on the main thread instead of spawning a worker pool.
-// Incremental dev rebuilds touch one or two sections, so this avoids pool spawn/teardown churn.
+// Leave a core for the main thread / event loop.
+const MAX_POOL_SIZE = Math.max(1, os.cpus().length - 1)
+// Below this many cache misses, compile on the main thread instead of dispatching to the pool — a
+// one- or two-section incremental rebuild isn't worth the worker round-trip.
 const INLINE_THRESHOLD = 2
 
 // Module-level singletons that live for the dev-server lifetime, replacing the old prod-only
@@ -46,16 +47,90 @@ const __dirname = path.dirname(__filename)
 const workerFilePath = __dirname.includes('dist/') ? './pug/worker.mjs' : './worker.ts'
 const workerFilePathResolved = path.resolve(__dirname, workerFilePath)
 
-let workerPool: Worker[] = []
+// Persistent worker pool: workers are spawned lazily (up to MAX_POOL_SIZE) and kept warm for the
+// process lifetime, so incremental rebuilds reuse them instead of paying thread spawn + module load
+// on every change. Idle workers are unref'd so they never keep the process alive — tests and
+// one-shot builds still exit cleanly — and a worker is ref'd again only while it handles a task.
+const allWorkers = new Set<Worker>()
+const idleWorkers: Worker[] = []
+const waiters: ((worker: Worker) => void)[] = []
 
-async function terminateAllWorkers() {
-  await Promise.all(workerPool.map(worker => worker.terminate()))
-  workerPool = []
+function spawnWorker(): Worker {
+  const worker = new Worker(workerFilePathResolved, { name: `pug-worker-${allWorkers.size}` })
+  allWorkers.add(worker)
+  return worker
+}
+
+function acquireWorker(): Promise<Worker> {
+  const idle = idleWorkers.pop()
+  if (idle) {
+    idle.ref()
+    return Promise.resolve(idle)
+  }
+  if (allWorkers.size < MAX_POOL_SIZE) {
+    // a freshly spawned worker is ref'd by default, which is what we want while it is busy
+    return Promise.resolve(spawnWorker())
+  }
+  return new Promise<Worker>((resolve) => {
+    waiters.push(resolve)
+  })
+}
+
+function releaseWorker(worker: Worker): void {
+  const waiter = waiters.shift()
+  if (waiter) {
+    waiter(worker)
+    return
+  }
+  worker.unref()
+  idleWorkers.push(worker)
+}
+
+/** Drop a worker that crashed at the thread level, replacing it if tasks are still queued. */
+async function discardWorker(worker: Worker): Promise<void> {
+  allWorkers.delete(worker)
+  await worker.terminate().catch(() => {})
+  const waiter = waiters.shift()
+  if (waiter && allWorkers.size < MAX_POOL_SIZE) {
+    waiter(spawnWorker())
+  }
+}
+
+/** Run a single compile job on a worker, settling when it replies or rejecting if the thread dies. */
+function runOnWorker(worker: Worker, input: PugWorkerInput): Promise<PugWorkerOutput> {
+  return new Promise<PugWorkerOutput>((resolve, reject) => {
+    function cleanup(): void {
+      worker.off('message', onMessage)
+      worker.off('error', onError)
+    }
+    function onMessage(result: PugWorkerOutput): void {
+      cleanup()
+      resolve(result)
+    }
+    function onError(error: Error): void {
+      cleanup()
+      reject(error)
+    }
+    worker.once('message', onMessage)
+    worker.once('error', onError)
+    worker.postMessage(input)
+  })
+}
+
+/** Terminate every pooled worker. Used by the signal handlers and available for explicit teardown. */
+export async function terminatePugWorkers(): Promise<void> {
+  const workers = [...allWorkers]
+  allWorkers.clear()
+  idleWorkers.length = 0
+  waiters.length = 0
+  await Promise.all(workers.map(worker => worker.terminate()))
 }
 
 // terminate workers automatically on terminal exit
 const signals = ['SIGINT', 'SIGTERM', 'SIGQUIT'] as const
-signals.forEach(signal => process.on(signal, async () => await terminateAllWorkers()))
+signals.forEach(signal => process.on(signal, () => {
+  void terminatePugWorkers()
+}))
 
 async function storeResult(id: string, markupSource: string, html: string, dependencies: string[]): Promise<void> {
   graph.setDependencies(id, dependencies)
@@ -110,46 +185,22 @@ async function compileViaWorkerPool(
   ids: string[],
   errors: PugCompileError[],
 ): Promise<void> {
-  const poolSize = Math.min(ids.length, MAX_POOL_SIZE)
-
-  // Promise-based queue: waiters resolve when a worker becomes free
-  const waiters: ((worker: Worker) => void)[] = []
-  const freeWorkers: Worker[] = []
-
-  function releaseWorker(worker: Worker) {
-    const waiter = waiters.shift()
-    if (waiter) {
-      waiter(worker)
-    }
-    else {
-      freeWorkers.push(worker)
-    }
-  }
-
-  function acquireWorker(): Promise<Worker> {
-    const worker = freeWorkers.pop()
-    if (worker) {
-      return Promise.resolve(worker)
-    }
-    return new Promise<Worker>(resolve => waiters.push(resolve))
-  }
-
-  workerPool = Array.from({ length: poolSize }, (_, index) => {
-    const worker = new Worker(workerFilePathResolved, {
-      name: `pug-worker-${index}`,
-    })
-    freeWorkers.push(worker)
-    return worker
-  })
-
   const tasks = ids.map(async (id) => {
     const markupSource = repository.get(id)!.markup
     const worker = await acquireWorker()
 
-    const result = await new Promise<PugWorkerOutput>((resolve) => {
-      worker.once('message', resolve)
-      worker.postMessage({ id, mode, html: markupSource, contentDir })
-    })
+    let result: PugWorkerOutput
+    try {
+      result = await runOnWorker(worker, { id, mode, html: markupSource, contentDir })
+    }
+    catch (error) {
+      // a thread-level crash (not a pug error — those come back as a message): drop the dead worker
+      // so a fresh one takes its place, and record the failure for this section.
+      await discardWorker(worker)
+      const message = error instanceof Error ? error.message : String(error)
+      recordFailure(mode, repository, errors, { id, message })
+      return
+    }
 
     releaseWorker(worker)
 
@@ -167,7 +218,6 @@ async function compileViaWorkerPool(
   })
 
   await Promise.all(tasks)
-  await terminateAllWorkers()
 }
 
 /**

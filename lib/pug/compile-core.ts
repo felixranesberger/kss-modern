@@ -1,7 +1,7 @@
+import type { Biome } from '@biomejs/js-api'
 import type { StyleguideConfiguration } from '../index'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { Biome, Distribution } from '@biomejs/js-api'
 import pug from 'pug'
 import { sectionSanitizeId } from '../../client/utils.ts'
 import { logger } from '../logger.ts'
@@ -22,6 +22,9 @@ let biomePromise: Promise<{ biome: Biome, projectKey: number }> | undefined
 
 function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
   biomePromise ??= (async () => {
+    // Loaded lazily: Biome only formats in production, so dev never pays this (heavy) import,
+    // and worker threads no longer load it at boot.
+    const { Biome, Distribution } = await import('@biomejs/js-api')
     const biome = await Biome.create({ distribution: Distribution.NODE })
     const { projectKey } = biome.openProject('.')
 
