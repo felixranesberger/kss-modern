@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ensureStartingSlash, fixAccessibilityIssues, generateId, sanitizeSpecialCharacters } from '../../../lib/shared'
+import { ensureStartingSlash, fixAccessibilityIssues, generateId, replaceWrapperContent, sanitizeSpecialCharacters } from '../../../lib/shared'
 
 describe('fixAccessibilityIssues', () => {
   it('normalizes disabled="disabled" to standalone attribute', () => {
@@ -72,7 +72,7 @@ describe('sanitizeSpecialCharacters', () => {
   })
 
   it('encodes single quotes', () => {
-    expect(sanitizeSpecialCharacters("it's")).toBe('it&#039;s')
+    expect(sanitizeSpecialCharacters('it\'s')).toBe('it&#039;s')
   })
 
   it('encodes all special characters', () => {
@@ -101,5 +101,28 @@ describe('generateId', () => {
     const first = generateId()
     const second = generateId()
     expect(second).toBe(first + 1)
+  })
+})
+
+describe('replaceWrapperContent', () => {
+  it('substitutes the self-closing <wrapper-content/> token', () => {
+    expect(replaceWrapperContent('<nav><wrapper-content/></nav>', '<a>x</a>')).toBe('<nav><a>x</a></nav>')
+  })
+
+  it('substitutes the {{wrapper-content}} token', () => {
+    expect(replaceWrapperContent('<div>{{wrapper-content}}</div>', '<p>x</p>')).toBe('<div><p>x</p></div>')
+  })
+
+  it('tolerates whitespace inside either token', () => {
+    expect(replaceWrapperContent('<div>{{ wrapper-content }}</div>', 'C')).toBe('<div>C</div>')
+    expect(replaceWrapperContent('<div><wrapper-content /></div>', 'C')).toBe('<div>C</div>')
+  })
+
+  it('inserts $-sequences in the content verbatim (not as replacement patterns)', () => {
+    expect(replaceWrapperContent('<i>{{wrapper-content}}</i>', 'price $5 & $&')).toBe('<i>price $5 & $&</i>')
+  })
+
+  it('returns the wrapper unchanged when no slot is present', () => {
+    expect(replaceWrapperContent('<div>no slot</div>', 'C')).toBe('<div>no slot</div>')
   })
 })

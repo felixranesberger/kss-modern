@@ -62,6 +62,19 @@ export function ensureStartingSlash(input: string): string {
   return input.startsWith('/') ? input : `/${input}`
 }
 
+// A `Wrapper:` slot may be written as either `<wrapper-content/>` or `{{wrapper-content}}`
+// (whitespace around the token is tolerated). Both forms appear across real styleguides.
+const WRAPPER_CONTENT_RE = /<wrapper-content\s*\/>|\{\{\s*wrapper-content\s*\}\}/g
+
+/**
+ * Substitute a section's markup into its wrapper at the wrapper-content slot. A replacer function is
+ * used so `$`-sequences in the markup (e.g. `$&`, `$1`) are inserted verbatim rather than treated as
+ * replacement patterns. Returns the wrapper unchanged when it has no recognised slot.
+ */
+export function replaceWrapperContent(wrapper: string, content: string): string {
+  return wrapper.replace(WRAPPER_CONTENT_RE, () => content)
+}
+
 function* idGenerator(): Generator<number, never, unknown> {
   let id = 0
 

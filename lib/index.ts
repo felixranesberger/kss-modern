@@ -11,6 +11,7 @@ import { generateFaviconFiles } from './favicon.ts'
 import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './insert-markup.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
+import { replaceWrapperContent } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
   generatePreviewFile,
@@ -175,7 +176,7 @@ async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory:
 
   let htmlMarkup = section.markup
   if (section.wrapper) {
-    htmlMarkup = section.wrapper.replace('<wrapper-content/>', htmlMarkup)
+    htmlMarkup = replaceWrapperContent(section.wrapper, htmlMarkup)
   }
 
   await generateFullPageFile({
