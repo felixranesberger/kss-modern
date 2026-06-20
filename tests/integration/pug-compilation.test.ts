@@ -93,14 +93,14 @@ describe('pug compilation pipeline', () => {
     const result = await compilePugMarkup('production', 'example-styleguide/', repository)
     const output = result.get('2.30')!.markup
 
-    // id is derived from the section id ("2.30" -> "2-30") and the key
-    expect(output).toContain('id="2-30-email"')
+    // id is derived from the section id ("2.30" -> "id-2-30") and the key
+    expect(output).toContain('id="id-2-30-email"')
     // the label points at the same generated id (label/input pairing)
-    expect(output).toContain('for="2-30-email"')
+    expect(output).toContain('for="id-2-30-email"')
     // reusing the same key returns the same id
-    expect(output).toContain('aria-describedby="2-30-email"')
+    expect(output).toContain('aria-describedby="id-2-30-email"')
     // a different key yields a different, still section-scoped id
-    expect(output).toContain('id="2-30-email-hint"')
+    expect(output).toContain('id="id-2-30-email-hint"')
   })
 
   it('produces the same useId() output on repeated renders', async () => {
@@ -111,7 +111,7 @@ describe('pug compilation pipeline', () => {
     const first = await compilePugMarkup('development', 'example-styleguide/', new Map([['4.1', { markup }]]))
     const second = await compilePugMarkup('development', 'example-styleguide/', new Map([['4.1', { markup }]]))
 
-    expect(first.get('4.1')!.markup).toContain('id="4-1-email"')
+    expect(first.get('4.1')!.markup).toContain('id="id-4-1-email"')
     // recomputed deterministically — ids must not drift between renders
     expect(first.get('4.1')!.markup).toBe(second.get('4.1')!.markup)
   })

@@ -48,7 +48,7 @@ describe.skipIf(!distAssetsExist)('incremental rebuild', () => {
   })
 
   it('compiles useId server-side in the dev build', async () => {
-    expect(await fs.readFile(cardFullpage, 'utf-8')).toContain('id="1-1-title"')
+    expect(await fs.readFile(cardFullpage, 'utf-8')).toContain('id="id-1-1-title"')
   })
 
   it('rebuilds only the affected fullpages, leaving others byte-identical', async () => {
