@@ -4,6 +4,21 @@
  */
 
 /**
+ * An `<insert-vite-pug src="…" modifierClass="…">` tag, where the optional `modifierClass` may sit
+ * on the next line. Shared by the parser (parse-time dependency discovery) and the pug compiler
+ * (compile-time tag expansion); both consume it only via `String.prototype.match`, which resets
+ * `lastIndex`, so the single global instance is safe to reuse.
+ */
+// eslint-disable-next-line regexp/no-super-linear-backtracking
+export const INSERT_VITE_PUG_TAG_RE = /<insert-vite-pug src="(.+?)".*(?:[\n\r\u2028\u2029]\s*)?(modifierClass="(.+?)")? *><\/insert-vite-pug>/g
+
+/** The `src="…"` attribute of an `<insert-vite-pug>` tag. */
+export const PUG_SRC_RE = /src="(.+?)"/
+
+/** The optional `modifierClass="…"` attribute of an `<insert-vite-pug>` tag. */
+export const PUG_MODIFIER_CLASS_RE = /modifierClass="(.+?)"/
+
+/**
  * Pug outputs some semantic issues that throw accessibility errors.
  * This function fixes them.
  */

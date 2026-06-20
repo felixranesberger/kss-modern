@@ -5,7 +5,7 @@ import { Biome, Distribution } from '@biomejs/js-api'
 import pug from 'pug'
 import { sectionSanitizeId } from '../../client/utils.ts'
 import { logger } from '../logger.ts'
-import { fixAccessibilityIssues } from '../shared.ts'
+import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
 
 export type Mode = StyleguideConfiguration['mode']
 
@@ -16,35 +16,16 @@ export interface CompileResult {
   dependencies: string[]
 }
 
-const PUG_SRC_RE = /src="(.+?)"/
-const PUG_MODIFIER_CLASS_RE = /modifierClass="(.+?)"/
-// Matches an <insert-vite-pug src="…" modifierClass="…"> tag whose optional modifierClass
-// may sit on the next line.
-// eslint-disable-next-line regexp/no-super-linear-backtracking
-const regexModifierLine = /<insert-vite-pug src="(.+?)".*(?:[\n\r\u2028\u2029]\s*)?(modifierClass="(.+?)")? *><\/insert-vite-pug>/g
+// Memoised Biome instance + project key, created on first use (production formatting only) and
+// reused for the process lifetime.
+let biomePromise: Promise<{ biome: Biome, projectKey: number }> | undefined
 
-let biomeInstance: Biome
-let biomePromise: Promise<Biome>
-let projectKey: number
+function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
+  biomePromise ??= (async () => {
+    const biome = await Biome.create({ distribution: Distribution.NODE })
+    const { projectKey } = biome.openProject('.')
 
-async function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
-  if (biomeInstance && projectKey !== undefined) {
-    return { biome: biomeInstance, projectKey }
-  }
-
-  if (biomePromise) {
-    const biome = await biomePromise
-    return { biome, projectKey }
-  }
-
-  biomePromise = (async () => {
-    const instance = await Biome.create({
-      distribution: Distribution.NODE,
-    })
-
-    projectKey = instance.openProject('.').projectKey
-
-    instance.applyConfiguration(projectKey, {
+    biome.applyConfiguration(projectKey, {
       html: {
         formatter: {
           lineWidth: 100,
@@ -54,13 +35,10 @@ async function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
       },
     })
 
-    biomeInstance = instance
-
-    return instance
+    return { biome, projectKey }
   })()
 
-  const biome = await biomePromise
-  return { biome, projectKey }
+  return biomePromise
 }
 
 async function biomeFormat(content: string): Promise<string> {
@@ -156,7 +134,7 @@ async function expandVitePugTags(
   html: string,
   sectionId: string,
 ): Promise<CompileResult> {
-  const vitePugTags = html.match(regexModifierLine)
+  const vitePugTags = html.match(INSERT_VITE_PUG_TAG_RE)
   if (!vitePugTags) {
     return { html, dependencies: [] }
   }

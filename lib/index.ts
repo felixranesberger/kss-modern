@@ -176,38 +176,38 @@ function buildNavigationMappings(parsedContent: in2FirstLevelSection[]): {
   return { searchSectionMapping, menuSectionMapping }
 }
 
+/**
+ * Write a section's fullpage HTML file. Render failures are logged and swallowed so a single bad
+ * section never aborts the build of all the others.
+ */
 async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory: string, section: in2Section): Promise<void> {
   if (section.markup === undefined || section.markup.length === 0)
     return
 
-  let htmlMarkup = section.markup
-  if (section.wrapper) {
-    htmlMarkup = replaceWrapperContent(section.wrapper, htmlMarkup)
-  }
-
-  await generateFullPageFile({
-    id: section.id,
-    filePath: path.join(baseDirectory, section.fullpageFileName),
-    page: {
-      title: section.header,
-      description: !section.hasMarkdownDescription ? section.description : undefined,
-      lang: config.html.lang,
-      htmlclass: section.htmlclass,
-      bodyclass: section.bodyclass,
-    },
-    css: config.html.assets.css,
-    js: config.html.assets.js,
-    html: htmlMarkup,
-    theme: config.theme,
-    ogImageUrl: config.plugins?.ogImage
-      ? config.plugins.ogImage(section)
-      : undefined,
-  })
-}
-
-async function writeFullPageFileSafe(config: StyleguideConfiguration, baseDirectory: string, section: in2Section): Promise<void> {
   try {
-    await writeFullPageFile(config, baseDirectory, section)
+    let htmlMarkup = section.markup
+    if (section.wrapper) {
+      htmlMarkup = replaceWrapperContent(section.wrapper, htmlMarkup)
+    }
+
+    await generateFullPageFile({
+      id: section.id,
+      filePath: path.join(baseDirectory, section.fullpageFileName),
+      page: {
+        title: section.header,
+        description: !section.hasMarkdownDescription ? section.description : undefined,
+        lang: config.html.lang,
+        htmlclass: section.htmlclass,
+        bodyclass: section.bodyclass,
+      },
+      css: config.html.assets.css,
+      js: config.html.assets.js,
+      html: htmlMarkup,
+      theme: config.theme,
+      ogImageUrl: config.plugins?.ogImage
+        ? config.plugins.ogImage(section)
+        : undefined,
+    })
   }
   catch (error) {
     logger.error(`Error processing section ${section.id}:`, error)
@@ -426,12 +426,12 @@ export async function buildAll(config: StyleguideConfiguration): Promise<{ error
   context.parsedContent.forEach((firstLevelSection, firstLevelIndex) => {
     firstLevelSection.sections.forEach((secondLevelSection, secondLevelIndex) => {
       if (secondLevelSection.markup) {
-        fileWriteTasks.push(writeFullPageFileSafe(config, context.baseDirectory, secondLevelSection))
+        fileWriteTasks.push(writeFullPageFile(config, context.baseDirectory, secondLevelSection))
       }
 
       secondLevelSection.sections.forEach((thirdLevelSection) => {
         if (thirdLevelSection.markup) {
-          fileWriteTasks.push(writeFullPageFileSafe(config, context.baseDirectory, thirdLevelSection))
+          fileWriteTasks.push(writeFullPageFile(config, context.baseDirectory, thirdLevelSection))
         }
       })
 
@@ -439,10 +439,8 @@ export async function buildAll(config: StyleguideConfiguration): Promise<{ error
     })
   })
 
-  await copyStyleguideAssets(config)
-
-  // make sure all files have been written before resolving
-  await Promise.all(fileWriteTasks)
+  // asset copy and the HTML writes are independent — run them concurrently
+  await Promise.all([copyStyleguideAssets(config), ...fileWriteTasks])
 
   const errors: StyleguideBuildOutput['errors'] = {}
   if (context.overwrittenSectionsIds.length > 0) {
@@ -521,7 +519,7 @@ export async function rebuildSections(
   for (const id of affected) {
     const node = context.nodeById.get(id)
     if (node?.markup) {
-      writeTasks.push(writeFullPageFileSafe(config, context.baseDirectory, node))
+      writeTasks.push(writeFullPageFile(config, context.baseDirectory, node))
     }
     const location = context.ownerLocationById.get(id)
     if (location) {
@@ -537,14 +535,23 @@ export async function rebuildSections(
 }
 
 /**
+ * What triggered a {@link watchStyleguide} rebuild:
+ * - `structural` — a CSS/SCSS/Markdown edit that can change section structure; the whole styleguide is rebuilt.
+ * - `markup` — a Pug/HTML edit; only `sections` (those depending on `file`) are rebuilt.
+ */
+export type StyleguideChange
+  = | { type: 'structural' }
+    | { type: 'markup', file: string, sections: string[] }
+
+/**
  * Builds the styleguide and watches for changes
  * @param config - The configuration for the styleguide
- * @param onChange - Optional callback function to call when the styleguide is changed
+ * @param onChange - Optional callback invoked after each rebuild, with the change that triggered it
  * @param onError - Optional callback function to call when an error occurs while building the styleguide
  */
 export async function watchStyleguide(
   config: StyleguideConfiguration,
-  onChange?: () => void,
+  onChange?: (change: StyleguideChange) => void,
   onError?: (errorData: StyleguideBuildOutput['errors']) => void,
 ) {
   const initialBuild = await buildAll(config)
@@ -564,7 +571,7 @@ export async function watchStyleguide(
         const localBuild = await buildAll(config)
         context = localBuild.context
         if (onChange)
-          onChange()
+          onChange({ type: 'structural' })
         if (onError && localBuild.errors) {
           onError(localBuild.errors)
         }
@@ -580,7 +587,7 @@ export async function watchStyleguide(
           return
         await rebuildSections(config, context, affected)
         if (onChange)
-          onChange()
+          onChange({ type: 'markup', file: changedFile, sections: affected })
       })().catch((error) => {
         logger.error('Error during incremental rebuild:', error)
       })

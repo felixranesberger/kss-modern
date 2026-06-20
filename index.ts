@@ -62,10 +62,14 @@ async function copyContentAssets(): Promise<void> {
         return url.href
       },
     },
-  }, () => {
+  }, (change) => {
     // re-copy on every rebuild so content CSS/JS edits reach the preview iframes
     copyContentAssets().catch(error => logger.error('Content asset copy failed', error))
-    logger.success('Styleguide has been rebuilt')
+    logger.success(
+      change.type === 'markup'
+        ? `Rebuilt ${change.sections.length} section(s) after ${change.file}`
+        : 'Styleguide rebuilt (structural change)',
+    )
   }, (error) => {
     logger.error('Styleguide build error occurred', error)
   })

@@ -7,15 +7,6 @@ export interface SectionMeta {
 
 export const INSERT_MARKUP_REGEX = /<insert-markup>(\d+(?:\.\d+)*)(?:-(\d*))?<\/insert-markup>/g
 
-export function resolveInsertMarkupInRepository(
-  repository: Map<string, { markup: string }>,
-  sectionsById: Map<string, SectionMeta>,
-): void {
-  for (const [id, entry] of repository) {
-    entry.markup = resolveMarkup(entry.markup, repository, sectionsById, new Set([id]))
-  }
-}
-
 /**
  * Resolves <insert-markup> references for the given section ids WITHOUT mutating `repository`.
  * References are read recursively from `repository` (which should hold compiled, not-yet-resolved

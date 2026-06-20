@@ -34,12 +34,6 @@ export function getPugDependencyGraph(): PugDependencyGraph {
   return graph
 }
 
-/** Resolve the absolute path of the `.pug` file a pug error points at, if it carries one. */
-function extractPugErrorFile(error: unknown): string | undefined {
-  const candidate = pugErrorFile(error)
-  return candidate ? path.resolve(candidate) : undefined
-}
-
 /** Test helper: clear the module-level cache + dependency graph between cases. */
 export function resetPugState(): void {
   cache.clear()
@@ -104,7 +98,8 @@ async function compileInline(
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    recordFailure(mode, repository, errors, { id, file: extractPugErrorFile(error), message })
+    const file = pugErrorFile(error)
+    recordFailure(mode, repository, errors, { id, file: file ? path.resolve(file) : undefined, message })
   }
 }
 

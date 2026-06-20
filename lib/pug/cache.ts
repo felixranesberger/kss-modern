@@ -73,12 +73,9 @@ export class PugCompileCache {
     if (entry.markupSource !== currentMarkupSource)
       return false
 
-    for (const [dep, signature] of entry.depSignatures) {
-      const current = await signatureOf(dep)
-      if (current !== signature)
-        return false
-    }
-
-    return true
+    const depsUnchanged = await Promise.all(
+      Array.from(entry.depSignatures, async ([dep, signature]) => await signatureOf(dep) === signature),
+    )
+    return depsUnchanged.every(Boolean)
   }
 }

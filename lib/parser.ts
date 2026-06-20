@@ -2,6 +2,7 @@ import type { StyleguideConfiguration } from './index.ts'
 import path from 'node:path'
 import { logger } from './logger.ts'
 import { parseMarkdown } from './markdown'
+import { INSERT_VITE_PUG_TAG_RE, PUG_SRC_RE } from './shared.ts'
 
 export interface FileObject {
   base?: string
@@ -615,14 +616,12 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
       }
     }
     else if (section.markup.includes('<insert-vite-pug src="')) {
-      // eslint-disable-next-line regexp/no-super-linear-backtracking
-      const regexModifierLine = /<insert-vite-pug src="(.+?)".*(?:[\n\r\u2028\u2029]\s*)?(modifierClass="(.+?)")? *><\/insert-vite-pug>/g
-      const vitePugTags = section.markup.match(regexModifierLine)
+      const vitePugTags = section.markup.match(INSERT_VITE_PUG_TAG_RE)
       if (!vitePugTags)
         throw new Error(`Section "${section.reference}" has a malformed <insert-vite-pug> tag. Expected: <insert-vite-pug src="path/to/file.pug"></insert-vite-pug>`)
 
       vitePugTags.forEach((vitePugTag) => {
-        let pugSourcePath = vitePugTag.match(/src="(.+?)"/)?.[1]
+        let pugSourcePath = vitePugTag.match(PUG_SRC_RE)?.[1]
         if (!pugSourcePath || !pugSourcePath.endsWith('.pug')) {
           throw new Error(`Section "${section.reference}" has an <insert-vite-pug> tag with a missing or invalid "src": expected a path ending in ".pug" but got "${pugSourcePath ?? ''}".`)
         }
