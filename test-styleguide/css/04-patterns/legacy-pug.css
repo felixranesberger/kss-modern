@@ -1,0 +1,67 @@
+/*
+Legacy Pug Embed
+
+Markdown: The legacy `<insert-vite-pug src="…">` tag embeds a compiled Pug file
+inside otherwise-inline markup. It predates the bare `Markup: file.pug` form and
+is still supported. The optional `modifierClass` attribute is passed to the Pug
+template as a local.
+
+Styleguide 4.10
+*/
+
+/*
+Basic Embed
+
+Markdown: A bare embed with no `modifierClass` attribute.
+
+Markup: <insert-vite-pug src="templates/source/04-patterns/legacy-card.pug"></insert-vite-pug>
+
+Styleguide 4.10.1
+*/
+
+/*
+Embed With Modifiers
+
+Markdown: With `modifierClass="{{modifier_class}}"`, each declared modifier gets
+its own compiled preview, just like inline markup.
+
+.c-legacy-card--accent - Accent left border
+
+Markup: <insert-vite-pug src="templates/source/04-patterns/legacy-card.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>
+
+Styleguide 4.10.2
+*/
+
+/*
+Modifier Class On The Next Line
+
+Markdown: The matcher also accepts the `modifierClass` attribute on the line
+following `src`, with a hard-coded class.
+
+Markup: <insert-vite-pug src="templates/source/04-patterns/legacy-card.pug"
+  modifierClass="c-legacy-card--accent"></insert-vite-pug>
+
+Styleguide 4.10.3
+*/
+
+.c-legacy-card {
+  padding: var(--space-4);
+  background-color: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-left: 4px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+}
+
+.c-legacy-card__title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-base);
+}
+
+.c-legacy-card__body {
+  margin: 0;
+  color: var(--color-neutral-600);
+}
+
+.c-legacy-card--accent {
+  border-left-color: var(--color-accent);
+}

@@ -1,0 +1,92 @@
+/*
+Settings
+
+Design tokens: colors, typography, and the icon set.
+
+Styleguide 1
+*/
+
+/*
+Elements
+
+Bare HTML elements — headings, buttons, form controls, links.
+
+Styleguide 2
+*/
+
+/*
+Components
+
+Composed UI components, several driven by JavaScript.
+
+Styleguide 3
+*/
+
+/*
+Patterns
+
+Markup composition features: the legacy <insert-vite-pug> tag and the
+<insert-markup> cross-reference system.
+
+Styleguide 4
+*/
+
+/*
+Objects
+
+Layout primitives with no cosmetic styling.
+
+Styleguide 5
+*/
+
+/*
+Utilities
+
+Single-purpose helper classes.
+
+Styleguide 6
+*/
+
+/*
+ * --- Bundle entry (plain CSS, ITCSS ordering) ---
+ * Loaded into every preview iframe (served as /content-assets/styles.css).
+ * The KSS docs above declare the six top-level categories; per-section docs
+ * live in the imported partials.
+ */
+
+/* Generic */
+@import './css/00-generic/reset.css';
+
+/* Settings */
+@import './css/01-settings/colors.css';
+@import './css/01-settings/typography.css';
+@import './css/01-settings/icons.css';
+
+/* Elements */
+@import './css/02-elements/headings.css';
+@import './css/02-elements/buttons.css';
+@import './css/02-elements/forms.css';
+@import './css/02-elements/links.css';
+
+/* Components */
+@import './css/03-components/card.css';
+@import './css/03-components/alert.css';
+@import './css/03-components/badge.css';
+@import './css/03-components/modal.css';
+@import './css/03-components/accordion.css';
+@import './css/03-components/tabs.css';
+@import './css/03-components/hero.css';
+@import './css/03-components/navigation.css';
+@import './css/03-components/lifecycle.css';
+@import './css/03-components/masonry.css';
+
+/* Patterns */
+@import './css/04-patterns/legacy-pug.css';
+@import './css/04-patterns/insert-markup.css';
+
+/* Objects */
+@import './css/05-objects/container.css';
+
+/* Utilities */
+@import './css/06-utilities/spacing.css';
+@import './css/06-utilities/visibility.css';

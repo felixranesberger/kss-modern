@@ -1,0 +1,31 @@
+/*
+Headings
+
+Six heading levels on a modular scale. Demonstrates inline HTML markup with no
+modifiers.
+
+Markup: <div class="prose"><h1>Heading level 1</h1><h2>Heading level 2</h2><h3>Heading level 3</h3><h4>Heading level 4</h4><h5>Heading level 5</h5><h6>Heading level 6</h6></div>
+
+Status: Complete
+
+Styleguide 2.1
+*/
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  margin: 0 0 var(--space-3);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--color-neutral-900);
+}
+
+.prose h1 { font-size: 2.5rem; }
+.prose h2 { font-size: var(--font-size-xl); }
+.prose h3 { font-size: var(--font-size-lg); }
+.prose h4 { font-size: var(--font-size-base); }
+.prose h5 { font-size: var(--font-size-sm); }
+.prose h6 { font-size: var(--font-size-sm); color: var(--color-neutral-600); }

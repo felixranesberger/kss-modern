@@ -1,0 +1,43 @@
+/*
+Hero
+
+Markdown: css/03-components/hero.md
+
+Figma: https://embed.figma.com/design/ABCdef123456/Demo-Hero?node-id=1-2&embed-host=styleguide
+
+Status: Complete
+
+Markup: templates/source/03-components/hero.pug
+
+Styleguide 3.70
+*/
+
+.c-hero {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  color: #fff;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary-light));
+}
+
+.c-hero__content {
+  position: relative;
+  max-width: 32rem;
+}
+
+.c-hero__title {
+  margin: 0 0 var(--space-2);
+  font-size: 2.25rem;
+  line-height: var(--line-height-tight);
+}
+
+.c-hero__subtitle {
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-lg);
+  opacity: 0.9;
+}

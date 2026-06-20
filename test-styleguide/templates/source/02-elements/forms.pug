@@ -1,0 +1,32 @@
+//- useId(key) returns a deterministic, section-scoped id; the same key returns
+//- the same id, so a label and its input stay wired across re-renders.
+- const textId = useId()
+- const emailId = useId('email')
+- const emailHintId = useId('email-hint')
+- const selectId = useId('select')
+- const textareaId = useId('textarea')
+
+div.form-field
+  label.form-label(for=textId) Text input
+  input.form-input(type="text" id=textId placeholder="Enter text…")
+
+div.form-field
+  label.form-label(for=emailId) Email
+  input.form-input(type="email" id=emailId placeholder="you@example.com" aria-describedby=emailHintId)
+  p.form-hint(id=emailHintId) We never share your email.
+
+div.form-field
+  label.form-label(for=selectId) Select
+  select.form-select(id=selectId)
+    option(value="") Choose an option
+    option(value="1") Option 1
+    option(value="2") Option 2
+    option(value="3") Option 3
+
+div.form-field
+  label.form-label(for=textareaId) Textarea
+  textarea.form-textarea(id=textareaId rows="3" placeholder="Write something…")
+
+label.form-checkbox
+  input(type="checkbox")
+  span I agree to the terms

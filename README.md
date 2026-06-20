@@ -89,7 +89,7 @@ Markup: templates/components/card.pug
 ```bash
 bun install
 bun run build          # Build: Vite (client assets) then Unbuild (Node.js library)
-bun run dev            # Build + run dev server with Deno (watches test/ content)
+bun run dev            # Build + run dev server with Deno (watches test-styleguide/ content)
 bun run lint           # ESLint
 bun run test           # Vitest unit + integration tests
 bun run release        # Lint + version bump via bumpp

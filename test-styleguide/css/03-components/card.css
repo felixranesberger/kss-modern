@@ -1,0 +1,73 @@
+/*
+Card
+
+Markdown: A flexible content card. The Pug template `include`s a `+cardBody`
+mixin partial, which itself `include`s the `+icon` mixin — so a change to either
+partial invalidates this section's compiled markup.
+
+## Anatomy
+- **Header** — title and optional eyebrow
+- **Body** — free-form content
+- **Footer** — a call-to-action link
+
+Status: Complete
+
+bodyclass: demo-canvas
+
+htmlclass: theme-cards
+
+Wrapper: <div class="o-container" style="max-width: 420px">{{wrapper-content}}</div>
+
+Markup: templates/source/03-components/card.pug
+
+Styleguide 3.10
+*/
+
+.c-card {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.c-card__header {
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.c-card__eyebrow {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+}
+
+.c-card__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.c-card__body {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-neutral-600);
+}
+
+.c-card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+/* bodyclass / htmlclass hooks (applied to the fullpage preview) */
+.demo-canvas {
+  background-color: var(--color-neutral-100);
+}
+
+.theme-cards {
+  --color-primary: #7c3aed;
+}

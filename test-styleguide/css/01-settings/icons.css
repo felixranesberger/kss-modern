@@ -1,0 +1,60 @@
+/*
+Icons
+
+Searchable gallery of the demo icon set. Click an icon to copy its markup.
+These same icons are reused inside the Button, Alert, and Navigation components.
+
+Icons:
+arrow-right: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+check: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+search: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+external-link: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+star: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5 14 8l6 .5-4.5 4 1.4 6L11.5 15 6.1 18.5l1.4-6L3 8.5 9 8z"/></svg>
+info: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+close: <i class="icon icon--close" aria-hidden="true"></i>
+
+Weight: 20
+
+Styleguide 1.3
+*/
+
+/*
+Icon Asset Files
+
+The same icons also ship as standalone SVG files under `icons/`, served from
+`/content-assets/icons/` and referenced here with `<img>` to verify static
+asset serving.
+
+Markup: <span class="c-icon-img"><img src="/content-assets/icons/star.svg" width="24" height="24" alt="Star"></span> <span class="c-icon-img"><img src="/content-assets/icons/search.svg" width="24" height="24" alt="Search"></span> <span class="c-icon-img"><img src="/content-assets/icons/external-link.svg" width="24" height="24" alt="External link"></span>
+
+Styleguide 1.3.1
+*/
+
+/* Inline SVG icons inherit color + sizing from their context. */
+.c-icon {
+  display: inline-flex;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.c-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Icon-font style placeholder for the <i class> documentation form. */
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
+
+/* Wrapper for icons referenced as standalone SVG files via <img>. */
+.c-icon-img {
+  display: inline-flex;
+  padding: var(--space-2);
+  color: var(--color-primary);
+  background-color: var(--color-neutral-100);
+  border-radius: var(--radius-md);
+}

@@ -1,0 +1,18 @@
+/*
+Lifecycle Chart
+
+Deprecated: Replaced by the Tabs + Card composition. Kept here to verify that a
+description starting with "Deprecated:" is auto-tagged with the deprecated
+status badge in the sidebar.
+
+Markup: <div class="c-lifecycle"><p>Legacy lifecycle widget — do not use in new work.</p></div>
+
+Styleguide 3.90
+*/
+
+.c-lifecycle {
+  padding: var(--space-4);
+  border: 2px dashed var(--color-warning);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-600);
+}

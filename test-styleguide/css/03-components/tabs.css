@@ -1,0 +1,42 @@
+/*
+Tabs
+
+A tabbed panel switcher with roving `aria-selected` state. Direct `.pug` markup;
+keyboard and click behaviour from the `tabs.js` ES module.
+
+Status: Complete
+
+Markup: templates/source/03-components/tabs.pug
+
+Styleguide 3.60
+*/
+
+.c-tabs__list {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-neutral-200);
+}
+
+.c-tabs__tab {
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-600);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.c-tabs__tab[aria-selected="true"] {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.c-tabs__panel {
+  padding: var(--space-4) 0;
+}
+
+.c-tabs__panel[hidden] {
+  display: none;
+}
