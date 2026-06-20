@@ -1,7 +1,7 @@
 import path from 'node:path'
 import fs from 'fs-extra'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { buildAll, rebuildSections } from '../../lib/index.ts'
+import { buildAll, logger, rebuildSections } from '../../lib/index.ts'
 import { getPugDependencyGraph, resetPugState } from '../../lib/pug/index.ts'
 import { createMinimalConfig } from '../fixtures/config.ts'
 
@@ -134,7 +134,7 @@ describe.skipIf(!distAssetsExist)('dependency tracking', () => {
     })
 
     it('renders an inline error overlay when a referenced file is deleted (development)', async () => {
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
       await fs.remove(pug('_shared.pug'))
       // the graph edge survives a delete, so the consumers are still picked up

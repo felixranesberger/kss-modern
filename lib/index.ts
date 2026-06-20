@@ -9,6 +9,7 @@ import { glob } from 'tinyglobby'
 import { sectionSanitizeId } from '../client/utils.ts'
 import { generateFaviconFiles } from './favicon.ts'
 import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './insert-markup.ts'
+import { logger } from './logger.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
 import { replaceWrapperContent } from './shared.ts'
@@ -24,6 +25,8 @@ import {
   getSidebarMenuHtml,
 } from './templates/preview.ts'
 import { watchStyleguideForChanges } from './watcher.ts'
+
+export { createLogger, type LogBox, type Logger, logger } from './logger.ts'
 
 export interface StyleguideConfiguration {
   mode: 'development' | 'production'
@@ -122,8 +125,11 @@ export async function parseStyleguide(contentDir: StyleguideConfiguration['conte
   )
 
   const rawParsedOutput = await parse(styleguideContent, contentDir)
-  if (!rawParsedOutput)
-    throw new Error('Could not parse content')
+  if (!rawParsedOutput) {
+    throw new Error(
+      `No styleguide sections found in "${contentDir}". Scanned ${styleguideContentPaths.length} .css/.scss file(s) — make sure at least one contains a KSS "Styleguide x.x" comment block.`,
+    )
+  }
 
   return rawParsedOutput
 }
@@ -204,7 +210,7 @@ async function writeFullPageFileSafe(config: StyleguideConfiguration, baseDirect
     await writeFullPageFile(config, baseDirectory, section)
   }
   catch (error) {
-    console.error(`Error processing section ${section.id}:`, error)
+    logger.error(`Error processing section ${section.id}:`, error)
   }
 }
 
@@ -563,7 +569,7 @@ export async function watchStyleguide(
           onError(localBuild.errors)
         }
       })().catch((error) => {
-        console.error('[Styleguide] Error during rebuild:', error)
+        logger.error('Error during rebuild:', error)
       })
     },
     // a .pug/.html source edit -> recompile + rewrite only the sections that depend on it
@@ -576,7 +582,7 @@ export async function watchStyleguide(
         if (onChange)
           onChange()
       })().catch((error) => {
-        console.error('[Styleguide] Error during incremental rebuild:', error)
+        logger.error('Error during incremental rebuild:', error)
       })
     },
   })

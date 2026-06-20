@@ -1,3 +1,4 @@
+import { logger } from './logger.ts'
 import { sanitizeSpecialCharacters } from './shared.ts'
 
 export interface SectionMeta {
@@ -75,6 +76,6 @@ function resolveMarkup(
 }
 
 function errorBlock(refId: string, message: string): string {
-  console.warn(`[insert-markup] ${message}`)
+  logger.warn(`[insert-markup] ${message}`)
   return `<pre class="kss-modern-insert-markup-error" data-section-ref="${sanitizeSpecialCharacters(refId)}">[insert-markup] ${sanitizeSpecialCharacters(message)}</pre>`
 }

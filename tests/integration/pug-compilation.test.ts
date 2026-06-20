@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { logger } from '../../lib/logger.ts'
 import { compilePugMarkup } from '../../lib/pug/index.ts'
 
 describe('pug compilation pipeline', () => {
@@ -120,7 +121,7 @@ describe('pug compilation pipeline', () => {
       ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
     ])
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
     // production has no graceful degradation: the failure throws so the build fails
     await expect(compilePugMarkup('production', 'example-styleguide/', repository))
@@ -134,7 +135,7 @@ describe('pug compilation pipeline', () => {
       ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
     ])
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     // development degrades gracefully: the broken section's markup becomes the error overlay
     const result = await compilePugMarkup('development', 'example-styleguide/', repository)
 

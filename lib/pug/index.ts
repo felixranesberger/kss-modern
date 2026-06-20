@@ -5,6 +5,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
+import { logger } from '../logger.ts'
 import { computeDepSignatures, PugCompileCache } from './cache.ts'
 import { compileMarkup, pugErrorFile } from './compile-core.ts'
 import { PugDependencyGraph } from './dependency-graph.ts'
@@ -81,7 +82,7 @@ function recordFailure(
   errors: PugCompileError[],
   pugError: PugCompileError,
 ): void {
-  console.error(`Pug markup failed to compile for section "${pugError.id}": ${pugError.message}`)
+  logger.error(`Pug markup failed to compile for section "${pugError.id}": ${pugError.message}`)
   errors.push(pugError)
   if (mode === 'development') {
     repository.set(pugError.id, { markup: renderPugErrorOverlay(pugError) })

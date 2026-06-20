@@ -4,6 +4,7 @@ import path from 'node:path'
 import { Biome, Distribution } from '@biomejs/js-api'
 import pug from 'pug'
 import { sectionSanitizeId } from '../../client/utils.ts'
+import { logger } from '../logger.ts'
 import { fixAccessibilityIssues } from '../shared.ts'
 
 export type Mode = StyleguideConfiguration['mode']
@@ -77,14 +78,14 @@ async function biomeFormat(content: string): Promise<string> {
     )
 
     if (hasFatalErrors) {
-      console.warn('Biome HTML formatting has errors, falling back to original content')
+      logger.warn('Biome HTML formatting has errors, falling back to original content')
       return content
     }
 
     return result.content
   }
   catch (error) {
-    console.warn('Biome HTML formatting not supported or failed:', error)
+    logger.warn('Biome HTML formatting not supported or failed:', error)
     return content // Fallback to original content
   }
 }

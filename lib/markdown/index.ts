@@ -2,7 +2,7 @@ import { fromAsyncCodeToHtml } from '@shikijs/markdown-it/async'
 import fs from 'fs-extra'
 import MarkdownItAsync from 'markdown-it-async'
 import { codeToHtml } from 'shiki'
-import { log } from '../utils.ts'
+import { logger } from '../logger.ts'
 import { accordionRenderer } from './plugins/components/accordion.ts'
 import { alertRenderer } from './plugins/components/alert.ts'
 import { markdownItComponent } from './plugins/custom-component-renderer.ts'
@@ -74,7 +74,7 @@ export async function parseMarkdown(data: MarkdownOptionsBase & {
   if ('filePath' in data) {
     const doesFileExist = fs.existsSync(data.filePath)
     if (!doesFileExist) {
-      log(`Error: Markdown file not found: "${data.filePath}"`, 'important')
+      logger.error(`Markdown file not found: "${data.filePath}"`)
       return '<p class="font-bold text-red-600">Error: Markdown file not found!</p>'
     }
 

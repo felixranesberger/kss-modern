@@ -46,6 +46,7 @@
     "@biomejs/wasm-nodejs": "^2.4.16",
     "@shikijs/markdown-it": "^4.1.0",
     "chokidar": "^5.0.0",
+    "consola": "^3.4.2",
     "fs-extra": "^11.3.5",
     "markdown-it-async": "^2.2.0",
     "pug": "^3.0.4",

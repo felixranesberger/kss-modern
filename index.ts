@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import { createServer } from 'vite'
 // eslint-disable-next-line antfu/no-import-dist
-import { watchStyleguide } from './dist/node/lib/index.mjs'
+import { logger, watchStyleguide } from './dist/node/lib/index.mjs'
 
 const CONTENT_DIR = './test-styleguide'
 const OUT_DIR = './styleguide-export'
@@ -64,16 +64,16 @@ async function copyContentAssets(): Promise<void> {
     },
   }, () => {
     // re-copy on every rebuild so content CSS/JS edits reach the preview iframes
-    copyContentAssets().catch(error => console.error('Content asset copy failed', error))
-    console.log('Styleguide has been rebuilt')
+    copyContentAssets().catch(error => logger.error('Content asset copy failed', error))
+    logger.success('Styleguide has been rebuilt')
   }, (error) => {
-    console.log('Styleguide build error occurred', error)
+    logger.error('Styleguide build error occurred', error)
   })
 
   // initial copy — watchStyleguide does not fire onChange for the first build
   await copyContentAssets()
 
-  console.log(`Built styleguide in ${Date.now() - buildStyleguideStart}ms`)
+  logger.success(`Built styleguide in ${Date.now() - buildStyleguideStart}ms`)
 
   const server = await createServer({
     root: OUT_DIR,
