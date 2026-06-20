@@ -6,7 +6,7 @@ import pug from 'pug'
 import { sectionSanitizeId } from '../../client/utils.ts'
 import { fixAccessibilityIssues } from '../shared.ts'
 
-type Mode = StyleguideConfiguration['mode']
+export type Mode = StyleguideConfiguration['mode']
 
 export interface CompileResult {
   /** Final HTML: pug-compiled, formatted, accessibility-fixed. */
@@ -117,6 +117,33 @@ export function createUseId(sectionId: string) {
   }
 }
 
+/** The `.pug` file path a pug error points at, if it carries one (raw, unresolved). */
+export function pugErrorFile(error: unknown): string | undefined {
+  const candidate = error as { path?: string, filename?: string } | null
+  return candidate?.path ?? candidate?.filename
+}
+
+/**
+ * Compile a single `.pug` file to HTML and report its resolved dependency paths (the entry file
+ * plus every include/extends). `extraLocals` are merged with the per-render `useId` helper.
+ */
+function compilePugFile(
+  pugFilePath: string,
+  mode: Mode,
+  sectionId: string,
+  extraLocals: Record<string, unknown> = {},
+): { html: string, dependencies: string[] } {
+  const pugFn = pug.compileFile(pugFilePath, {
+    // define doctype to avoid self-closing tags on wrong places
+    doctype: 'html',
+    // pretty output in dev keeps the "Show code" view readable without Biome
+    pretty: mode === 'development',
+  })
+  const dependencies = [path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep))]
+  const html = pugFn({ ...extraLocals, useId: createUseId(sectionId) })
+  return { html, dependencies }
+}
+
 /**
  * Replaces all <insert-vite-pug src="path/to/file.pug" modifierClass="modifier"> tags with the
  * compiled pug output. Returns the expanded markup plus the absolute paths of every pug file
@@ -153,16 +180,8 @@ async function expandVitePugTags(
       : {}
 
     const pugFilePath = path.join(contentDir, pugSourcePath)
-    const pugFn = pug.compileFile(pugFilePath, {
-      // define doctype to avoid self-closing tags on wrong places
-      doctype: 'html',
-      // pretty output in dev keeps the "Show code" view readable without Biome
-      pretty: mode === 'development',
-    })
-
-    dependencies.push(path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep)))
-
-    const pugOutput = pugFn({ ...pugLocals, useId: createUseId(sectionId) })
+    const { html: pugOutput, dependencies: pugDependencies } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
+    dependencies.push(...pugDependencies)
     markupOutput = markupOutput.replaceAll(vitePugTag, pugOutput)
   }))
 
@@ -198,12 +217,9 @@ export async function compileMarkup(
   }
   else if (isBarePath && trimmed.endsWith('.pug')) {
     const pugFilePath = path.join(contentDir, trimmed)
-    const pugFn = pug.compileFile(pugFilePath, {
-      doctype: 'html',
-      pretty: mode === 'development',
-    })
-    dependencies.push(path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep)))
-    result = pugFn({ useId: createUseId(sectionId) })
+    const compiled = compilePugFile(pugFilePath, mode, sectionId)
+    result = compiled.html
+    dependencies.push(...compiled.dependencies)
   }
 
   const expanded = await expandVitePugTags(contentDir, mode, result, sectionId)

@@ -283,6 +283,16 @@ function writePreviewFile(
   })
 }
 
+/** Record that `consumerId`'s compiled markup embeds <insert-markup>refId</insert-markup>. */
+function addInsertMarkupConsumer(consumers: Map<string, Set<string>>, refId: string, consumerId: string): void {
+  let set = consumers.get(refId)
+  if (!set) {
+    set = new Set()
+    consumers.set(refId, set)
+  }
+  set.add(consumerId)
+}
+
 /** Rebuild the <insert-markup> reverse-index edges for a single (recompiled) section. */
 function reindexInsertMarkupConsumer(context: StyleguideContext, id: string): void {
   for (const consumers of context.insertMarkupConsumers.values()) {
@@ -294,12 +304,7 @@ function reindexInsertMarkupConsumer(context: StyleguideContext, id: string): vo
     return
 
   for (const refId of getInsertMarkupReferences(entry.markup)) {
-    let consumers = context.insertMarkupConsumers.get(refId)
-    if (!consumers) {
-      consumers = new Set()
-      context.insertMarkupConsumers.set(refId, consumers)
-    }
-    consumers.add(id)
+    addInsertMarkupConsumer(context.insertMarkupConsumers, refId, id)
   }
 }
 
@@ -344,12 +349,7 @@ async function buildContext(config: StyleguideConfiguration): Promise<Styleguide
   const insertMarkupConsumers = new Map<string, Set<string>>()
   for (const [id, entry] of compiledRepository) {
     for (const refId of getInsertMarkupReferences(entry.markup)) {
-      let consumers = insertMarkupConsumers.get(refId)
-      if (!consumers) {
-        consumers = new Set()
-        insertMarkupConsumers.set(refId, consumers)
-      }
-      consumers.add(id)
+      addInsertMarkupConsumer(insertMarkupConsumers, refId, id)
     }
   }
 

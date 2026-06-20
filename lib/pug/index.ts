@@ -1,3 +1,4 @@
+import type { Mode } from './compile-core.ts'
 import type { PugWorkerOutput } from './worker.ts'
 import os from 'node:os'
 import path from 'node:path'
@@ -5,11 +6,9 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
 import { computeDepSignatures, PugCompileCache } from './cache.ts'
-import { compileMarkup } from './compile-core.ts'
+import { compileMarkup, pugErrorFile } from './compile-core.ts'
 import { PugDependencyGraph } from './dependency-graph.ts'
 import { renderPugErrorOverlay } from './error-overlay.ts'
-
-type Mode = 'production' | 'development'
 
 export interface PugCompileError {
   /** Section id whose markup failed to compile. */
@@ -36,8 +35,7 @@ export function getPugDependencyGraph(): PugDependencyGraph {
 
 /** Resolve the absolute path of the `.pug` file a pug error points at, if it carries one. */
 function extractPugErrorFile(error: unknown): string | undefined {
-  const candidate = (error as { path?: string, filename?: string } | null)?.path
-    ?? (error as { path?: string, filename?: string } | null)?.filename
+  const candidate = pugErrorFile(error)
   return candidate ? path.resolve(candidate) : undefined
 }
 
@@ -64,11 +62,10 @@ async function terminateAllWorkers() {
 const signals = ['SIGINT', 'SIGTERM', 'SIGQUIT'] as const
 signals.forEach(signal => process.on(signal, async () => await terminateAllWorkers()))
 
-function storeResult(id: string, markupSource: string, html: string, dependencies: string[]): Promise<void> {
+async function storeResult(id: string, markupSource: string, html: string, dependencies: string[]): Promise<void> {
   graph.setDependencies(id, dependencies)
-  return computeDepSignatures(dependencies).then((depSignatures) => {
-    cache.set(id, { markupSource, compiledHtml: html, dependencies, depSignatures })
-  })
+  const depSignatures = await computeDepSignatures(dependencies)
+  cache.set(id, { markupSource, compiledHtml: html, dependencies, depSignatures })
 }
 
 /**
@@ -188,7 +185,9 @@ async function compileIds(
   repository: Map<string, { markup: string }>,
   ids: string[],
 ): Promise<Map<string, { markup: string }>> {
-  const clonedRepository = structuredClone(repository)
+  // Shallow copy: compileIds only ever replaces whole `{ markup }` value objects via `.set`, never
+  // mutates the existing ones, so the caller's map stays untouched without a deep clone.
+  const clonedRepository = new Map(repository)
   if (ids.length === 0)
     return clonedRepository
 

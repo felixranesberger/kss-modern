@@ -57,10 +57,6 @@ export class PugCompileCache {
     this.entries.set(sectionId, entry)
   }
 
-  delete(sectionId: string): void {
-    this.entries.delete(sectionId)
-  }
-
   clear(): void {
     this.entries.clear()
   }

@@ -1,12 +1,5 @@
 import type { PugCompileError } from './index.ts'
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { escape } from '../template-utils.ts'
 
 /**
  * Build the HTML shown in place of a section whose pug failed to compile (development only).
@@ -19,9 +12,9 @@ function escapeHtml(value: string): string {
  * so it reads correctly whether or not it is injected into a section's `Wrapper:`.
  */
 export function renderPugErrorOverlay(error: PugCompileError): string {
-  const id = escapeHtml(error.id)
-  const file = error.file ? escapeHtml(error.file) : ''
-  const message = escapeHtml(error.message)
+  const id = escape(error.id)
+  const file = error.file ? escape(error.file) : ''
+  const message = escape(error.message)
 
   return `
 <div

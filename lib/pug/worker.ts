@@ -1,10 +1,10 @@
-import type { StyleguideConfiguration } from '../index'
+import type { Mode } from './compile-core.ts'
 import { parentPort } from 'node:worker_threads'
-import { compileMarkup } from './compile-core.ts'
+import { compileMarkup, pugErrorFile } from './compile-core.ts'
 
 export interface PugWorkerInput {
   id: string
-  mode: StyleguideConfiguration['mode']
+  mode: Mode
   contentDir: `${string}/`
   html: string
 }
@@ -36,8 +36,6 @@ parentPort.on('message', async (data: PugWorkerInput) => {
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    const file = (error as { path?: string, filename?: string } | null)?.path
-      ?? (error as { path?: string, filename?: string } | null)?.filename
-    parentPort!.postMessage({ id, error: message, file } satisfies PugWorkerOutput)
+    parentPort!.postMessage({ id, error: message, file: pugErrorFile(error) } satisfies PugWorkerOutput)
   }
 })
