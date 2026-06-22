@@ -1,4 +1,4 @@
-import type { Mode } from './compile-core.ts'
+import type { CompileTimings, Mode } from './compile-core.ts'
 import type { PugWorkerInput, PugWorkerOutput } from './worker.ts'
 import os from 'node:os'
 import path from 'node:path'
@@ -10,6 +10,7 @@ import { computeDepSignatures, PugCompileCache } from './cache.ts'
 import { compileMarkup, pugErrorFile } from './compile-core.ts'
 import { PugDependencyGraph } from './dependency-graph.ts'
 import { renderPugErrorOverlay } from './error-overlay.ts'
+import { clearPugParseCache } from './parse-cache.ts'
 
 export interface PugCompileError {
   /** Section id whose markup failed to compile. */
@@ -20,8 +21,10 @@ export interface PugCompileError {
   message: string
 }
 
-// Leave a core for the main thread / event loop.
-const MAX_POOL_SIZE = Math.max(1, os.cpus().length - 1)
+// Use all but one core for compile workers, but keep at least 2: a cpu-limited container (where
+// os.cpus() can report just 1-2) must still compile sections in parallel rather than serially.
+// The main thread mostly awaits worker messages during a compile, so a slight oversubscription is fine.
+const MAX_POOL_SIZE = Math.max(2, os.cpus().length - 1)
 // Below this many cache misses, compile on the main thread instead of dispatching to the pool — a
 // one- or two-section incremental rebuild isn't worth the worker round-trip.
 const INLINE_THRESHOLD = 2
@@ -35,10 +38,31 @@ export function getPugDependencyGraph(): PugDependencyGraph {
   return graph
 }
 
-/** Test helper: clear the module-level cache + dependency graph between cases. */
+// Aggregated per-phase compile timings for the most recent compileIds() run (dev diagnostics only).
+// Sums across all recompiled sections, so comparing the total against the rebuild wall-clock also
+// reveals effective parallelism (sum ≈ wall ⇒ no real parallelism).
+let lastCompileTimings = { read: 0, parse: 0, render: 0, a11y: 0, sections: 0 }
+
+function accumulateTimings(timings: CompileTimings): void {
+  lastCompileTimings.read += timings.read
+  lastCompileTimings.parse += timings.parse
+  lastCompileTimings.render += timings.render
+  lastCompileTimings.a11y += timings.a11y
+  lastCompileTimings.sections += 1
+}
+
+export function getLastCompileTimings(): { read: number, parse: number, render: number, a11y: number, sections: number } {
+  return lastCompileTimings
+}
+
+/**
+ * Test helper: clear the module-level cache + dependency graph between cases. Also clears this
+ * thread's pug parse cache; worker-thread parse caches self-invalidate by file signature.
+ */
 export function resetPugState(): void {
   cache.clear()
   graph.clear()
+  clearPugParseCache()
 }
 
 // resolve worker paths
@@ -47,53 +71,42 @@ const __dirname = path.dirname(__filename)
 const workerFilePath = __dirname.includes('dist/') ? './pug/worker.mjs' : './worker.ts'
 const workerFilePathResolved = path.resolve(__dirname, workerFilePath)
 
-// Persistent worker pool: workers are spawned lazily (up to MAX_POOL_SIZE) and kept warm for the
-// process lifetime, so incremental rebuilds reuse them instead of paying thread spawn + module load
-// on every change. Idle workers are unref'd so they never keep the process alive — tests and
-// one-shot builds still exit cleanly — and a worker is ref'd again only while it handles a task.
+// Persistent, affinity-routed worker pool. Each section is pinned to a fixed slot by a hash of its
+// id, so it always recompiles on the same worker and reuses that worker's warm parse cache (see
+// ./parse-cache.ts). This matters because every worker is a separate V8 isolate with its OWN parse
+// cache: with round-robin dispatch a section could land on a different worker each rebuild and pay a
+// cold re-parse of the whole shared include tree. With affinity the initial full build doubles as
+// the warm-up — by the first incremental edit every slot has already parsed the trees of the
+// sections pinned to it, so only the file that actually changed is re-parsed.
+//
+// Workers spawn lazily per slot and are kept warm for the process lifetime. Tasks pinned to the same
+// slot run sequentially (a worker handles one message at a time, and runOnWorker is not safe for
+// concurrent calls on one worker). A slot's worker is unref'd whenever it goes idle so it never keeps
+// the process alive — tests and one-shot builds still exit cleanly — and ref'd again while busy.
+interface WorkerSlot {
+  worker?: Worker
+  /** Serializes the tasks pinned to this slot. */
+  tail: Promise<unknown>
+  /** In-flight + queued tasks on this slot; the worker is unref'd when this returns to 0. */
+  active: number
+}
+const slots: WorkerSlot[] = Array.from({ length: MAX_POOL_SIZE }, () => ({ tail: Promise.resolve(), active: 0 }))
 const allWorkers = new Set<Worker>()
-const idleWorkers: Worker[] = []
-const waiters: ((worker: Worker) => void)[] = []
 
-function spawnWorker(): Worker {
-  const worker = new Worker(workerFilePathResolved, { name: `pug-worker-${allWorkers.size}` })
+/** FNV-1a: a small, stable string hash so a section id always maps to the same slot. */
+function slotIndexFor(id: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) % MAX_POOL_SIZE
+}
+
+function spawnWorker(index: number): Worker {
+  const worker = new Worker(workerFilePathResolved, { name: `pug-worker-${index}` })
   allWorkers.add(worker)
   return worker
-}
-
-function acquireWorker(): Promise<Worker> {
-  const idle = idleWorkers.pop()
-  if (idle) {
-    idle.ref()
-    return Promise.resolve(idle)
-  }
-  if (allWorkers.size < MAX_POOL_SIZE) {
-    // a freshly spawned worker is ref'd by default, which is what we want while it is busy
-    return Promise.resolve(spawnWorker())
-  }
-  return new Promise<Worker>((resolve) => {
-    waiters.push(resolve)
-  })
-}
-
-function releaseWorker(worker: Worker): void {
-  const waiter = waiters.shift()
-  if (waiter) {
-    waiter(worker)
-    return
-  }
-  worker.unref()
-  idleWorkers.push(worker)
-}
-
-/** Drop a worker that crashed at the thread level, replacing it if tasks are still queued. */
-async function discardWorker(worker: Worker): Promise<void> {
-  allWorkers.delete(worker)
-  await worker.terminate().catch(() => {})
-  const waiter = waiters.shift()
-  if (waiter && allWorkers.size < MAX_POOL_SIZE) {
-    waiter(spawnWorker())
-  }
 }
 
 /** Run a single compile job on a worker, settling when it replies or rejecting if the thread dies. */
@@ -117,12 +130,55 @@ function runOnWorker(worker: Worker, input: PugWorkerInput): Promise<PugWorkerOu
   })
 }
 
+/**
+ * Compile `input` on the worker that section `id` is pinned to, queueing behind any task already
+ * running on that slot. Rejects if the worker thread dies (the slot drops it so the next task spawns
+ * a fresh one); the caller records the failure.
+ */
+function runPinned(id: string, input: PugWorkerInput): Promise<PugWorkerOutput> {
+  const slot = slots[slotIndexFor(id)]
+  slot.active++
+  const run = slot.tail.then(async () => {
+    if (!slot.worker)
+      slot.worker = spawnWorker(slots.indexOf(slot))
+    const worker = slot.worker
+    worker.ref()
+    try {
+      return await runOnWorker(worker, input)
+    }
+    catch (error) {
+      // thread-level crash: drop the dead worker so the slot respawns (cold) on its next task
+      allWorkers.delete(worker)
+      void worker.terminate().catch(() => {})
+      if (slot.worker === worker)
+        slot.worker = undefined
+      throw error
+    }
+    finally {
+      slot.active--
+      if (slot.active === 0)
+        slot.worker?.unref()
+    }
+  })
+  // keep the per-slot chain alive whether this task resolved or rejected
+  slot.tail = run.then(() => {}, () => {})
+  return run
+}
+
+/** Snapshot of the worker pool, for dev profiling: cpu count, cap, and how many workers exist. */
+export function getPugPoolInfo(): { cpus: number, maxPoolSize: number, workers: number } {
+  return { cpus: os.cpus().length, maxPoolSize: MAX_POOL_SIZE, workers: allWorkers.size }
+}
+
 /** Terminate every pooled worker. Used by the signal handlers and available for explicit teardown. */
 export async function terminatePugWorkers(): Promise<void> {
   const workers = [...allWorkers]
   allWorkers.clear()
-  idleWorkers.length = 0
-  waiters.length = 0
+  for (const slot of slots) {
+    slot.worker = undefined
+    slot.tail = Promise.resolve()
+    slot.active = 0
+  }
   await Promise.all(workers.map(worker => worker.terminate()))
 }
 
@@ -167,8 +223,9 @@ async function compileInline(
 ): Promise<void> {
   const markupSource = repository.get(id)!.markup
   try {
-    const { html, dependencies } = await compileMarkup(contentDir, mode, markupSource, id)
+    const { html, dependencies, timings } = await compileMarkup(contentDir, mode, markupSource, id)
     repository.set(id, { markup: html })
+    accumulateTimings(timings)
     await storeResult(id, markupSource, html, dependencies)
   }
   catch (error) {
@@ -187,22 +244,18 @@ async function compileViaWorkerPool(
 ): Promise<void> {
   const tasks = ids.map(async (id) => {
     const markupSource = repository.get(id)!.markup
-    const worker = await acquireWorker()
 
     let result: PugWorkerOutput
     try {
-      result = await runOnWorker(worker, { id, mode, html: markupSource, contentDir })
+      result = await runPinned(id, { id, mode, html: markupSource, contentDir })
     }
     catch (error) {
-      // a thread-level crash (not a pug error — those come back as a message): drop the dead worker
-      // so a fresh one takes its place, and record the failure for this section.
-      await discardWorker(worker)
+      // a thread-level crash (not a pug error — those come back as a message). runPinned has already
+      // dropped the dead worker from its slot; just record the failure for this section.
       const message = error instanceof Error ? error.message : String(error)
       recordFailure(mode, repository, errors, { id, message })
       return
     }
-
-    releaseWorker(worker)
 
     if ('error' in result) {
       recordFailure(mode, repository, errors, {
@@ -214,6 +267,7 @@ async function compileViaWorkerPool(
     }
 
     repository.set(id, { markup: result.html })
+    accumulateTimings(result.timings)
     await storeResult(id, markupSource, result.html, result.dependencies)
   })
 
@@ -257,6 +311,7 @@ async function compileIds(
     return clonedRepository
 
   const errors: PugCompileError[] = []
+  lastCompileTimings = { read: 0, parse: 0, render: 0, a11y: 0, sections: 0 }
   const useInline = mode === 'development' && misses.length <= INLINE_THRESHOLD
   if (useInline) {
     await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors)))

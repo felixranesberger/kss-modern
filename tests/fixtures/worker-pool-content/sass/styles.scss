@@ -1,0 +1,49 @@
+/*
+Widgets
+
+Five sections that all include the same shared partial (pug/_widget.pug), so editing it
+fans out to more than INLINE_THRESHOLD sections and the incremental rebuild goes through the
+affinity worker pool rather than the inline main-thread path.
+
+Styleguide 1.0
+*/
+
+/*
+CardA
+
+Markup: <insert-vite-pug src="pug/card-a.pug"></insert-vite-pug>
+
+Styleguide 1.1
+*/
+
+/*
+CardB
+
+Markup: <insert-vite-pug src="pug/card-b.pug"></insert-vite-pug>
+
+Styleguide 1.2
+*/
+
+/*
+CardC
+
+Markup: <insert-vite-pug src="pug/card-c.pug"></insert-vite-pug>
+
+Styleguide 1.3
+*/
+
+/*
+CardD
+
+Markup: <insert-vite-pug src="pug/card-d.pug"></insert-vite-pug>
+
+Styleguide 1.4
+*/
+
+/*
+CardE
+
+Markup: <insert-vite-pug src="pug/card-e.pug"></insert-vite-pug>
+
+Styleguide 1.5
+*/
