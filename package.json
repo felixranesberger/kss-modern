@@ -50,6 +50,7 @@
     "fs-extra": "^11.3.5",
     "markdown-it-async": "^2.2.0",
     "pug": "^3.0.4",
+    "pug-load": "^3.0.0",
     "shiki": "^4.2.0",
     "tinyglobby": "^0.2.17"
   },

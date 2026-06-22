@@ -1,4 +1,4 @@
-import type { Mode } from './compile-core.ts'
+import type { CompileTimings, Mode } from './compile-core.ts'
 import { parentPort } from 'node:worker_threads'
 import { compileMarkup, pugErrorFile } from './compile-core.ts'
 
@@ -13,6 +13,7 @@ interface PugWorkerSuccess {
   id: string
   html: string
   dependencies: string[]
+  timings: CompileTimings
 }
 interface PugWorkerError {
   id: string
@@ -31,8 +32,8 @@ parentPort.on('message', async (data: PugWorkerInput) => {
   const { id, mode, html, contentDir } = data
 
   try {
-    const { html: compiled, dependencies } = await compileMarkup(contentDir, mode, html, id)
-    parentPort!.postMessage({ id, html: compiled, dependencies } satisfies PugWorkerOutput)
+    const { html: compiled, dependencies, timings } = await compileMarkup(contentDir, mode, html, id)
+    parentPort!.postMessage({ id, html: compiled, dependencies, timings } satisfies PugWorkerOutput)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)

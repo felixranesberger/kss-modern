@@ -2,6 +2,7 @@ import type { SectionMeta } from './insert-markup.ts'
 import type { FileObject, in2FirstLevelSection, in2Section } from './parser.ts'
 import type { MenuSearchKeywords } from './templates/preview.ts'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import fs from 'fs-extra'
@@ -11,7 +12,7 @@ import { generateFaviconFiles } from './favicon.ts'
 import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './insert-markup.ts'
 import { logger } from './logger.ts'
 import { parse } from './parser.ts'
-import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
+import { compilePugMarkup, compilePugMarkupIncremental, getLastCompileTimings, getPugDependencyGraph, getPugPoolInfo } from './pug'
 import { replaceWrapperContent } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
@@ -499,11 +500,15 @@ export async function rebuildSections(
   if (subset.size === 0)
     return
 
+  const startedAt = performance.now()
+  const workersBefore = getPugPoolInfo().workers
+
   const recompiled = await compilePugMarkupIncremental(config.mode, config.contentDir, subset, subset.keys())
   for (const [id, entry] of recompiled) {
     context.compiledRepository.set(id, { markup: entry.markup })
     reindexInsertMarkupConsumer(context, id)
   }
+  const afterCompile = performance.now()
 
   // re-resolve <insert-markup> for the affected sections and update their nodes
   const resolved = resolveInsertMarkupForSections(context.compiledRepository, context.sectionsById, affected)
@@ -512,6 +517,7 @@ export async function rebuildSections(
     if (node)
       node.markup = markup
   }
+  const afterResolve = performance.now()
 
   // write only the affected fullpages and their (deduped) owning preview pages
   const writeTasks: Promise<void>[] = []
@@ -532,6 +538,21 @@ export async function rebuildSections(
   }
 
   await Promise.all(writeTasks)
+  const afterWrite = performance.now()
+
+  // dev-only breakdown so the incremental-rebuild hot path can be profiled from the console
+  if (config.mode === 'development') {
+    const ms = (value: number): string => `${value.toFixed(1)}ms`
+    const pool = getPugPoolInfo()
+    const spawned = pool.workers - workersBefore
+    const t = getLastCompileTimings()
+    logger.info(
+      `Incremental rebuild: ${affected.size} section(s), ${writeTasks.length} file(s) in ${ms(afterWrite - startedAt)} `
+      + `(compile ${ms(afterCompile - startedAt)}, insert-markup ${ms(afterResolve - afterCompile)}, write ${ms(afterWrite - afterResolve)}) `
+      + `[cpus=${pool.cpus}, pool=${pool.maxPoolSize}, workers=${pool.workers}${spawned > 0 ? `, +${spawned} cold-spawned` : ''}] `
+      + `compile breakdown over ${t.sections} section(s): read ${ms(t.read)}, parse ${ms(t.parse)}, render ${ms(t.render)}, a11y ${ms(t.a11y)} (summed per-section; read=disk I/O, parse=lex/parse/codegen)`,
+    )
+  }
 }
 
 /**

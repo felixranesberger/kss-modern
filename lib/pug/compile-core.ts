@@ -1,19 +1,42 @@
 import type { Biome } from '@biomejs/js-api'
 import type { StyleguideConfiguration } from '../index'
+import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import pug from 'pug'
 import { sectionSanitizeId } from '../../client/utils.ts'
 import { logger } from '../logger.ts'
 import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
+import { installPugParseCache } from './parse-cache.ts'
 
 export type Mode = StyleguideConfiguration['mode']
+
+// Memoise pug's per-file lex+parse across sections. Installed here so it covers every place a
+// section compiles — the main thread (small inline rebuilds) and each worker thread (which imports
+// this module separately and patches its own pug-load). Lex+parse dominates compile time, and a
+// shared include tree is otherwise re-parsed once per dependent section. See ./parse-cache.ts.
+installPugParseCache()
+
+/** Where a section's compile time went, summed over the entry file and any <insert-vite-pug> tags. */
+export interface CompileTimings {
+  /** Reading the entry file + all includes/extends off disk (file I/O only). */
+  read: number
+  /** pug lex + parse + codegen (CPU; excludes the include reads). */
+  parse: number
+  /** Executing the compiled template function (pure render). */
+  render: number
+  /** `fixAccessibilityIssues` post-processing. */
+  a11y: number
+}
 
 export interface CompileResult {
   /** Final HTML: pug-compiled, formatted, accessibility-fixed. */
   html: string
   /** Absolute paths of every file this section's markup depends on (entry pug/html + includes/extends). */
   dependencies: string[]
+  /** Per-phase wall-clock for this section's compile (diagnostics). */
+  timings: CompileTimings
 }
 
 // Memoised Biome instance + project key, created on first use (production formatting only) and
@@ -113,21 +136,53 @@ export function pugErrorFile(error: unknown): string | undefined {
  * Compile a single `.pug` file to HTML and report its resolved dependency paths (the entry file
  * plus every include/extends). `extraLocals` are merged with the per-render `useId` helper.
  */
+// Accumulates time spent reading include/extends files via pug's `read` hook. compilePugFile runs
+// synchronously with no yield, so sampling this before/after a compile attributes reads to it.
+let includeReadMs = 0
+function timedRead(filePath: string): string {
+  const t0 = performance.now()
+  const content = readFileSync(filePath, 'utf8')
+  includeReadMs += performance.now() - t0
+  return content
+}
+
 function compilePugFile(
   pugFilePath: string,
   mode: Mode,
   sectionId: string,
   extraLocals: Record<string, unknown> = {},
-): { html: string, dependencies: string[] } {
-  const pugFn = pug.compileFile(pugFilePath, {
+): { html: string, dependencies: string[], readMs: number, parseMs: number, renderMs: number } {
+  // entry file read (measured), then compile with includes routed through the timed reader so we can
+  // separate disk I/O from lex/parse/codegen.
+  const tRead0 = performance.now()
+  const source = readFileSync(pugFilePath, 'utf8')
+  let readMs = performance.now() - tRead0
+
+  const includeReadBefore = includeReadMs
+  const tParse0 = performance.now()
+  const pugFn = pug.compile(source, {
+    filename: pugFilePath,
     // define doctype to avoid self-closing tags on wrong places
     doctype: 'html',
     // pretty output in dev keeps the "Show code" view readable without Biome
     pretty: mode === 'development',
+    // pug defaults this to true, which wraps the generated function in per-line try/catch +
+    // line-mapping — measurably bloating codegen and `new Function`. We surface compile errors via
+    // our own overlay, so the precise pug line in a runtime stack isn't worth the cost.
+    compileDebug: false,
+    plugins: [{ read: timedRead }],
   })
+  const includeReads = includeReadMs - includeReadBefore
+  const parseMs = (performance.now() - tParse0) - includeReads
+  readMs += includeReads
+
   const dependencies = [path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep))]
+
+  const tRender0 = performance.now()
   const html = pugFn({ ...extraLocals, useId: createUseId(sectionId) })
-  return { html, dependencies }
+  const renderMs = performance.now() - tRender0
+
+  return { html, dependencies, readMs, parseMs, renderMs }
 }
 
 /**
@@ -143,11 +198,14 @@ async function expandVitePugTags(
 ): Promise<CompileResult> {
   const vitePugTags = html.match(INSERT_VITE_PUG_TAG_RE)
   if (!vitePugTags) {
-    return { html, dependencies: [] }
+    return { html, dependencies: [], timings: { read: 0, parse: 0, render: 0, a11y: 0 } }
   }
 
   let markupOutput = html
   const dependencies: string[] = []
+  let read = 0
+  let parse = 0
+  let render = 0
 
   await Promise.all(vitePugTags.map(async (vitePugTag) => {
     const pugSourcePath = vitePugTag.match(PUG_SRC_RE)?.[1]
@@ -166,12 +224,15 @@ async function expandVitePugTags(
       : {}
 
     const pugFilePath = path.join(contentDir, pugSourcePath)
-    const { html: pugOutput, dependencies: pugDependencies } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
+    const { html: pugOutput, dependencies: pugDependencies, readMs, parseMs, renderMs } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
     dependencies.push(...pugDependencies)
+    read += readMs
+    parse += parseMs
+    render += renderMs
     markupOutput = markupOutput.replaceAll(vitePugTag, pugOutput)
   }))
 
-  return { html: markupOutput, dependencies }
+  return { html: markupOutput, dependencies, timings: { read, parse, render, a11y: 0 } }
 }
 
 /**
@@ -192,13 +253,18 @@ export async function compileMarkup(
 ): Promise<CompileResult> {
   let result = html
   const dependencies: string[] = []
+  let read = 0
+  let parse = 0
+  let render = 0
 
   const trimmed = html.trim()
   const isBarePath = !trimmed.includes('<') && !trimmed.includes('\n')
 
   if (isBarePath && trimmed.endsWith('.html')) {
     const htmlFilePath = path.join(contentDir, trimmed)
+    const t0 = performance.now()
     result = await fs.readFile(htmlFilePath, 'utf-8')
+    read += performance.now() - t0
     dependencies.push(path.resolve(htmlFilePath))
   }
   else if (isBarePath && trimmed.endsWith('.pug')) {
@@ -206,18 +272,26 @@ export async function compileMarkup(
     const compiled = compilePugFile(pugFilePath, mode, sectionId)
     result = compiled.html
     dependencies.push(...compiled.dependencies)
+    read += compiled.readMs
+    parse += compiled.parseMs
+    render += compiled.renderMs
   }
 
   const expanded = await expandVitePugTags(contentDir, mode, result, sectionId)
   result = expanded.html
   dependencies.push(...expanded.dependencies)
+  read += expanded.timings.read
+  parse += expanded.timings.parse
+  render += expanded.timings.render
 
   // Production output is canonically formatted with Biome; dev relies on pug `pretty`.
   if (mode === 'production') {
     result = await biomeFormat(result)
   }
 
+  const tA11y = performance.now()
   result = fixAccessibilityIssues(result)
+  const a11y = performance.now() - tA11y
 
-  return { html: result, dependencies: [...new Set(dependencies)] }
+  return { html: result, dependencies: [...new Set(dependencies)], timings: { read, parse, render, a11y } }
 }
