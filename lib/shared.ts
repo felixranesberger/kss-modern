@@ -19,6 +19,27 @@ export const PUG_SRC_RE = /src="(.+?)"/
 export const PUG_MODIFIER_CLASS_RE = /modifierClass="(.+?)"/
 
 /**
+ * Tag name of the dev-only pug compile-error overlay. The custom element itself lives in
+ * `client/lib/pug-error-overlay.ts` (bundled into the fullpage client the preview always loads);
+ * `renderPugErrorOverlay` emits just this tag, layered over the section's last good render. All its
+ * attributes are HTML-escaped, so the element is always a single self-contained tag with no literal
+ * `>` inside — which is what lets `stripPugErrorOverlay` match it with a tag-bounded regex.
+ */
+export const PUG_ERROR_OVERLAY_TAG = 'pug-error-overlay'
+
+const PUG_ERROR_OVERLAY_RE = new RegExp(`<${PUG_ERROR_OVERLAY_TAG}\\b[^>]*></${PUG_ERROR_OVERLAY_TAG}>`, 'g')
+
+/**
+ * Remove every pug error overlay element from `html`, leaving the section's real content untouched, so
+ * the overlay never reaches anything that treats the markup as the section's source — the code-copy
+ * value, the "show code" view, and the html-validate audit. (The live-DOM axe audit excludes the
+ * element by tag name instead.)
+ */
+export function stripPugErrorOverlay(html: string): string {
+  return html.replace(PUG_ERROR_OVERLAY_RE, '')
+}
+
+/**
  * Pug outputs some semantic issues that throw accessibility errors.
  * This function fixes them.
  */

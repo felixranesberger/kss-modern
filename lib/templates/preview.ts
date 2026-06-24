@@ -4,7 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, sanitizeSpecialCharacters } from '../shared.ts'
+import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, stripPugErrorOverlay } from '../shared.ts'
 import { logicalWriteFile } from '../utils.ts'
 
 function getHasSectionExternalFullpage(section: in2Section) {
@@ -366,6 +366,9 @@ ${html ?? ''}
 }
 
 function getMainContentRegular(section: in2Section, config: StyleguideConfiguration): string {
+  // the section's source for the code views — without the dev-only pug compile-error overlay
+  const sourceCode = stripPugErrorOverlay(section.markup)
+
   const openInEditorPaths: {
     css?: { vscode: string, phpstorm: string }
     html?: { vscode: string, phpstorm: string }
@@ -491,7 +494,7 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
                     <button
                         class="inline-flex items-center gap-1.5 p-4 cursor-pointer active:scale-90 transition hover:text-styleguide-highlight duration-200" 
                         type="button"
-                        data-clipboard-value="${encodeURIComponent(section.markup)}"
+                        data-clipboard-value="${encodeURIComponent(sourceCode)}"
                         data-clipboard-uri-encoded="true"
                     >
                         <svg class="h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -536,7 +539,7 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
                 <div 
                   id="code-fullpage-${sectionSanitizeId(section.id)}" 
                   class="overflow-x-auto w-full code-highlight"
-                  data-source-code="${encodeURIComponent(section.markup)}"
+                  data-source-code="${encodeURIComponent(sourceCode)}"
                   data-source-lang="html"
                 ></div>
             </div>

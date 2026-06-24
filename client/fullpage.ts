@@ -1,4 +1,6 @@
 import type { CrossTreeSelector, NodeResult, Result } from 'axe-core'
+import { stripPugErrorOverlay } from '../lib/shared.ts'
+import { definePugErrorOverlay } from './lib/pug-error-overlay.ts'
 import { queryWithinTemplates } from './lib/query-within-templates.ts'
 
 declare global {
@@ -133,7 +135,11 @@ if (window.frameElement) {
     const runAxe = async () => {
       const { default: axe } = await import('axe-core')
 
-      const result = await axe.run('body', {
+      const result = await axe.run({
+        include: [['body']],
+        // the dev-only pug compile-error overlay is not part of the section's content
+        exclude: [['pug-error-overlay']],
+      }, {
         rules: {
           // color contrast can't be calculated correctly yet in axe-core
           // when using dark-mode. See: https://github.com/dequelabs/axe-core/issues/3605
@@ -183,7 +189,8 @@ if (window.frameElement) {
         throw new Error(`Failed to fetch document for html-validate: ${response.status} ${response.statusText}`)
       }
 
-      const html = await response.text()
+      // drop the dev-only pug compile-error overlay so it isn't reported as a section a11y issue
+      const html = stripPugErrorOverlay(await response.text())
       const { results } = await validator.validateString(html, {
         rules: {
           'no-trailing-whitespace': 'off',
@@ -226,6 +233,10 @@ else {
     ModifierReplacer.fromUrl()
   }
 }
+
+// register the dev-only pug compile-error overlay element (no-op once defined); the SSR side emits the
+// bare <pug-error-overlay> tag and relies on this fullpage bundle to upgrade it into the error UI
+definePugErrorOverlay()
 
 // query selector that also searches inside template elements
 window.querySelectorAnywhere = (selector: string) => queryWithinTemplates(document, selector)

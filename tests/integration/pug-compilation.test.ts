@@ -130,18 +130,19 @@ describe('pug compilation pipeline', () => {
     errorSpy.mockRestore()
   })
 
-  it('renders an inline error overlay for a missing .pug file path in development', async () => {
+  it('renders an error overlay element for a missing .pug file path in development', async () => {
     const repository = new Map<string, { markup: string }>([
       ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
     ])
 
     const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
-    // development degrades gracefully: the broken section's markup becomes the error overlay
+    // development degrades gracefully: the broken section's markup becomes the error overlay element
+    // (its UI is painted at runtime by the bundled fullpage client, so the markup carries the element)
     const result = await compilePugMarkup('development', 'example-styleguide/', repository)
 
     const markup = result.get('pug.missing')!.markup
-    expect(markup).toContain('Pug compile error')
-    expect(markup).toContain('pug.missing')
+    expect(markup).toContain('<pug-error-overlay')
+    expect(markup).toContain('error-id="pug.missing"')
     expect(errorSpy).toHaveBeenCalled()
     errorSpy.mockRestore()
   })

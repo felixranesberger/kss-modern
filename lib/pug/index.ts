@@ -195,11 +195,13 @@ async function storeResult(id: string, markupSource: string, html: string, depen
 }
 
 /**
- * Record a compile failure. In development the section's markup is replaced with an inline error
- * overlay so the broken section shows the error right in its own preview, and the build keeps going
- * so every other section still renders. In production nothing is patched in — the accumulated errors
- * are thrown by `compileIds`, which breaks the build. Either way the failure is logged to the
- * console; it is not surfaced through any return value or callback.
+ * Record a compile failure. In development the error overlay is layered over the section's last
+ * successfully compiled HTML (from the cache, which a failed compile leaves untouched), so the
+ * preview keeps its content and height instead of collapsing and jumping to the top; if the section
+ * never compiled, the overlay renders over empty content. The build keeps going so every other
+ * section still renders. In production nothing is patched in — the accumulated errors are thrown by
+ * `compileIds`, which breaks the build. Either way the failure is logged; it is not surfaced through
+ * any return value or callback.
  */
 function recordFailure(
   mode: Mode,
@@ -210,7 +212,8 @@ function recordFailure(
   logger.error(`Pug markup failed to compile for section "${pugError.id}": ${pugError.message}`)
   errors.push(pugError)
   if (mode === 'development') {
-    repository.set(pugError.id, { markup: renderPugErrorOverlay(pugError) })
+    const lastHtml = cache.get(pugError.id)?.compiledHtml ?? ''
+    repository.set(pugError.id, { markup: renderPugErrorOverlay(pugError, lastHtml) })
   }
 }
 

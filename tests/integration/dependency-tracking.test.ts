@@ -144,11 +144,13 @@ describe.skipIf(!distAssetsExist)('dependency tracking', () => {
       // the rebuild does not throw in development — it degrades to an overlay per failing section
       await expect(rebuildSections(config, context, ids)).resolves.toBeUndefined()
 
-      // 1.4 now shows the compile-error overlay in its own preview instead of stale output
+      // 1.4 gets the compile-error overlay element layered over its last good render, so the preview
+      // keeps its content (and height) instead of collapsing (the overlay UI is painted at runtime by
+      // the bundled fullpage client, so the static HTML carries the element + error, not the label)
       const html = await read(fullpage('1.4'))
-      expect(html).toContain('Pug compile error')
-      expect(html).toContain('1.4')
-      expect(html).not.toContain('Shared v2')
+      expect(html).toContain('<pug-error-overlay')
+      expect(html).toContain('error-id="1.4"')
+      expect(html).toContain('Shared v2') // last successfully compiled content is preserved underneath
       expect(errorSpy).toHaveBeenCalled()
       errorSpy.mockRestore()
     })

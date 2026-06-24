@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { ensureStartingSlash, fixAccessibilityIssues, generateId, replaceWrapperContent, sanitizeSpecialCharacters } from '../../../lib/shared'
+import { ensureStartingSlash, fixAccessibilityIssues, generateId, replaceWrapperContent, sanitizeSpecialCharacters, stripPugErrorOverlay } from '../../../lib/shared'
+
+const overlay = (attrs = '') => `<pug-error-overlay${attrs}></pug-error-overlay>`
+
+describe('stripPugErrorOverlay', () => {
+  it('removes the overlay element, leaving the surrounding content', () => {
+    const html = `<section>content</section>${overlay(' error-id="1.4"')}`
+    expect(stripPugErrorOverlay(html)).toBe('<section>content</section>')
+  })
+
+  it('leaves markup without an overlay untouched', () => {
+    const html = '<section>just content</section>'
+    expect(stripPugErrorOverlay(html)).toBe(html)
+  })
+
+  it('removes every overlay element, even when one is embedded mid-document', () => {
+    const html = `a${overlay(' error-id="1.1"')}b${overlay(' error-id="1.2"')}`
+    expect(stripPugErrorOverlay(html)).toBe('ab')
+  })
+
+  it('removes the overlay without touching a real custom element with a shared name prefix', () => {
+    const html = `${overlay(' error-id="1.4"')}<pug-error-overlay-legend>keep</pug-error-overlay-legend>`
+    expect(stripPugErrorOverlay(html)).toBe('<pug-error-overlay-legend>keep</pug-error-overlay-legend>')
+  })
+})
 
 describe('fixAccessibilityIssues', () => {
   it('normalizes disabled="disabled" to standalone attribute', () => {
