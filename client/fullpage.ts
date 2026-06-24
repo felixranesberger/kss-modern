@@ -1,7 +1,5 @@
 import type { CrossTreeSelector, NodeResult, Result } from 'axe-core'
-
-const CSS_COMBINATOR_RE = /\s*[>+~ ]\s*/
-const LEADING_CHILD_COMBINATOR_RE = /^\s*>\s*/
+import { queryWithinTemplates } from './lib/query-within-templates.ts'
 
 declare global {
   interface Window {
@@ -230,34 +228,4 @@ else {
 }
 
 // query selector that also searches inside template elements
-window.querySelectorAnywhere = (selector: string) => {
-  // try the regular DOM first
-  const element = document.querySelector(selector)
-  if (element)
-    return element
-
-  // check if the selector root resolves to a <template> element
-  // e.g. "#modal-template > div > button" where #modal-template is a <template>
-  const combinatorIndex = selector.search(CSS_COMBINATOR_RE)
-  if (combinatorIndex > 0) {
-    const rootPart = selector.slice(0, combinatorIndex)
-    const rootElement = document.querySelector(rootPart)
-    if (rootElement instanceof HTMLTemplateElement) {
-      const rest = selector.slice(combinatorIndex).replace(LEADING_CHILD_COMBINATOR_RE, '')
-      const match = rootElement.content.querySelector(rest)
-      if (match)
-        return match
-    }
-  }
-
-  // search through all templates for a match
-  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>('template'))
-  for (const template of templates) {
-    const match = template.content.querySelector(selector)
-    if (match)
-      return match
-  }
-
-  // return null if nothing was found
-  return null
-}
+window.querySelectorAnywhere = (selector: string) => queryWithinTemplates(document, selector)
