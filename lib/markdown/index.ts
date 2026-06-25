@@ -1,13 +1,50 @@
+import type { CodeToHastOptions, HighlighterCore } from 'shiki/core'
+import htmlLang from '@shikijs/langs/html'
+import markdownLang from '@shikijs/langs/markdown'
+import scssLang from '@shikijs/langs/scss'
+import shellscriptLang from '@shikijs/langs/shellscript'
+import typescriptLang from '@shikijs/langs/typescript'
 import { fromAsyncCodeToHtml } from '@shikijs/markdown-it/async'
+import auroraX from '@shikijs/themes/aurora-x'
+import githubLightDefault from '@shikijs/themes/github-light-default'
 import fs from 'fs-extra'
 import MarkdownItAsync from 'markdown-it-async'
-import { codeToHtml } from 'shiki'
+import { createHighlighterCore } from 'shiki/core'
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import { logger } from '../logger.ts'
 import { accordionRenderer } from './plugins/components/accordion.ts'
 import { alertRenderer } from './plugins/components/alert.ts'
 import { markdownItComponent } from './plugins/custom-component-renderer.ts'
 
 let md: ReturnType<typeof MarkdownItAsync> | undefined
+
+let highlighter: HighlighterCore | undefined
+let loadedLanguages: Set<string> | undefined
+
+/**
+ * Highlights a markdown code fence with a fine-grained Shiki core highlighter.
+ *
+ * Only the languages actually used in styleguide docs are bundled (html, scss,
+ * ts/bash via their grammars, markdown) plus the two preview themes. This keeps
+ * the published bundle small instead of pulling Shiki's entire grammar/theme set
+ * in via the `shiki` barrel import. The JavaScript regex engine is used (Shiki's
+ * recommendation for smaller bundles / faster startup) so no Oniguruma wasm ships.
+ */
+async function highlightCodeToHtml(code: string, options: CodeToHastOptions): Promise<string> {
+  if (!highlighter) {
+    highlighter = await createHighlighterCore({
+      themes: [githubLightDefault, auroraX],
+      langs: [htmlLang, scssLang, typescriptLang, shellscriptLang, markdownLang],
+      engine: createJavaScriptRegexEngine(),
+    })
+    loadedLanguages = new Set(highlighter.getLoadedLanguages())
+  }
+
+  // Core highlighters throw on an unloaded language, so any fence whose language
+  // we didn't bundle (or a typo) falls back to the built-in plaintext grammar.
+  const lang = loadedLanguages!.has(options.lang) ? options.lang : 'text'
+  return highlighter.codeToHtml(code, { ...options, lang })
+}
 
 /**
  * Shifts heading levels in a markdown string based on a root heading level.
@@ -60,7 +97,7 @@ export async function parseMarkdown(data: MarkdownOptionsBase & {
     })
     md.use(
       fromAsyncCodeToHtml(
-        codeToHtml,
+        highlightCodeToHtml,
         {
           themes: {
             light: 'github-light-default',
