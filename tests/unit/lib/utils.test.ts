@@ -1,7 +1,28 @@
 import path from 'node:path'
 import fs from 'fs-extra'
 import { describe, expect, it } from 'vitest'
-import { logicalWriteFile } from '../../../lib/utils'
+import { isTransientFsError, logicalWriteFile } from '../../../lib/utils'
+
+function fsError(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(code), { code })
+}
+
+describe('isTransientFsError', () => {
+  it.each(['ENOENT', 'EBUSY', 'EPERM', 'EACCES'])('treats %s as transient', (code) => {
+    expect(isTransientFsError(fsError(code))).toBe(true)
+  })
+
+  it('does not treat unrelated error codes as transient', () => {
+    expect(isTransientFsError(fsError('EISDIR'))).toBe(false)
+  })
+
+  it('returns false for errors without a code and for non-error values', () => {
+    expect(isTransientFsError(new Error('boom'))).toBe(false)
+    expect(isTransientFsError('ENOENT')).toBe(false)
+    expect(isTransientFsError(null)).toBe(false)
+    expect(isTransientFsError(undefined)).toBe(false)
+  })
+})
 
 describe('logicalWriteFile', () => {
   it('writes a new file when it does not exist', async () => {

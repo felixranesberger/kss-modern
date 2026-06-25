@@ -2,6 +2,7 @@ import type { FSWatcher } from 'chokidar'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import chokidar from 'chokidar'
+import { isTransientFsError } from './utils.ts'
 
 export interface StyleguideWatchHandlers {
   /**
@@ -46,6 +47,25 @@ function matchArraysEqual(a: RegExpMatchArray | null, b: RegExpMatchArray | null
 const kssSectionRegex = /\/\*{1,2}[\s\S]*?Styleguide[\s\S]*?\*\//g
 
 /**
+ * Read a watched file synchronously, returning `undefined` if it was removed or
+ * is mid-replace (atomic save) when the watcher event fires. The crash this
+ * guards against happens because chokidar emits `add`/`change` synchronously
+ * and an unguarded `readFileSync` throw escapes the listener and exits Node.
+ * Skipping is safe: a later stable event (or the matching `unlink`) settles it.
+ */
+function tryReadFileSync(filePath: string): string | undefined {
+  try {
+    return readFileSync(filePath, 'utf8')
+  }
+  catch (error) {
+    if (isTransientFsError(error))
+      return undefined
+
+    throw error
+  }
+}
+
+/**
  * Watch the content directory and route file changes to the appropriate rebuild strategy:
  * structural changes (CSS sections / markdown) trigger a full rebuild, while markup changes
  * (`.pug`/`.html`) trigger an incremental rebuild of only the dependent sections.
@@ -62,7 +82,11 @@ export function watchStyleguideForChanges(
   const regexFileContents = new Map<string, RegExpMatchArray | null>()
 
   const handleCssAdd = (filePath: string): void => {
-    const currentFileMatches = readFileSync(filePath, 'utf8').match(kssSectionRegex)
+    const contents = tryReadFileSync(filePath)
+    if (contents === undefined)
+      return
+
+    const currentFileMatches = contents.match(kssSectionRegex)
     if (currentFileMatches === null) {
       return
     }
@@ -75,7 +99,11 @@ export function watchStyleguideForChanges(
     const previousFileMatches = regexFileContents.get(filePath)
     const hasFileBeenReadBefore = previousFileMatches !== undefined
 
-    const currentFileMatches = readFileSync(filePath, 'utf8').match(kssSectionRegex)
+    const contents = tryReadFileSync(filePath)
+    if (contents === undefined)
+      return
+
+    const currentFileMatches = contents.match(kssSectionRegex)
 
     if (!hasFileBeenReadBefore) {
       regexFileContents.set(filePath, currentFileMatches)
