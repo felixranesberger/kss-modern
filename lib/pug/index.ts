@@ -1,4 +1,4 @@
-import type { CompileTimings, Mode } from './compile-core.ts'
+import type { Mode } from './compile-core.ts'
 import type { PugWorkerInput, PugWorkerOutput } from './worker.ts'
 import os from 'node:os'
 import path from 'node:path'
@@ -36,23 +36,6 @@ const graph = new PugDependencyGraph()
 
 export function getPugDependencyGraph(): PugDependencyGraph {
   return graph
-}
-
-// Aggregated per-phase compile timings for the most recent compileIds() run (dev diagnostics only).
-// Sums across all recompiled sections, so comparing the total against the rebuild wall-clock also
-// reveals effective parallelism (sum ≈ wall ⇒ no real parallelism).
-let lastCompileTimings = { read: 0, parse: 0, render: 0, a11y: 0, sections: 0 }
-
-function accumulateTimings(timings: CompileTimings): void {
-  lastCompileTimings.read += timings.read
-  lastCompileTimings.parse += timings.parse
-  lastCompileTimings.render += timings.render
-  lastCompileTimings.a11y += timings.a11y
-  lastCompileTimings.sections += 1
-}
-
-export function getLastCompileTimings(): { read: number, parse: number, render: number, a11y: number, sections: number } {
-  return lastCompileTimings
 }
 
 /**
@@ -165,11 +148,6 @@ function runPinned(id: string, input: PugWorkerInput): Promise<PugWorkerOutput> 
   return run
 }
 
-/** Snapshot of the worker pool, for dev profiling: cpu count, cap, and how many workers exist. */
-export function getPugPoolInfo(): { cpus: number, maxPoolSize: number, workers: number } {
-  return { cpus: os.cpus().length, maxPoolSize: MAX_POOL_SIZE, workers: allWorkers.size }
-}
-
 /** Terminate every pooled worker. Used by the signal handlers and available for explicit teardown. */
 export async function terminatePugWorkers(): Promise<void> {
   const workers = [...allWorkers]
@@ -226,9 +204,8 @@ async function compileInline(
 ): Promise<void> {
   const markupSource = repository.get(id)!.markup
   try {
-    const { html, dependencies, timings } = await compileMarkup(contentDir, mode, markupSource, id)
+    const { html, dependencies } = await compileMarkup(contentDir, mode, markupSource, id)
     repository.set(id, { markup: html })
-    accumulateTimings(timings)
     await storeResult(id, markupSource, html, dependencies)
   }
   catch (error) {
@@ -270,7 +247,6 @@ async function compileViaWorkerPool(
     }
 
     repository.set(id, { markup: result.html })
-    accumulateTimings(result.timings)
     await storeResult(id, markupSource, result.html, result.dependencies)
   })
 
@@ -314,7 +290,6 @@ async function compileIds(
     return clonedRepository
 
   const errors: PugCompileError[] = []
-  lastCompileTimings = { read: 0, parse: 0, render: 0, a11y: 0, sections: 0 }
   const useInline = mode === 'development' && misses.length <= INLINE_THRESHOLD
   if (useInline) {
     await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors)))
