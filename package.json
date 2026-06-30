@@ -1,7 +1,7 @@
 {
   "name": "kss-modern",
   "type": "module",
-  "version": "1.2.0-beta.5",
+  "version": "1.2.0",
   "description": "Modern KSS compatible styleguide generator",
   "keywords": [
     "kss",
