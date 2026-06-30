@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.2.0](https://github.com/felixranesberger/kss-modern/compare/v1.1.1...v1.2.0) (2026-06-30)
+
+### Features
+
+* compile Pug server-side in development exactly as in production, dropping the `<pug>`-tag path that deferred compilation to an external Vite plugin — on a `.pug`/`.html` change only the affected fullpage/preview files rebuild, resolved through an `include`/`extends` dependency graph and `<insert-markup>` consumers, with compiled output cached by markup + dependency signature ([50e7068](https://github.com/felixranesberger/kss-modern/commit/50e7068))
+* surface Pug compile failures instead of swallowing them — development replaces the failing section's markup with a self-contained error overlay layered over its last good render (every other section still builds) while production collects the failures and throws from the build ([fd97ac8](https://github.com/felixranesberger/kss-modern/commit/fd97ac8), [05640e0](https://github.com/felixranesberger/kss-modern/commit/05640e0))
+* redesign the dev compile-error overlay into a Turbopack-style dialog that parses Pug's code frame into a line-number gutter with the failing line highlighted, a caret under the failing column, and a light Pug syntax highlighter; rendered in a shadow root via the Popover API with every field written as `textContent` so a message can't inject markup ([f1a67c7](https://github.com/felixranesberger/kss-modern/commit/f1a67c7))
+* replace the substring menu search with a uFuzzy index built once from the DOM — typo-tolerant matching, `<mark>`-highlighted excerpts windowed around the first match, documented HTML tags rendered as code chips, and the last query pre-selected on open and persisted for the tab session per project ([f12e43a](https://github.com/felixranesberger/kss-modern/commit/f12e43a))
+* route all console output through a consola-backed `Logger` (`info`/`success`/`warn`/`error`/`box`), exported from the public API, with a blue `[STYLEGUIDE]` badge on every line ([dd457a9](https://github.com/felixranesberger/kss-modern/commit/dd457a9))
+
+### Bug Fixes
+
+* substitute the `{{wrapper-content}}` slot token in a section's `Wrapper:` — previously only `<wrapper-content/>` was replaced, so the double-brace form silently dropped the section's markup and rendered the literal placeholder ([510e200](https://github.com/felixranesberger/kss-modern/commit/510e200))
+* prefix `useId()` output so generated ids are always valid CSS selectors ([9f09465](https://github.com/felixranesberger/kss-modern/commit/9f09465))
+* resolve accessibility-audit selectors that cross nested `<template>` boundaries ([be50d06](https://github.com/felixranesberger/kss-modern/commit/be50d06))
+* keep the dev file watcher from crashing on transient file-read errors (e.g. an editor or AI rewriting a file mid-read) ([f6bc016](https://github.com/felixranesberger/kss-modern/commit/f6bc016))
+
+### Performance Improvements
+
+* reuse a persistent Pug worker pool and load Biome lazily, so worker threads no longer pay the heavy formatter import at boot ([1e76d76](https://github.com/felixranesberger/kss-modern/commit/1e76d76))
+* cache parsed Pug includes across sections so the shared include tree isn't re-parsed per section ([a5459c0](https://github.com/felixranesberger/kss-modern/commit/a5459c0))
+* pin sections to workers by hash so each worker's parse cache stays warm across rebuilds ([3237499](https://github.com/felixranesberger/kss-modern/commit/3237499))
+* import a fine-grained Shiki JS-engine bundle (core plus only the langs/themes used) instead of the full barrel ([674edad](https://github.com/felixranesberger/kss-modern/commit/674edad))
+
+### Code Refactoring
+
+* rename `lib/vite-pug` → `lib/pug` and split it into focused modules behind an orchestrator (`compile-core`, `worker`, `cache`, `dependency-graph`, `error-overlay`), deduping compile helpers and trimming cleanup-pass cruft ([1adc406](https://github.com/felixranesberger/kss-modern/commit/1adc406), [909fbe8](https://github.com/felixranesberger/kss-modern/commit/909fbe8))
+* remove the dev compile-profiling instrumentation ([bd5e8ab](https://github.com/felixranesberger/kss-modern/commit/bd5e8ab))
+
+### Dependencies
+
+* upgrade `@biomejs/js-api` to 6.0.0 ([7e28380](https://github.com/felixranesberger/kss-modern/commit/7e28380))
+* update dependencies ([929e83e](https://github.com/felixranesberger/kss-modern/commit/929e83e), [7cd5c84](https://github.com/felixranesberger/kss-modern/commit/7cd5c84))
+
+### Miscellaneous
+
+* add a committed, synthetic `test-styleguide/` content dir that exercises the full feature surface, with tests for dependency tracking, incremental rebuilds, the compile cache, the dependency graph, real watcher events, `useId`, wrapper substitution, the error-overlay rendering and its `textContent`-only safety, `htmlToSearchText`, and `slugify` ([240f2e3](https://github.com/felixranesberger/kss-modern/commit/240f2e3))
+
 ## [1.1.1](https://github.com/felixranesberger/kss-modern/compare/v1.1.0...v1.1.1) (2026-06-17)
 
 ### Bug Fixes
