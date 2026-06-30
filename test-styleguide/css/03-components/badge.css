@@ -1,0 +1,38 @@
+/*
+Badge
+
+Small status label. The markup is a static `.html` file inlined as-is, showing
+every variant at once (no modifier substitution).
+
+Status: Awaits-feedback
+
+Markup: templates/source/03-components/badge.html
+
+Styleguide 3.30
+*/
+
+.c-badge {
+  display: inline-block;
+  padding: 0.15em 0.6em;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  border-radius: var(--radius-full);
+  background-color: var(--color-neutral-200);
+  color: var(--color-neutral-800);
+}
+
+.c-badge--success {
+  background-color: var(--color-success);
+  color: #fff;
+}
+
+.c-badge--warning {
+  background-color: var(--color-warning);
+  color: var(--color-neutral-900);
+}
+
+.c-badge--error {
+  background-color: var(--color-error);
+  color: #fff;
+}

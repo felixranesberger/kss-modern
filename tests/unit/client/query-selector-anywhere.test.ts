@@ -1,37 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { queryWithinTemplates } from '../../../client/lib/query-within-templates.ts'
 
-/**
- * querySelectorAnywhere is defined as a side-effect in client/fullpage.ts on window.
- * We replicate the function here to test it in isolation without triggering
- * fullpage.ts side effects (iframe detection, axe-core imports, etc.).
- */
+// `window.querySelectorAnywhere` (defined in client/fullpage.ts) is just this call against the
+// document; we exercise the underlying helper directly to avoid fullpage.ts's load-time side effects.
 function querySelectorAnywhere(selector: string): Element | null {
-  const element = document.querySelector(selector)
-  if (element)
-    return element
-
-  // check if the selector root resolves to a <template> element
-  const combinatorIndex = selector.search(/\s*[>+~ ]\s*/)
-  if (combinatorIndex > 0) {
-    const rootPart = selector.slice(0, combinatorIndex)
-    const rootElement = document.querySelector(rootPart)
-    if (rootElement instanceof HTMLTemplateElement) {
-      const rest = selector.slice(combinatorIndex).replace(/^\s*>\s*/, '')
-      const match = rootElement.content.querySelector(rest)
-      if (match)
-        return match
-    }
-  }
-
-  // search through all templates for a match
-  const templates = document.querySelectorAll<HTMLTemplateElement>('template')
-  for (const template of templates) {
-    const match = template.content.querySelector(selector)
-    if (match)
-      return match
-  }
-
-  return null
+  return queryWithinTemplates(document, selector)
 }
 
 describe('querySelectorAnywhere', () => {
@@ -145,6 +118,49 @@ describe('querySelectorAnywhere', () => {
     const result = querySelectorAnywhere('#mobile-menu-service-for-students > div > button')
     expect(result).not.toBeNull()
     expect(result?.getAttribute('type')).toBe('button')
+  })
+
+  it('finds an element inside a <template> nested in the middle of the selector path', () => {
+    // regression: external-content-consent-solution wraps an iframe in a <template>
+    // several levels deep in the light DOM
+    document.body.innerHTML = `
+      <div id="slider-198405-slide-0">
+        <figure>
+          <external-content-consent-solution>
+            <button type="button">Accept</button>
+            <template>
+              <iframe src="https://example.com"></iframe>
+            </template>
+          </external-content-consent-solution>
+        </figure>
+      </div>
+    `
+
+    const result = querySelectorAnywhere(
+      '#slider-198405-slide-0 > figure > external-content-consent-solution > template:nth-child(2) > iframe',
+    )
+    expect(result).not.toBeNull()
+    expect(result?.tagName).toBe('IFRAME')
+  })
+
+  it('finds an element inside a <template> nested within another <template>', () => {
+    document.body.innerHTML = `
+      <div id="outer">
+        <template id="outer-template">
+          <section>
+            <template>
+              <span class="deep">Deep</span>
+            </template>
+          </section>
+        </template>
+      </div>
+    `
+
+    const result = querySelectorAnywhere(
+      '#outer > #outer-template > section > template > span.deep',
+    )
+    expect(result).not.toBeNull()
+    expect(result?.textContent).toBe('Deep')
   })
 
   it('returns null when no templates exist and element is not in DOM', () => {

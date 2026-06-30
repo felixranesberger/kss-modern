@@ -1,0 +1,11 @@
+//- Direct .pug markup. modal.js wires open/close via the data- attributes.
+button.btn.btn--primary.c-modal__trigger(type="button" data-modal-target="demo-modal") Open modal
+
+.c-modal#demo-modal(aria-hidden="true")
+  .c-modal__backdrop(data-modal-close)
+  .c-modal__dialog(role="dialog" aria-modal="true" aria-labelledby="demo-modal-title")
+    h2#demo-modal-title.c-modal__title Modal title
+    p.c-modal__body This dialog is opened and closed by the modal.js module — try Escape or the backdrop.
+    .c-modal__actions
+      button.btn(type="button" data-modal-close) Cancel
+      button.btn.btn--primary(type="button" data-modal-close) Confirm

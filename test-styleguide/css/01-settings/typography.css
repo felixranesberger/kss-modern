@@ -1,0 +1,40 @@
+/*
+Typography
+
+Markdown: The type system uses a single sans-serif family with a modular scale.
+
+## Type Scale
+
+| Token | Size | Usage |
+|-------|------|-------|
+| `--font-size-sm` | 0.875rem | Captions, hints |
+| `--font-size-base` | 1rem | Body copy |
+| `--font-size-lg` | 1.25rem | Lead paragraphs |
+| `--font-size-xl` | 1.75rem | Section headings |
+
+:::alert{type="info" title="System font stack"}
+We deliberately ship a system font stack — no web fonts — to keep previews fast
+and avoid layout shift.
+:::
+
+Weight: 10
+
+Styleguide 1.2
+*/
+
+:root {
+  --font-family-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", roboto, helvetica, arial, sans-serif;
+  --font-family-mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+
+  --line-height-base: 1.6;
+  --line-height-tight: 1.2;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+}

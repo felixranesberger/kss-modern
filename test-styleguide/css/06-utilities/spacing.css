@@ -1,0 +1,17 @@
+/*
+Spacing
+
+Single-purpose margin/padding helpers built from the spacing scale.
+
+.u-mt-4 - Margin-top: 1rem
+.u-p-4 - Padding: 1rem on all sides
+
+Markup: <div style="background: var(--color-neutral-100)"><div class="u-p-4 {{modifier_class}}" style="background: var(--color-primary-light); color:#fff">Spacing helper</div></div>
+
+Styleguide 6.10
+*/
+
+.u-mt-4 { margin-top: var(--space-4); }
+.u-mb-4 { margin-bottom: var(--space-4); }
+.u-p-4 { padding: var(--space-4); }
+.u-px-6 { padding-inline: var(--space-6); }

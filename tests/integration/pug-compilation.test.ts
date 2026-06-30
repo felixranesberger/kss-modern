@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { compilePugMarkup } from '../../lib/vite-pug/index.ts'
+import { logger } from '../../lib/logger.ts'
+import { compilePugMarkup } from '../../lib/pug/index.ts'
 
 describe('pug compilation pipeline', () => {
   it('returns map unchanged when no pug templates are present', async () => {
@@ -84,16 +85,64 @@ describe('pug compilation pipeline', () => {
     expect(output).not.toContain('.pug')
   })
 
-  it('reports an error for a missing .pug file path', async () => {
+  it('exposes a useId() helper scoped to the section id', async () => {
+    const repository = new Map<string, { markup: string }>([
+      ['2.30', { markup: '<insert-vite-pug src="templates/source/02-elements/use-id.pug"></insert-vite-pug>' }],
+    ])
+
+    const result = await compilePugMarkup('production', 'example-styleguide/', repository)
+    const output = result.get('2.30')!.markup
+
+    // id is derived from the section id ("2.30" -> "id-2-30") and the key
+    expect(output).toContain('id="id-2-30-email"')
+    // the label points at the same generated id (label/input pairing)
+    expect(output).toContain('for="id-2-30-email"')
+    // reusing the same key returns the same id
+    expect(output).toContain('aria-describedby="id-2-30-email"')
+    // a different key yields a different, still section-scoped id
+    expect(output).toContain('id="id-2-30-email-hint"')
+  })
+
+  it('produces the same useId() output on repeated renders', async () => {
+    // bare .pug paths compile server-side in development too, with no process cache,
+    // so this genuinely re-runs useId() rather than returning a memoized result
+    const markup = 'templates/source/02-elements/use-id.pug'
+
+    const first = await compilePugMarkup('development', 'example-styleguide/', new Map([['4.1', { markup }]]))
+    const second = await compilePugMarkup('development', 'example-styleguide/', new Map([['4.1', { markup }]]))
+
+    expect(first.get('4.1')!.markup).toContain('id="id-4-1-email"')
+    // recomputed deterministically — ids must not drift between renders
+    expect(first.get('4.1')!.markup).toBe(second.get('4.1')!.markup)
+  })
+
+  it('breaks the build on a missing .pug file path in production', async () => {
     const repository = new Map<string, { markup: string }>([
       ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
     ])
 
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const result = await compilePugMarkup('production', 'example-styleguide/', repository)
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
-    // On error the worker pool drops the entry; the original repository value remains untouched
-    expect(result.get('pug.missing')!.markup).toBe('templates/does-not-exist.pug')
+    // production has no graceful degradation: the failure throws so the build fails
+    await expect(compilePugMarkup('production', 'example-styleguide/', repository))
+      .rejects.toThrow(/Pug compilation failed/)
+    expect(errorSpy).toHaveBeenCalled()
+    errorSpy.mockRestore()
+  })
+
+  it('renders an error overlay element for a missing .pug file path in development', async () => {
+    const repository = new Map<string, { markup: string }>([
+      ['pug.missing', { markup: 'templates/does-not-exist.pug' }],
+    ])
+
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    // development degrades gracefully: the broken section's markup becomes the error overlay element
+    // (its UI is painted at runtime by the bundled fullpage client, so the markup carries the element)
+    const result = await compilePugMarkup('development', 'example-styleguide/', repository)
+
+    const markup = result.get('pug.missing')!.markup
+    expect(markup).toContain('<pug-error-overlay')
+    expect(markup).toContain('error-id="pug.missing"')
     expect(errorSpy).toHaveBeenCalled()
     errorSpy.mockRestore()
   })

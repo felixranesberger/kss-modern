@@ -1,0 +1,9 @@
+// START COMPONENT USE-ID
+- const emailId = useId('email')
+form.c-form
+  label(for=emailId) Email
+  input(id=emailId type="email")
+  // reusing the same key returns the same id
+  p.c-form__hint(id=useId('email-hint')) We never share your email.
+  span(aria-describedby=useId('email')) reused
+// END COMPONENT USE-ID

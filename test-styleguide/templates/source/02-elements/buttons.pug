@@ -1,0 +1,6 @@
+//- Direct entry compiled via <insert-vite-pug>. `modifierClass` is injected per
+//- modifier variant. Demonstrates a Pug `include` of a shared mixin.
+include ../../mixins/_button
+
++button('Button Label', { modifier: modifierClass })
++button('With Icon', { modifier: modifierClass, icon: 'arrow-right' })

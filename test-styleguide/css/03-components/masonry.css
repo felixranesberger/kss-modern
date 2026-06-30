@@ -1,0 +1,27 @@
+/*
+Masonry Grid
+
+Experimental: CSS masonry layout (`grid-template-rows: masonry`) has limited
+browser support. This section verifies that an "Experimental:" description is
+auto-tagged with the experimental status badge.
+
+Markup: <ul class="c-masonry"><li>One</li><li>Two</li><li>Three</li><li>Four</li></ul>
+
+Styleguide 3.100
+*/
+
+.c-masonry {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.c-masonry li {
+  padding: var(--space-4);
+  background-color: var(--color-neutral-100);
+  border-radius: var(--radius-md);
+  text-align: center;
+}

@@ -1,0 +1,115 @@
+/*
+Insert Markup
+
+Markdown: The `<insert-markup>` tag inlines another section's markup, optionally
+substituting `{{modifier_class}}` with a modifier by index. Resolution runs
+before Pug compilation and works recursively across `.html` and `.pug` sources.
+
+Styleguide 4.20
+*/
+
+/*
+Source Status Badge
+
+Markdown: The section other examples reference. Its `{{modifier_class}}`
+placeholder is substituted when included with a modifier index.
+
+.c-badge--success - Success variant
+.c-badge--warning - Warning variant
+
+Markup: <span class="c-badge {{modifier_class}}">Status</span>
+
+Styleguide 4.20.10
+*/
+
+/*
+Simple Include
+
+Markdown: A bare reference inlines the source markup verbatim; `{{modifier_class}}`
+stays literal because no index was given.
+
+Markup: <insert-markup>4.20.10</insert-markup>
+
+Styleguide 4.20.20
+*/
+
+/*
+Trailing-Dash Include
+
+Markdown: A trailing dash with no index behaves exactly like the bare reference.
+
+Markup: <insert-markup>4.20.10-</insert-markup>
+
+Styleguide 4.20.30
+*/
+
+/*
+Modifier-Index Include
+
+Markdown: Index `-0` substitutes every `{{modifier_class}}` with the name of the
+referenced section's `modifiers[0]` (here `c-badge--success`).
+
+Markup: <insert-markup>4.20.10-0</insert-markup>
+
+Styleguide 4.20.40
+*/
+
+/*
+Nested Include
+
+Markdown: Section 4.20.20 itself includes 4.20.10, so including 4.20.20 here
+verifies recursive resolution.
+
+Markup: <insert-markup>4.20.20</insert-markup>
+
+Styleguide 4.20.50
+*/
+
+/*
+Missing-Reference Include
+
+Markdown: References a non-existent section. The build does not fail — an inline
+error block renders and a warning is logged.
+
+Markup: <insert-markup>99.99</insert-markup>
+
+Styleguide 4.20.60
+*/
+
+/*
+Include Inside An HTML File
+
+Markdown: The `Markup:` field points at an `.html` file that itself contains an
+`<insert-markup>` tag, resolved after the file is read from disk.
+
+Markup: templates/source/04-patterns/insert-from-file.html
+
+Styleguide 4.20.70
+*/
+
+/*
+Transitive Chain Through HTML Files
+
+Markdown: 4.20.79 → 4.20.80 (html) → 4.20.81 (html) → 4.20.10. All three hops
+must resolve.
+
+Markup: <insert-markup>4.20.80</insert-markup>
+
+Styleguide 4.20.79
+*/
+
+/*
+Chain Step 1
+
+Markup: templates/source/04-patterns/chain-1.html
+
+Styleguide 4.20.80
+*/
+
+/*
+Chain Step 2
+
+Markup: templates/source/04-patterns/chain-2.html
+
+Styleguide 4.20.81
+*/

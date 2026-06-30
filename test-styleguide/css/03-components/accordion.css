@@ -1,0 +1,56 @@
+/*
+Accordion
+
+Expandable disclosure panels. Direct `.pug` markup; toggle behaviour and
+`aria-expanded` handling come from the `accordion.js` ES module.
+
+Status: Complete
+
+Markup: templates/source/03-components/accordion.pug
+
+Styleguide 3.50
+*/
+
+.c-accordion {
+  border: 1px solid var(--color-neutral-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.c-accordion__item + .c-accordion__item {
+  border-top: 1px solid var(--color-neutral-200);
+}
+
+.c-accordion__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  background-color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+
+.c-accordion__trigger:hover {
+  background-color: var(--color-neutral-50);
+}
+
+.c-accordion__icon {
+  transition: transform 0.2s ease;
+}
+
+.c-accordion__trigger[aria-expanded="true"] .c-accordion__icon {
+  transform: rotate(180deg);
+}
+
+.c-accordion__panel {
+  padding: 0 var(--space-4) var(--space-4);
+  color: var(--color-neutral-600);
+}
+
+.c-accordion__panel[hidden] {
+  display: none;
+}

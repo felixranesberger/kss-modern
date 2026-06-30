@@ -1,0 +1,19 @@
+//- Direct .pug markup using the icon mixin for the chevron. accordion.js toggles
+//- aria-expanded and the [hidden] panel.
+include ../../mixins/_icon
+
+.c-accordion
+  .c-accordion__item
+    h3(style="margin:0")
+      button.c-accordion__trigger(type="button" aria-expanded="true" aria-controls="acc-panel-1")
+        span Shipping &amp; returns
+        +icon('chevron-down')(class="c-accordion__icon")
+    .c-accordion__panel#acc-panel-1
+      p Free shipping on orders over 50€. Returns accepted within 30 days.
+  .c-accordion__item
+    h3(style="margin:0")
+      button.c-accordion__trigger(type="button" aria-expanded="false" aria-controls="acc-panel-2")
+        span Warranty
+        +icon('chevron-down')(class="c-accordion__icon")
+    .c-accordion__panel#acc-panel-2(hidden)
+      p Every product includes a two-year limited warranty.

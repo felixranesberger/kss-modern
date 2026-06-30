@@ -1,7 +1,7 @@
 import type { CrossTreeSelector, NodeResult, Result } from 'axe-core'
-
-const CSS_COMBINATOR_RE = /\s*[>+~ ]\s*/
-const LEADING_CHILD_COMBINATOR_RE = /^\s*>\s*/
+import { stripPugErrorOverlay } from '../lib/shared.ts'
+import { definePugErrorOverlay } from './lib/pug-error-overlay.ts'
+import { queryWithinTemplates } from './lib/query-within-templates.ts'
 
 declare global {
   interface Window {
@@ -135,7 +135,11 @@ if (window.frameElement) {
     const runAxe = async () => {
       const { default: axe } = await import('axe-core')
 
-      const result = await axe.run('body', {
+      const result = await axe.run({
+        include: [['body']],
+        // the dev-only pug compile-error overlay is not part of the section's content
+        exclude: [['pug-error-overlay']],
+      }, {
         rules: {
           // color contrast can't be calculated correctly yet in axe-core
           // when using dark-mode. See: https://github.com/dequelabs/axe-core/issues/3605
@@ -185,7 +189,8 @@ if (window.frameElement) {
         throw new Error(`Failed to fetch document for html-validate: ${response.status} ${response.statusText}`)
       }
 
-      const html = await response.text()
+      // drop the dev-only pug compile-error overlay so it isn't reported as a section a11y issue
+      const html = stripPugErrorOverlay(await response.text())
       const { results } = await validator.validateString(html, {
         rules: {
           'no-trailing-whitespace': 'off',
@@ -229,35 +234,9 @@ else {
   }
 }
 
+// register the dev-only pug compile-error overlay element (no-op once defined); the SSR side emits the
+// bare <pug-error-overlay> tag and relies on this fullpage bundle to upgrade it into the error UI
+definePugErrorOverlay()
+
 // query selector that also searches inside template elements
-window.querySelectorAnywhere = (selector: string) => {
-  // try the regular DOM first
-  const element = document.querySelector(selector)
-  if (element)
-    return element
-
-  // check if the selector root resolves to a <template> element
-  // e.g. "#modal-template > div > button" where #modal-template is a <template>
-  const combinatorIndex = selector.search(CSS_COMBINATOR_RE)
-  if (combinatorIndex > 0) {
-    const rootPart = selector.slice(0, combinatorIndex)
-    const rootElement = document.querySelector(rootPart)
-    if (rootElement instanceof HTMLTemplateElement) {
-      const rest = selector.slice(combinatorIndex).replace(LEADING_CHILD_COMBINATOR_RE, '')
-      const match = rootElement.content.querySelector(rest)
-      if (match)
-        return match
-    }
-  }
-
-  // search through all templates for a match
-  const templates = Array.from(document.querySelectorAll<HTMLTemplateElement>('template'))
-  for (const template of templates) {
-    const match = template.content.querySelector(selector)
-    if (match)
-      return match
-  }
-
-  // return null if nothing was found
-  return null
-}
+window.querySelectorAnywhere = (selector: string) => queryWithinTemplates(document, selector)

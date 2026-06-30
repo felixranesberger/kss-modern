@@ -1,10 +1,9 @@
-import type { HighlighterCore } from '@shikijs/core'
-import { createHighlighterCore } from '@shikijs/core'
-import { createOnigurumaEngine } from '@shikijs/engine-oniguruma'
-import shikiWasm from '@shikijs/engine-oniguruma/wasm-inlined'
+import type { HighlighterCore } from 'shiki/core'
 import htmlLang from '@shikijs/langs/html'
 import auroraX from '@shikijs/themes/aurora-x'
 import githubLightDefault from '@shikijs/themes/github-light-default'
+import { createHighlighterCore } from 'shiki/core'
+import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 
 let highlighter: HighlighterCore
 
@@ -20,7 +19,7 @@ export async function createShikiHighlighter() {
     langs: [
       htmlLang,
     ],
-    engine: createOnigurumaEngine(shikiWasm),
+    engine: createJavaScriptRegexEngine(),
   })
 }
 

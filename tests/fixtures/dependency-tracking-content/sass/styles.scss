@@ -1,0 +1,45 @@
+/*
+Components
+
+Styleguide 1.0
+*/
+
+/*
+Nested
+
+Transitive include chain: nested -> _mid -> _leaf.
+
+Markup: <insert-vite-pug src="pug/nested.pug"></insert-vite-pug>
+
+Styleguide 1.1
+*/
+
+/*
+Layout
+
+Uses pug `extends`.
+
+Markup: <insert-vite-pug src="pug/page.pug"></insert-vite-pug>
+
+Styleguide 1.2
+*/
+
+/*
+SharedA
+
+Includes a partial shared with SharedB.
+
+Markup: <insert-vite-pug src="pug/shared-a.pug"></insert-vite-pug>
+
+Styleguide 1.3
+*/
+
+/*
+SharedB
+
+Includes a partial shared with SharedA.
+
+Markup: <insert-vite-pug src="pug/shared-b.pug"></insert-vite-pug>
+
+Styleguide 1.4
+*/

@@ -1,18 +1,36 @@
+import { logger } from './logger.ts'
 import { sanitizeSpecialCharacters } from './shared.ts'
 
 export interface SectionMeta {
   modifiers: { name: string }[]
 }
 
-const INSERT_MARKUP_REGEX = /<insert-markup>(\d+(?:\.\d+)*)(?:-(\d*))?<\/insert-markup>/g
+export const INSERT_MARKUP_REGEX = /<insert-markup>(\d+(?:\.\d+)*)(?:-(\d*))?<\/insert-markup>/g
 
-export function resolveInsertMarkupInRepository(
+/**
+ * Resolves <insert-markup> references for the given section ids WITHOUT mutating `repository`.
+ * References are read recursively from `repository` (which should hold compiled, not-yet-resolved
+ * markup for every section), so this is safe to call repeatedly during incremental rebuilds.
+ * Returns a map of sectionId -> fully resolved markup.
+ */
+export function resolveInsertMarkupForSections(
   repository: Map<string, { markup: string }>,
   sectionsById: Map<string, SectionMeta>,
-): void {
-  for (const [id, entry] of repository) {
-    entry.markup = resolveMarkup(entry.markup, repository, sectionsById, new Set([id]))
+  ids: Iterable<string>,
+): Map<string, string> {
+  const resolved = new Map<string, string>()
+  for (const id of ids) {
+    const entry = repository.get(id)
+    if (!entry)
+      continue
+    resolved.set(id, resolveMarkup(entry.markup, repository, sectionsById, new Set([id])))
   }
+  return resolved
+}
+
+/** Returns the section ids referenced via <insert-markup> tags within the given markup. */
+export function getInsertMarkupReferences(markup: string): string[] {
+  return Array.from(markup.matchAll(INSERT_MARKUP_REGEX), match => match[1])
 }
 
 function resolveMarkup(
@@ -49,6 +67,6 @@ function resolveMarkup(
 }
 
 function errorBlock(refId: string, message: string): string {
-  console.warn(`[insert-markup] ${message}`)
+  logger.warn(`[insert-markup] ${message}`)
   return `<pre class="kss-modern-insert-markup-error" data-section-ref="${sanitizeSpecialCharacters(refId)}">[insert-markup] ${sanitizeSpecialCharacters(message)}</pre>`
 }

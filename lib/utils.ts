@@ -1,18 +1,24 @@
 import path from 'node:path'
 import fs from 'fs-extra'
 
-type LogStyle = 'important' | 'unimportant'
+// Filesystem errors that legitimately occur while watching: editors commonly
+// save via an atomic rename (write temp file, then replace), and files can be
+// removed between a watcher event firing and the handler reading the file. In
+// that window the path briefly doesn't exist (or isn't readable yet), so a read
+// throws one of these codes. They are transient and should be skipped rather
+// than crash the process — a later stable event settles the final state.
+const TRANSIENT_FS_ERROR_CODES = new Set(['ENOENT', 'EBUSY', 'EPERM', 'EACCES'])
 
 /**
- * Console.log wrapper with toolchain specific styling
+ * Whether `error` is a transient filesystem error raised by a file being saved
+ * or removed mid-read while watching, as opposed to a genuine failure.
  */
-export function log(message: string, style: LogStyle = 'important'): void {
-  const computedMessage = style === 'important'
-    ? `\x1B[38;2;63;94;90m${new Date().toLocaleTimeString()} \x1B[38;2;32;252;143m[Styleguide]\x1B[0m ${message}`
-    : `\x1B[38;2;63;94;90m${new Date().toLocaleTimeString()} \x1B[38;2;32;252;143m[Styleguide]\x1B[0m \x1B[38;2;63;94;90m${message}`
+export function isTransientFsError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null)
+    return false
 
-  // eslint-disable-next-line no-console
-  console.log(computedMessage)
+  const { code } = error as NodeJS.ErrnoException
+  return code !== undefined && TRANSIENT_FS_ERROR_CODES.has(code)
 }
 
 /**

@@ -1,22 +1,29 @@
-div.form-field
-  label.form-label(for="input-text") Text Input
-  input.form-input(type="text" id="input-text" placeholder="Enter text…")
+- const textId = useId()
+- const emailId = useId('email')
+- const emailHintId = useId('email-hint')
+- const selectId = useId('select')
+- const textareaId = useId('textarea')
 
 div.form-field
-  label.form-label(for="input-email") Email
-  input.form-input(type="email" id="input-email" placeholder="you@example.com")
+  label.form-label(for=textId) Text Input
+  input.form-input(type="text" id=textId placeholder="Enter text…")
 
 div.form-field
-  label.form-label(for="select-example") Select
-  select.form-select(id="select-example")
+  label.form-label(for=emailId) Email
+  input.form-input(type="email" id=emailId placeholder="you@example.com" aria-describedby=emailHintId)
+  p.form-hint(id=emailHintId) We never share your email.
+
+div.form-field
+  label.form-label(for=selectId) Select
+  select.form-select(id=selectId)
     option(value="") Choose an option
     option(value="1") Option 1
     option(value="2") Option 2
     option(value="3") Option 3
 
 div.form-field
-  label.form-label(for="textarea-example") Textarea
-  textarea.form-textarea(id="textarea-example" rows="3" placeholder="Write something…")
+  label.form-label(for=textareaId) Textarea
+  textarea.form-textarea(id=textareaId rows="3" placeholder="Write something…")
 
 label.form-checkbox
   input(type="checkbox")

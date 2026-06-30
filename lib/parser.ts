@@ -1,6 +1,8 @@
 import type { StyleguideConfiguration } from './index.ts'
 import path from 'node:path'
+import { logger } from './logger.ts'
 import { parseMarkdown } from './markdown'
+import { INSERT_VITE_PUG_TAG_RE, PUG_SRC_RE } from './shared.ts'
 
 export interface FileObject {
   base?: string
@@ -148,7 +150,7 @@ function parseIcons(text: string): IconObject[] {
     const isValidI = icon.svg.startsWith('<i') && icon.svg.endsWith('</i>')
 
     if (!isValidSvg && !isValidI) {
-      console.warn(`Warning: Icon "${icon.name}" at index ${index} may have malformed content`)
+      logger.warn(`Icon "${icon.name}" at index ${index} may have malformed content — expected an inline <svg>…</svg> or <i>…</i> element.`)
     }
   })
 
@@ -614,16 +616,14 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
       }
     }
     else if (section.markup.includes('<insert-vite-pug src="')) {
-      // eslint-disable-next-line regexp/no-super-linear-backtracking
-      const regexModifierLine = /<insert-vite-pug src="(.+?)".*(?:[\n\r\u2028\u2029]\s*)?(modifierClass="(.+?)")? *><\/insert-vite-pug>/g
-      const vitePugTags = section.markup.match(regexModifierLine)
+      const vitePugTags = section.markup.match(INSERT_VITE_PUG_TAG_RE)
       if (!vitePugTags)
-        throw new Error('No Vite Pug tags found')
+        throw new Error(`Section "${section.reference}" has a malformed <insert-vite-pug> tag. Expected: <insert-vite-pug src="path/to/file.pug"></insert-vite-pug>`)
 
       vitePugTags.forEach((vitePugTag) => {
-        let pugSourcePath = vitePugTag.match(/src="(.+?)"/)?.[1]
+        let pugSourcePath = vitePugTag.match(PUG_SRC_RE)?.[1]
         if (!pugSourcePath || !pugSourcePath.endsWith('.pug')) {
-          throw new Error('No or invalid Pug source path found')
+          throw new Error(`Section "${section.reference}" has an <insert-vite-pug> tag with a missing or invalid "src": expected a path ending in ".pug" but got "${pugSourcePath ?? ''}".`)
         }
 
         pugSourcePath = path.join(contentDir, pugSourcePath)
@@ -688,7 +688,7 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
       const firstIndex = Number(sectionIds[0])
       const firstLevelParentSection = output[firstIndex]
       if (!firstLevelParentSection)
-        throw new Error(`First level parent section ${firstLevelParentSection} not found for section ${section.reference}`)
+        throw new Error(`First-level parent section "${sectionIds[0]}" not found for section "${section.reference}". Define the top-level section "${sectionIds[0]}" before its child sections.`)
 
       // e.g. components => accordion => accordion purple (6.1.1)
       const isThirdLevelSection = sectionIds.length >= 3
@@ -698,7 +698,7 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
         const secondLevelParentSection = firstLevelParentSection.sections[secondIndex]
 
         if (!secondLevelParentSection)
-          throw new Error(`Second level parent section ${sectionIds[0]}.${sectionIds[1]} not found for section ${section.reference}`)
+          throw new Error(`Second-level parent section "${sectionIds[0]}.${sectionIds[1]}" not found for section "${section.reference}". Define section "${sectionIds[0]}.${sectionIds[1]}" before its child sections.`)
 
         const { description, hasMarkdownDescription } = await computeDescription(section.description, 2)
 
