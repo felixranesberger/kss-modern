@@ -4,7 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, stripPugErrorOverlay } from '../shared.ts'
+import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay } from '../shared.ts'
 import { logicalWriteFile } from '../utils.ts'
 
 function getHasSectionExternalFullpage(section: in2Section) {
@@ -802,7 +802,7 @@ export type MenuSearchKeywords = {
   keywords: string[]
 }[]
 
-export function getSearchHtml(sections: {
+export function getSearchHtml(projectTitle: string, sections: {
   title: string
   items: {
     label: string
@@ -813,6 +813,7 @@ export function getSearchHtml(sections: {
   return `
 <dialog
     id="search-dialog"
+    data-project="${slugify(projectTitle)}"
     class="fixed inset-0 top-8 z-30 backdrop:hidden -mb-px size-full max-sm:max-h-none open:md:flex open:md:flex-col md:h-auto overflow-y-hidden max-w-none rounded-t-2xl border bg-styleguide-bg border-styleguide-border text-styleguide md:max-w-[720px] md:top-12 md:max-h-[calc(100%-5rem)] md:bottom-auto md:left-1/2 md:-translate-x-1/2 md:rounded-2xl mx-0 lg:top-24 lg:max-h-[calc(100%-8rem)]"
 >
     <h2 class="sr-only">Search</h2>
@@ -853,7 +854,7 @@ export function getSearchHtml(sections: {
     >
         ${sections.map((section, categoryIdx) => `
             <div class="search-category" id="search-category-${categoryIdx}" data-category-index="${categoryIdx}">
-                <h3 class="mb-2">${section.title}</h3>
+                <h3 class="mb-1.5 px-1.5 text-xs font-medium tracking-wider uppercase opacity-60">${section.title}</h3>
                 <ul>
                     ${section.items.map((item, itemIdx) => `
                         <li
@@ -868,11 +869,13 @@ export function getSearchHtml(sections: {
                                 href="${item.href}"
                                 tabindex="-1"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="transition-all size-5 group-hover:translate-x-0.5 group-focus:translate-x-0.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="transition-all size-5 shrink-0 group-hover:translate-x-0.5 group-focus:translate-x-0.5">
                                     <path fill-rule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clip-rule="evenodd" />
                                 </svg>
-                                <span class="text-styleguide-highlight">${item.label}</span>
-                                <span data-type="search-hint" class="text-styleguide-highlight"></span>
+                                <span class="grid min-w-0 gap-0.5">
+                                    <span data-search-label class="text-styleguide-highlight">${item.label}</span>
+                                    <span data-type="search-hint" class="truncate text-[13px] text-styleguide"></span>
+                                </span>
                             </a>
                         </li>
                     `).join('\n')}

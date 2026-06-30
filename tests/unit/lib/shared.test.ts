@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ensureStartingSlash, fixAccessibilityIssues, generateId, replaceWrapperContent, sanitizeSpecialCharacters, stripPugErrorOverlay } from '../../../lib/shared'
+import { ensureStartingSlash, fixAccessibilityIssues, generateId, htmlToSearchText, replaceWrapperContent, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay } from '../../../lib/shared'
 
 const overlay = (attrs = '') => `<pug-error-overlay${attrs}></pug-error-overlay>`
 
@@ -22,6 +22,39 @@ describe('stripPugErrorOverlay', () => {
   it('removes the overlay without touching a real custom element with a shared name prefix', () => {
     const html = `${overlay(' error-id="1.4"')}<pug-error-overlay-legend>keep</pug-error-overlay-legend>`
     expect(stripPugErrorOverlay(html)).toBe('<pug-error-overlay-legend>keep</pug-error-overlay-legend>')
+  })
+})
+
+describe('htmlToSearchText', () => {
+  it('strips tags and collapses whitespace from rendered-markdown descriptions', () => {
+    const html = '<p>A <strong>primary</strong> button</p>\n<p>for the main action</p>'
+    expect(htmlToSearchText(html)).toBe('A primary button for the main action')
+  })
+
+  it('decodes the entities the markdown renderer emits', () => {
+    expect(htmlToSearchText('<code>a &amp; b &lt;tag&gt;</code>')).toBe('a & b <tag>')
+  })
+
+  it('returns an empty string for markup with no text content', () => {
+    expect(htmlToSearchText('<hr>')).toBe('')
+  })
+
+  it('leaves plain text untouched', () => {
+    expect(htmlToSearchText('Just a heading')).toBe('Just a heading')
+  })
+})
+
+describe('slugify', () => {
+  it('lowercases and turns spaces into dashes', () => {
+    expect(slugify('Test Styleguide')).toBe('test-styleguide')
+  })
+
+  it('collapses punctuation and runs of separators into a single dash', () => {
+    expect(slugify('ACME / Web Kit!')).toBe('acme-web-kit')
+  })
+
+  it('trims leading and trailing dashes', () => {
+    expect(slugify('  Hello World  ')).toBe('hello-world')
   })
 })
 

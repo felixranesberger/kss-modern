@@ -12,7 +12,7 @@ import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './ins
 import { logger } from './logger.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
-import { replaceWrapperContent } from './shared.ts'
+import { htmlToSearchText, replaceWrapperContent } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
   generatePreviewFile,
@@ -152,13 +152,15 @@ function buildNavigationMappings(parsedContent: in2FirstLevelSection[]): {
         label: secondLevelSection.header,
         searchKeywords: [
           {
-            keywords: [secondLevelSection.header, secondLevelSection.description].filter(Boolean),
+            // header is plain text; description is rendered-markdown HTML, so strip it to plain text
+            // before indexing — otherwise queries would match tag names and the hint would show markup.
+            keywords: [secondLevelSection.header, htmlToSearchText(secondLevelSection.description)].filter(Boolean),
           },
           ...secondLevelSection.sections
             .flatMap((thirdLevelSection) => {
               return {
                 id: sectionSanitizeId(`section-${thirdLevelSection.id}`),
-                keywords: [thirdLevelSection.header, thirdLevelSection.description].filter(Boolean),
+                keywords: [thirdLevelSection.header, htmlToSearchText(thirdLevelSection.description)].filter(Boolean),
               }
             }),
         ],
@@ -369,7 +371,7 @@ async function buildContext(config: StyleguideConfiguration): Promise<Styleguide
 
   const { searchSectionMapping, menuSectionMapping } = buildNavigationMappings(parsedContent)
   const headerHtml = getHeaderHtml(config)
-  const searchHtml = getSearchHtml(searchSectionMapping)
+  const searchHtml = getSearchHtml(config.projectTitle, searchSectionMapping)
 
   return {
     baseDirectory,

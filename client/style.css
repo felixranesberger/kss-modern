@@ -213,6 +213,38 @@
         @apply bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)];
     }
 
+    /*
+     * Highlight a matched substring with a background only — no padding and no weight change, so a
+     * match on part of a word doesn't shift the surrounding letters. The "padded" look comes from a
+     * spread box-shadow in the same colour, which is painted rather than laid out.
+     */
+    .search-mark {
+        @apply rounded-[3px] text-styleguide-highlight;
+        --search-mark-bg: color-mix(in oklab, var(--color-styleguide-theme-highlight) 18%, transparent);
+        background-color: var(--search-mark-bg);
+        box-shadow: 0 0 0 2px var(--search-mark-bg);
+    }
+
+    .search-code {
+        @apply rounded-[3px] px-1 font-mono text-[0.85em] text-styleguide-highlight;
+        background-color: color-mix(in oklab, var(--color-styleguide) 10%, transparent);
+    }
+
+    /* a match landing inside a documented tag tints the whole chip (its padding already pads it) */
+    .search-code.search-mark {
+        background-color: color-mix(in oklab, var(--color-styleguide-theme-highlight) 22%, transparent);
+        box-shadow: none;
+    }
+
+    [data-type='search-hint']:empty {
+        display: none;
+    }
+
+    [data-type='search-hint']:not(:empty)::before {
+        content: '↳';
+        @apply mr-1 text-styleguide;
+    }
+
     .icon-search-list__item-copy-icon {
         @apply opacity-0 pointer-events-none absolute left-1/2 -translate-x-1/2;
     }

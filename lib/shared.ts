@@ -94,6 +94,36 @@ export function sanitizeSpecialCharacters(text: string): string {
     .replaceAll('\'', '&#039;')
 }
 
+/**
+ * Reduce rendered-markdown HTML (section descriptions are HTML) to plain text for the search index:
+ * drops tags, decodes the entities the markdown renderer emits, and collapses whitespace. Rendered
+ * markdown always escapes stray `<`/`&` in content, so stripping tags with a regex is safe here.
+ */
+export function htmlToSearchText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#039;', '\'')
+    .replaceAll('&#39;', '\'')
+    .replaceAll('&amp;', '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Turn a human label (e.g. a project title) into a lowercase, storage/URL-safe slug: runs of
+ * non-alphanumerics collapse to a single `-`, with no leading or trailing dashes.
+ */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export function ensureStartingSlash(input: string): string {
   return input.startsWith('/') ? input : `/${input}`
 }
