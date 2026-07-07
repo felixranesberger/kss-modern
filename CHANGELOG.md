@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1](https://github.com/felixranesberger/kss-modern/compare/v1.2.0...v1.2.1) (2026-07-07)
+
+### Bug Fixes
+
+* expose `modifierClass` as a global Pug local defaulting to the `{{modifier_class}}` placeholder, so a template can place the section's modifier with `.c-tabs(class=modifierClass)` instead of the literal token — previously the variable was only defined inside `<insert-vite-pug modifierClass="…">`, so a directly compiled `.pug` section rendered no class and its modifier previews silently fell back to the base state; `<insert-vite-pug>`'s explicit `modifierClass` still overrides the default
+
 ## [1.2.0](https://github.com/felixranesberger/kss-modern/compare/v1.1.1...v1.2.0) (2026-06-30)
 
 ### Features

@@ -141,7 +141,11 @@ function compilePugFile(
   })
 
   const dependencies = [path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep))]
-  const html = pugFn({ ...extraLocals, useId: createUseId(sectionId) })
+  // `modifierClass` defaults to the `{{modifier_class}}` placeholder so a template can place the
+  // section's modifier with `.c-tabs(class=modifierClass)` instead of writing the literal token; the
+  // placeholder survives compilation and is swapped per modifier at runtime (see ModifierReplacer).
+  // `extraLocals` wins, so `<insert-vite-pug modifierClass="…">` still bakes its fixed class instead.
+  const html = pugFn({ modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId) })
 
   return { html, dependencies }
 }

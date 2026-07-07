@@ -78,8 +78,9 @@ describe('pug compilation pipeline', () => {
     const result = await compilePugMarkup('production', 'example-styleguide/', repository)
     const output = result.get('pug.1')!.markup
 
-    // Should be HTML, not raw pug syntax
-    expect(output).toContain('class="c-card"')
+    // Should be HTML, not raw pug syntax. `article.c-card(class=modifierClass)` picks up the global
+    // `modifierClass` default, so the section's modifier placeholder rides along on the root element.
+    expect(output).toContain('class="c-card {{modifier_class}}"')
     expect(output).toContain('Card Title')
     expect(output).not.toMatch(/^article\.c-card/m)
     expect(output).not.toContain('.pug')

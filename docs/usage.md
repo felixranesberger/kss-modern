@@ -104,6 +104,8 @@ Styleguide 3.2
 
 File paths are resolved relative to `contentDir`. Pug compilation runs in a Node.js worker thread pool sized to the available CPU cores. The `{{modifier_class}}` placeholder is replaced with each modifier's CSS class in the live previews.
 
+In Pug you can place the modifier without writing the literal token: the global `modifierClass` variable defaults to `{{modifier_class}}`, so `.c-tabs(class=modifierClass)` compiles to `class="c-tabs {{modifier_class}}"`. The modifier applies to **every** element that carries it — including markup pulled in via `include` — so place `class=modifierClass` only on the elements that should react to the section's modifier. To embed a child in a fixed variant instead, pass it explicitly with `<insert-vite-pug src="child.pug" modifierClass="child--variant">`, which bakes the class at build time.
+
 ### Including Markup From Other Sections
 
 Reference another section's markup with the `<insert-markup>` tag. Useful for composing examples without duplicating HTML.
