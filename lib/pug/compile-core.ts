@@ -52,29 +52,34 @@ function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
   return biomePromise
 }
 
-async function biomeFormat(content: string): Promise<string> {
+async function biomeFormat(content: string, sectionId: string): Promise<string> {
+  const filePath = 'example.html'
   try {
     const { biome, projectKey } = await getBiome()
 
     // Try to format with Biome HTML support (experimental)
-    const result = biome.formatContent(projectKey, content, {
-      filePath: 'example.html',
-    })
+    const result = biome.formatContent(projectKey, content, { filePath })
 
     // Check if there are any fatal errors in diagnostics
-    const hasFatalErrors = result.diagnostics?.some(
+    const fatalDiagnostics = result.diagnostics?.filter(
       (diag: any) => diag.severity === 'fatal' || diag.severity === 'error',
     )
 
-    if (hasFatalErrors) {
-      logger.warn('Biome HTML formatting has errors, falling back to original content')
+    if (fatalDiagnostics?.length) {
+      // Biome's HTML formatter is experimental; when it can't format a section we keep the
+      // unformatted markup. Surface the section and Biome's own rendered diagnostics so the
+      // offending construct is identifiable instead of a bare "has errors".
+      const rendered = biome.printDiagnostics(fatalDiagnostics, { filePath, fileSource: content })
+      logger.warn(
+        `Biome HTML formatting failed for section ${sectionId}, using unformatted markup:\n${rendered}`,
+      )
       return content
     }
 
     return result.content
   }
   catch (error) {
-    logger.warn('Biome HTML formatting not supported or failed:', error)
+    logger.warn(`Biome HTML formatting not supported or failed for section ${sectionId}:`, error)
     return content // Fallback to original content
   }
 }
@@ -234,7 +239,7 @@ export async function compileMarkup(
 
   // Production output is canonically formatted with Biome; dev relies on pug `pretty`.
   if (mode === 'production') {
-    result = await biomeFormat(result)
+    result = await biomeFormat(result, sectionId)
   }
 
   result = fixAccessibilityIssues(result)
