@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.2](https://github.com/felixranesberger/kss-modern/compare/v1.2.1...v1.2.2) (2026-07-08)
+
+### Bug Fixes
+
+* report the offending section id and Biome's own rendered diagnostics when Biome's experimental HTML formatter fails on a section during a production build — the build already falls back to that section's unformatted markup, but the warning previously discarded every useful detail behind a bare "Biome HTML formatting has errors", so it now names which section failed and prints what Biome couldn't parse, making the failing construct identifiable ([1c48a05](https://github.com/felixranesberger/kss-modern/commit/1c48a05))
+
 ## [1.2.1](https://github.com/felixranesberger/kss-modern/compare/v1.2.0...v1.2.1) (2026-07-07)
 
 ### Bug Fixes
