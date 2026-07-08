@@ -6,6 +6,10 @@
 
 * report the offending section id and Biome's own rendered diagnostics when Biome's experimental HTML formatter fails on a section during a production build — the build already falls back to that section's unformatted markup, but the warning previously discarded every useful detail behind a bare "Biome HTML formatting has errors", so it now names which section failed and prints what Biome couldn't parse, making the failing construct identifiable ([1c48a05](https://github.com/felixranesberger/kss-modern/commit/1c48a05))
 
+### Dependencies
+
+* update dependencies to their latest versions — `@biomejs/wasm-nodejs` 2.5.1 → 2.5.3, `shiki`/`@shikijs/*` 4.3.0 → 4.3.1, `fs-extra` 11.3.5 → 11.3.6, and the dev toolchain (`vite` 8.1.0 → 8.1.3, `vitest`/`@vitest/coverage-v8` 4.1.9 → 4.1.10, `eslint` 10.5.0 → 10.6.0, `html-validate` 11.5.3 → 11.5.5, `@tailwindcss/vite` 4.3.1 → 4.3.2, `motion` 12.42.0 → 12.42.2) ([c7f4618](https://github.com/felixranesberger/kss-modern/commit/c7f4618))
+
 ## [1.2.1](https://github.com/felixranesberger/kss-modern/compare/v1.2.0...v1.2.1) (2026-07-07)
 
 ### Bug Fixes
