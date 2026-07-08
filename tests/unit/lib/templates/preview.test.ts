@@ -141,30 +141,31 @@ describe('getSearchHtml', () => {
     },
   ]
 
-  it('contains #search-dialog element', () => {
-    const html = getSearchHtml(sections)
+  it('contains #search-dialog element with the slugified project title', () => {
+    const html = getSearchHtml('My Project', sections)
     expect(html).toContain('id="search-dialog"')
+    expect(html).toContain('data-project="my-project"')
   })
 
   it('contains search input', () => {
-    const html = getSearchHtml(sections)
+    const html = getSearchHtml('My Project', sections)
     expect(html).toContain('id="search-input"')
     expect(html).toContain('placeholder="Search..."')
   })
 
   it('contains keyword data', () => {
-    const html = getSearchHtml(sections)
+    const html = getSearchHtml('My Project', sections)
     expect(html).toContain('data-search-keywords')
     expect(html).toContain(encodeURIComponent(JSON.stringify([{ keywords: ['btn', 'click'] }])))
   })
 
   it('renders section titles', () => {
-    const html = getSearchHtml(sections)
+    const html = getSearchHtml('My Project', sections)
     expect(html).toContain('Components')
   })
 
   it('renders item labels and links', () => {
-    const html = getSearchHtml(sections)
+    const html = getSearchHtml('My Project', sections)
     expect(html).toContain('href="/components/button.html"')
     expect(html).toContain('Button')
   })

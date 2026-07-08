@@ -64,7 +64,7 @@ const sections = [
 let searchInput: HTMLInputElement
 
 beforeAll(async () => {
-  document.body.innerHTML = `<button data-open-search type="button">Search</button>${getSearchHtml(sections)}`
+  document.body.innerHTML = `<button data-open-search type="button">Search</button>${getSearchHtml('Test Project', sections)}`
   await import('../../../client/lib/search.ts')
   searchInput = document.querySelector<HTMLInputElement>('#search-input')!
 })

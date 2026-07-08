@@ -128,12 +128,13 @@ describe('generateFullPageFile', () => {
     expect(capturedContent).toContain('<meta name="theme-color" content="#FF0000">')
   })
 
-  it('renders favicon link without theme-color for object theme (light/dark)', async () => {
+  it('renders favicon link and per-color-scheme theme-color for object theme (light/dark)', async () => {
     const data = createBaseData()
     data.theme = { light: '#FFFFFF', dark: '#000000' }
     await generateFullPageFile(data)
     expect(capturedContent).toContain('href="/styleguide-assets/favicon/fullpage.svg"')
-    expect(capturedContent).not.toContain('theme-color')
+    expect(capturedContent).toContain('<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">')
+    expect(capturedContent).toContain('<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">')
   })
 
   it('includes og:image meta when ogImageUrl is provided', async () => {
