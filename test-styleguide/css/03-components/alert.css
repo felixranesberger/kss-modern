@@ -7,6 +7,7 @@ placeholder so each variant renders as its own modifier preview.
 .c-alert--success - Positive confirmation
 .c-alert--warning - Cautionary message
 .c-alert--error - Error / destructive message
+.c-alert--low-contrast - Intentionally inaccessible low-contrast variant (demo)
 
 Status: In-progress
 
@@ -47,4 +48,13 @@ Styleguide 3.20
 .c-alert--error {
   border-left-color: var(--color-error);
   color: hsl(0deg 84% 40%);
+}
+
+/* Intentionally inaccessible: light-grey text on a near-white background
+   (~1.8:1). Demonstrates the audit catching a modifier-specific contrast
+   failure — do not copy this into real components. */
+.c-alert--low-contrast {
+  border-left-color: hsl(0deg 0% 85%);
+  background-color: hsl(0deg 0% 96%);
+  color: hsl(0deg 0% 72%);
 }

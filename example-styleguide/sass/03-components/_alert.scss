@@ -10,6 +10,7 @@ Markdown: Contextual feedback messages for user actions.
 
 .c-alert--warning - Warning alert
 .c-alert--error - Error alert
+.c-alert--low-contrast - Intentionally inaccessible low-contrast variant (demo)
 
 Markup: <insert-vite-pug src="templates/source/03-components/alert.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>
 
@@ -62,5 +63,18 @@ Styleguide 3.20
 
   .c-alert__icon {
     color: var(--color-error);
+  }
+}
+
+// Intentionally inaccessible: light-grey text on a near-white background
+// (~1.8:1). Demonstrates the audit catching a modifier-specific contrast
+// failure — do not copy this into real components.
+.c-alert--low-contrast {
+  background-color: hsl(0deg 0% 96%);
+  border-left-color: hsl(0deg 0% 85%);
+  color: hsl(0deg 0% 72%);
+
+  .c-alert__icon {
+    color: hsl(0deg 0% 80%);
   }
 }
