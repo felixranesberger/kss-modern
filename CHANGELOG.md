@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0-beta.0](https://github.com/felixranesberger/kss-modern/compare/v1.2.2...v1.3.0-beta.0) (2026-07-09)
+
+### Features
+
+* re-enable the accessibility audit's `color-contrast` check and evaluate it once per color scheme — `color-scheme` is forced (`only light` / `only dark`) so `light-dark()` and system colors resolve deterministically regardless of the OS `prefers-color-scheme`, and a `Canvas` backdrop is applied for the duration of each run so transparent-background text is measured against the real per-scheme surface instead of axe-core's hardcoded white default (works around [dequelabs/axe-core#3605](https://github.com/dequelabs/axe-core/issues/3605)); every finding is badged with the scheme it came from. Styling switched purely via `@media (prefers-color-scheme)` cannot be forced at runtime and is evaluated in its light appearance ([033b912](https://github.com/felixranesberger/kss-modern/commit/033b912))
+* extend the audit across every modifier variant behind the single audit button — a modifier is a pure class swap, so each variant is re-checked for `color-contrast` in both schemes and its findings are tagged with the modifier class (e.g. `.c-alert--error`) ([033b912](https://github.com/felixranesberger/kss-modern/commit/033b912))
+
+### Bug Fixes
+
+* propagate the selected theme into preview iframes — `color-scheme` set on an `<iframe>` element does not cascade into the embedded document, so `light-dark()` inside previews ignored the theme toggle and always resolved to its light value; the theme's scheme is now set on each preview document's own root on theme change and on iframe load ([a8c7484](https://github.com/felixranesberger/kss-modern/commit/a8c7484))
+* stop the accessibility audit from crashing when an html-validate message carries no selector (e.g. content inside a `<template>`) — a single selectorless message previously threw and took down the entire audit, axe results included; such nodes now render without a jump-to-element button ([033b912](https://github.com/felixranesberger/kss-modern/commit/033b912))
+
+### Miscellaneous
+
+* add an intentionally inaccessible `.c-alert--low-contrast` alert modifier to the example and test styleguides so the modifier color-contrast scanning has a real failure to surface ([67ccca9](https://github.com/felixranesberger/kss-modern/commit/67ccca9))
+
 ## [1.2.2](https://github.com/felixranesberger/kss-modern/compare/v1.2.1...v1.2.2) (2026-07-08)
 
 ### Bug Fixes
