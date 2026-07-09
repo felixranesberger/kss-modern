@@ -16,8 +16,13 @@ export async function generateFullPageFile(data: {
   js: StyleguideConfiguration['html']['assets']['js']
   html: string
   theme: StyleguideConfiguration['theme']
+  deactivateDarkMode?: boolean
   ogImageUrl?: string
 }) {
+  // The audit iframe reads this to decide whether to run the color-contrast
+  // check in a forced dark scheme. Dark mode exists unless the styleguide
+  // explicitly opts out (deactivateDarkMode forces the preview into light).
+  const supportsDarkMode = !(data.deactivateDarkMode ?? false)
   const computedScriptTags = data.js
     .filter(entry => entry.type !== 'overwriteStyleguide')
     .map((js) => {
@@ -35,7 +40,7 @@ export async function generateFullPageFile(data: {
 
   const content = `
 <!DOCTYPE html>
-<html lang="${data.page.lang}"${data.page.htmlclass ? ` class="scroll-smooth ${data.page.htmlclass}"` : ''}>
+<html lang="${data.page.lang}"${data.page.htmlclass ? ` class="scroll-smooth ${data.page.htmlclass}"` : ''} data-styleguide-dark-mode="${supportsDarkMode}">
 <head>
     <title>${sanitizeSpecialCharacters(data.page.title)}</title>
     ${data.page.description ? `<meta name="description" content="${sanitizeSpecialCharacters(data.page.description)}">` : ''}

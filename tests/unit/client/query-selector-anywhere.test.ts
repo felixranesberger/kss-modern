@@ -169,4 +169,13 @@ describe('querySelectorAnywhere', () => {
     const result = querySelectorAnywhere('#missing')
     expect(result).toBeNull()
   })
+
+  it('returns null for a missing selector instead of throwing', () => {
+    document.body.innerHTML = '<div id="regular"></div>'
+
+    // html-validate messages can lack a selector; the helper must not crash on it
+    expect(queryWithinTemplates(document, undefined as unknown as string)).toBeNull()
+    expect(queryWithinTemplates(document, null as unknown as string)).toBeNull()
+    expect(queryWithinTemplates(document, '')).toBeNull()
+  })
 })

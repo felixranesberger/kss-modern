@@ -1,11 +1,13 @@
-import type { CrossTreeSelector, NodeResult, Result } from 'axe-core'
+import type { AxeResults, CrossTreeSelector, NodeResult, Result } from 'axe-core'
 import { stripPugErrorOverlay } from '../lib/shared.ts'
+import { AUDIT_CONTEXT, getAuditColorSchemes, runColorContrastAcrossSchemes } from './lib/color-contrast-audit.ts'
 import { definePugErrorOverlay } from './lib/pug-error-overlay.ts'
 import { queryWithinTemplates } from './lib/query-within-templates.ts'
 
 declare global {
   interface Window {
     runAccessibilityTest: () => Promise<void>
+    runColorContrastAudit: () => Promise<void>
     querySelectorAnywhere: (selector: string) => Element | null
   }
 }
@@ -130,19 +132,45 @@ if (window.frameElement) {
     ModifierReplacer.fromIframe()
   }
 
+  // Build a selector -> element map across every node of the given axe results,
+  // so the parent can highlight/log the affected elements of THIS document.
+  const buildAxeTargetMap = (
+    axe: { utils: { shadowSelect: (selector: CrossTreeSelector) => Node | null } },
+    results: AxeResults[],
+  ) => {
+    const targetMap = new Map<CrossTreeSelector, HTMLElement>()
+
+    results.forEach((result) => {
+      const groups: Result[][] = [result.violations, result.incomplete, result.passes, result.inapplicable]
+      groups.forEach((group) => {
+        group.forEach((res) => {
+          res.nodes.forEach((node: NodeResult) => {
+            node.target.forEach((selector) => {
+              const element = axe.utils.shadowSelect(selector)
+              if (element)
+                targetMap.set(selector, element as HTMLElement)
+            })
+          })
+        })
+      })
+    })
+
+    return targetMap
+  }
+
+  const dispatchAuditResult = (name: string, detail: unknown) => {
+    window.frameElement?.dispatchEvent(new CustomEvent(name, { detail }))
+  }
+
   // This function is executed by the parent, when we want to run a code audit
   window.runAccessibilityTest = async () => {
     const runAxe = async () => {
       const { default: axe } = await import('axe-core')
 
-      const result = await axe.run({
-        include: [['body']],
-        // the dev-only pug compile-error overlay is not part of the section's content
-        exclude: [['pug-error-overlay']],
-      }, {
+      const result = await axe.run(AUDIT_CONTEXT, {
         rules: {
-          // color contrast can't be calculated correctly yet in axe-core
-          // when using dark-mode. See: https://github.com/dequelabs/axe-core/issues/3605
+          // color-contrast is theme-dependent and handled separately, once per
+          // color scheme, so it doesn't run in this theme-agnostic pass
           'color-contrast': { enabled: false },
           'region': { enabled: false },
           'landmark-one-main': { enabled: false },
@@ -152,29 +180,14 @@ if (window.frameElement) {
       if (!result)
         throw new Error('No results from runAccessibilityTest function')
 
-      const targetMap = new Map<CrossTreeSelector, HTMLElement>()
+      // run color-contrast once per supported color scheme (see module doc)
+      const colorContrast = await runColorContrastAcrossSchemes(axe, getAuditColorSchemes())
 
-      const fillTargetMap = (results: Result[]) => {
-        results.forEach((result) => {
-          result.nodes.forEach((node: NodeResult) => {
-            node.target.forEach((selector) => {
-              const element = axe.utils.shadowSelect(selector)
-              if (!element)
-                return
-
-              targetMap.set(selector, element as HTMLElement)
-            })
-          })
-        })
-      }
-
-      fillTargetMap(result.violations)
-      fillTargetMap(result.inapplicable)
-      fillTargetMap(result.passes)
-      fillTargetMap(result.incomplete)
+      const targetMap = buildAxeTargetMap(axe, [result, ...colorContrast.map(entry => entry.result)])
 
       return {
         result,
+        colorContrast,
         targetMap,
       }
     }
@@ -216,14 +229,24 @@ if (window.frameElement) {
       runHtmlValidate(),
     ])
 
-    const event = new CustomEvent('accessibility-result', {
-      detail: {
-        axe: axeResult,
-        htmlValidate: htmlValidateResult,
-      },
+    dispatchAuditResult('accessibility-result', {
+      axe: axeResult,
+      htmlValidate: htmlValidateResult,
     })
+  }
 
-    window.frameElement?.dispatchEvent(event)
+  // Executed by the parent on each modifier-variant iframe. A modifier is a pure
+  // class swap, so structure/aria are identical to the base — only color-contrast
+  // can differ, so that is all we re-run here. Results are tagged with the
+  // iframe's own data-modifier by the parent.
+  window.runColorContrastAudit = async () => {
+    const { default: axe } = await import('axe-core')
+
+    const colorContrast = await runColorContrastAcrossSchemes(axe, getAuditColorSchemes())
+    const targetMap = buildAxeTargetMap(axe, colorContrast.map(entry => entry.result))
+    const modifier = window.frameElement?.getAttribute('data-modifier') ?? undefined
+
+    dispatchAuditResult('color-contrast-result', { modifier, colorContrast, targetMap })
   }
 }
 else {

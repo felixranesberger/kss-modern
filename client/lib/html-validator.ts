@@ -7,6 +7,7 @@ import type {
   UnlabelledFrameSelector,
 } from 'axe-core'
 import type { Message as HTMLValidateMessage } from 'html-validate'
+import type { ColorSchemeMode, SchemeContrastResult } from './color-contrast-audit.ts'
 import { sanitizeSpecialCharacters } from '../../lib/shared.ts'
 import { each, when } from '../../lib/template-utils.ts'
 import { highlightCode } from '../code-highlight'
@@ -77,6 +78,7 @@ interface AccessibilityTestResultEvent extends CustomEvent {
   detail: {
     axe: {
       result: AxeResults
+      colorContrast: SchemeContrastResult[]
       targetMap: Map<CrossTreeSelector, HTMLElement>
     }
     htmlValidate: (HTMLValidateMessage & {
@@ -85,9 +87,14 @@ interface AccessibilityTestResultEvent extends CustomEvent {
   }
 }
 
-// Add interface for iframe window
-interface IFrameWindow extends Window {
-  runAccessibilityTest: () => Promise<void>
+// dispatched by each modifier-variant iframe: color-contrast only, tagged with
+// the iframe's modifier class
+interface ModifierContrastResultEvent extends CustomEvent {
+  detail: {
+    modifier?: string
+    colorContrast: SchemeContrastResult[]
+    targetMap: Map<CrossTreeSelector, HTMLElement>
+  }
 }
 
 export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResultDialog: HTMLDialogElement, closeDialog: () => Promise<void>) {
@@ -124,31 +131,71 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     },
   }
 
-  const results = await new Promise<AccessibilityTestResultEvent['detail']>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Accessibility audit timed out'))
-    }, 30000)
+  // Run an audit function inside an iframe and resolve with the detail it
+  // dispatches back on the iframe element.
+  function runAuditInIframe<T>(
+    iframe: HTMLIFrameElement,
+    fnName: 'runAccessibilityTest' | 'runColorContrastAudit',
+    eventName: string,
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      let timeout: ReturnType<typeof setTimeout>
 
-    const eventHandler = (event: Event) => {
-      const castedEvent = event as AccessibilityTestResultEvent
+      const eventHandler = (event: Event) => {
+        clearTimeout(timeout)
+        iframe.removeEventListener(eventName, eventHandler)
+        resolve((event as CustomEvent).detail as T)
+      }
 
-      clearTimeout(timeout)
-      codeAuditIFrame.removeEventListener('accessibility-result', eventHandler)
-      resolve(castedEvent.detail)
-    }
+      timeout = setTimeout(() => {
+        iframe.removeEventListener(eventName, eventHandler)
+        reject(new Error(`Accessibility audit timed out (${eventName})`))
+      }, 30000)
 
-    codeAuditIFrame.addEventListener('accessibility-result', eventHandler)
+      iframe.addEventListener(eventName, eventHandler)
 
-    const iframeWindow = codeAuditIFrame.contentWindow as IFrameWindow
-    if (iframeWindow.runAccessibilityTest) {
-      iframeWindow.runAccessibilityTest()
-    }
-    else {
-      clearTimeout(timeout)
-      codeAuditIFrame.removeEventListener('accessibility-result', eventHandler)
-      reject(new Error('runAxe function not found in iframe'))
-    }
-  })
+      const auditFn = iframe.contentWindow?.[fnName]
+      if (typeof auditFn === 'function') {
+        auditFn()
+      }
+      else {
+        clearTimeout(timeout)
+        iframe.removeEventListener(eventName, eventHandler)
+        reject(new Error(`${fnName} not found in iframe`))
+      }
+    })
+  }
+
+  const results = await runAuditInIframe<AccessibilityTestResultEvent['detail']>(
+    codeAuditIFrame,
+    'runAccessibilityTest',
+    'accessibility-result',
+  )
+
+  // A modifier is a pure class swap, so only color-contrast can differ from the
+  // base. Audit each modifier variant's iframe (in the same section) for
+  // color-contrast and tag the findings with the modifier class.
+  const modifierIframes = Array.from(
+    codeAuditIFrame.closest('.styleguide-section')?.querySelectorAll<HTMLIFrameElement>('iframe[data-modifier]') ?? [],
+  )
+
+  const modifierResults = (await Promise.all(
+    modifierIframes.map(async (iframe) => {
+      try {
+        const detail = await runAuditInIframe<ModifierContrastResultEvent['detail']>(
+          iframe,
+          'runColorContrastAudit',
+          'color-contrast-result',
+        )
+        return { iframe, detail }
+      }
+      catch (error) {
+        // a single unloaded/broken modifier preview shouldn't fail the whole audit
+        console.error(`Modifier audit failed for "${iframe.getAttribute('data-modifier')}"`, error)
+        return null
+      }
+    }),
+  )).filter(Boolean) as { iframe: HTMLIFrameElement, detail: ModifierContrastResultEvent['detail'] }[]
 
   interface ResultNodeAxe {
     type: 'axe'
@@ -158,7 +205,9 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
 
   interface ResultNodeHTMLValidate {
     type: 'htmlvalidate'
-    selector: string
+    // html-validate does not always provide a selector (e.g. for content inside
+    // <template> tags), so this may be absent
+    selector?: string
   }
 
   interface AccessibilityTest {
@@ -166,6 +215,13 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     description: string
     helpUrl: string
     impact: AxeResult['impact']
+    // color scheme the result was produced under, when the check is theme-dependent
+    mode?: ColorSchemeMode
+    // modifier class the result belongs to, when it comes from a modifier variant
+    modifier?: string
+    // index into `auditSources` used to resolve this result's affected elements
+    // (0 = the base audit iframe)
+    sourceIndex?: number
     nodes: (ResultNodeAxe | ResultNodeHTMLValidate)[]
   }
 
@@ -176,13 +232,26 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     inapplicable: [],
   }
 
+  // each audit source owns the iframe + targetMap used to resolve its affected
+  // elements; index 0 is the base, the rest are modifier variants
+  const auditSources: { iframe: HTMLIFrameElement, targetMap: Map<CrossTreeSelector, HTMLElement> }[] = [
+    { iframe: codeAuditIFrame, targetMap: results.axe.targetMap },
+  ]
+
   // add axe results
-  const pushAxeResults = (type: resultGroups, axeResults: AxeResult[]) => {
+  const pushAxeResults = (
+    type: resultGroups,
+    axeResults: AxeResult[],
+    options: { mode?: ColorSchemeMode, modifier?: string, sourceIndex?: number } = {},
+  ) => {
     const output = axeResults.map(result => ({
       id: result.id,
       description: result.description,
       helpUrl: result.helpUrl,
       impact: result.impact,
+      mode: options.mode,
+      modifier: options.modifier,
+      sourceIndex: options.sourceIndex ?? 0,
       nodes: result.nodes.map(node => ({
         type: 'axe',
         html: node.html || '',
@@ -193,10 +262,28 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     mergedResults[type].push(...output)
   }
 
+  const pushColorContrast = (colorContrast: SchemeContrastResult[], options: { modifier?: string, sourceIndex?: number } = {}) => {
+    // color-contrast runs once per color scheme; tag each result with its mode
+    // (and modifier, if any) so a failure in either is surfaced and attributed
+    colorContrast.forEach(({ mode, result }) => {
+      pushAxeResults('violations', result.violations, { ...options, mode })
+      pushAxeResults('incomplete', result.incomplete, { ...options, mode })
+      pushAxeResults('passes', result.passes, { ...options, mode })
+      pushAxeResults('inapplicable', result.inapplicable, { ...options, mode })
+    })
+  }
+
   pushAxeResults('violations', results.axe.result.violations)
   pushAxeResults('incomplete', results.axe.result.incomplete)
   pushAxeResults('passes', results.axe.result.passes)
   pushAxeResults('inapplicable', results.axe.result.inapplicable)
+
+  pushColorContrast(results.axe.colorContrast)
+
+  modifierResults.forEach(({ iframe, detail }) => {
+    const sourceIndex = auditSources.push({ iframe, targetMap: detail.targetMap }) - 1
+    pushColorContrast(detail.colorContrast, { modifier: detail.modifier, sourceIndex })
+  })
 
   // add html-validate results
   function calculateHtmlValidatorImpact(ruleId: string, severity: string): ImpactValue {
@@ -220,7 +307,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     if (alreadyPresentViolation) {
       alreadyPresentViolation.nodes.push({
         type: 'htmlvalidate',
-        selector: message.selector!,
+        selector: message.selector ?? undefined,
       })
 
       return
@@ -233,12 +320,10 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       impact: calculateHtmlValidatorImpact(message.ruleId, message.severity.toString()),
       nodes: [{
         type: 'htmlvalidate',
-        selector: message.selector!,
+        selector: message.selector ?? undefined,
       }],
     })
   })
-
-  const axeTargetMap = results.axe.targetMap
 
   const renderSection = (
     impact: resultGroups,
@@ -255,30 +340,38 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       return aIndex - bIndex
     })
 
-    const findTemplateParent = (element: HTMLElement): HTMLTemplateElement | undefined => {
+    const findTemplateParent = (element: HTMLElement, iframe: HTMLIFrameElement): HTMLTemplateElement | undefined => {
       if (element.isConnected)
         return undefined
 
-      const templates = codeAuditIFrame.contentDocument?.querySelectorAll<HTMLTemplateElement>('template')
+      const templates = iframe.contentDocument?.querySelectorAll<HTMLTemplateElement>('template')
       if (!templates)
         return undefined
 
       return Array.from(templates).find(t => t.content.contains(element))
     }
 
-    const renderNodeAxe = (node: ResultNodeAxe) => {
+    const renderNodeAxe = (node: ResultNodeAxe, sourceIndex: number) => {
+      const source = auditSources[sourceIndex] ?? auditSources[0]
       const elements = node.target
-        .map(selector => axeTargetMap.get(selector))
+        .map(selector => source.targetMap.get(selector))
         .filter(Boolean) as HTMLElement[]
 
-      if (elements.length === 0)
-        throw new Error(`No elements found for axe-core target: ${node.target}`)
+      // a target that no longer resolves (e.g. an unloaded modifier preview)
+      // shouldn't take down the whole audit — show the selector without a button
+      if (elements.length === 0) {
+        return `
+          <span class="block font-mono py-1.5 text-[13px] text-styleguide-regular">
+            ${node.target.join(' ')}
+          </span>
+        `
+      }
 
       return `
         ${each(elements, (element) => {
           const refId = id.next().value
           const ref: ValidatorReference = { element }
-          ref.templateParent = findTemplateParent(element)
+          ref.templateParent = findTemplateParent(element, source.iframe)
 
           window.validator.referenceMap.set(refId, ref)
 
@@ -295,13 +388,26 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     }
 
     const renderNodeHtmlValidate = (node: ResultNodeHTMLValidate) => {
+      // some html-validate messages (e.g. content inside <template> tags) carry no
+      // selector; still report the violation, just without a "jump to element" button
+      if (!node.selector)
+        return ''
+
       const element = codeAuditIFrame.contentWindow?.querySelectorAnywhere(node.selector) as HTMLElement | null | undefined
 
-      if (!element)
-        throw new Error(`Element not found for selector: ${node.selector}`)
+      // a selector that resolves to nothing shouldn't take down the whole audit —
+      // fall back to a non-interactive label instead of throwing
+      if (!element) {
+        return `
+          <span class="block font-mono py-1.5 text-[13px] text-styleguide-regular">
+            ${node.selector}
+          </span>
+        `
+      }
 
       const ref: ValidatorReference = { element }
-      ref.templateParent = findTemplateParent(element)
+      // html-validate only runs against the base document
+      ref.templateParent = findTemplateParent(element, codeAuditIFrame)
 
       const refId = id.next().value
       window.validator.referenceMap.set(refId, ref)
@@ -337,7 +443,9 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
                       <summary class="flex cursor-pointer group-open:text-styleguide-highlight justify-between items-center py-4 text-sm gap-2 transition">
                         <span>
                           <span class="font-semibold">${result.id}</span>
-                          ${when(result.impact && ['violations', 'incomplete'].includes(impact), () => `<span>${result.impact!}</span>`)}                        
+                          ${when(result.impact && ['violations', 'incomplete'].includes(impact), () => `<span>${result.impact!}</span>`)}
+                          ${when(!!result.mode, () => `<span class="ml-1 rounded border border-styleguide-border bg-styleguide-bg-highlight px-1.5 py-0.5 text-xs font-normal">${result.mode} mode</span>`)}
+                          ${when(!!result.modifier, () => `<span class="ml-1 rounded border border-styleguide-border bg-styleguide-bg-highlight px-1.5 py-0.5 font-mono text-xs font-normal">${result.modifier}</span>`)}
                         </span>
                        
                         <svg class="h-4 w-4 group-open:rotate-90 transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -372,7 +480,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
                           <ol class="!pl-0 !list-none">
                             ${each(result.nodes, node => `
                               <li>
-                                ${when(node.type === 'axe', () => `${renderNodeAxe(node as ResultNodeAxe)}`)}
+                                ${when(node.type === 'axe', () => `${renderNodeAxe(node as ResultNodeAxe, result.sourceIndex ?? 0)}`)}
                                 ${when(node.type === 'htmlvalidate', () => `${renderNodeHtmlValidate(node as ResultNodeHTMLValidate)}`)}
                               </li>
                             `)}  

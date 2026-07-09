@@ -106,7 +106,38 @@ describe('generateFullPageFile', () => {
 
   it('does not add class to html element when htmlclass is not provided', async () => {
     await generateFullPageFile(createBaseData())
-    expect(capturedContent).toMatch(/<html lang="en">/)
+    expect(capturedContent).toMatch(/<html lang="en" data-styleguide-dark-mode="true">/)
+    expect(capturedContent).not.toContain('scroll-smooth')
+  })
+
+  it('marks the fullpage as dark-mode capable by default', async () => {
+    await generateFullPageFile(createBaseData())
+    expect(capturedContent).toContain('data-styleguide-dark-mode="true"')
+  })
+
+  it('marks the fullpage as light-only when deactivateDarkMode is set', async () => {
+    const data = { ...createBaseData(), deactivateDarkMode: true }
+    await generateFullPageFile(data)
+    expect(capturedContent).toContain('data-styleguide-dark-mode="false"')
+  })
+
+  it('marks an object (light/dark) theme as dark-mode capable', async () => {
+    const data = { ...createBaseData(), theme: { light: '#fff', dark: '#000' } }
+    await generateFullPageFile(data)
+    expect(capturedContent).toContain('data-styleguide-dark-mode="true"')
+  })
+
+  it('gates dark mode on deactivateDarkMode, not on the theme shape', async () => {
+    const data = { ...createBaseData(), theme: { light: '#fff', dark: '#000' }, deactivateDarkMode: true }
+    await generateFullPageFile(data)
+    expect(capturedContent).toContain('data-styleguide-dark-mode="false"')
+  })
+
+  it('sets the dark-mode flag alongside an htmlclass', async () => {
+    const data = createBaseData()
+    data.page = { ...data.page, htmlclass: 'custom' }
+    await generateFullPageFile(data as any)
+    expect(capturedContent).toMatch(/<html lang="en" class="scroll-smooth custom" data-styleguide-dark-mode="true">/)
   })
 
   it('adds bodyclass to body element when provided', async () => {

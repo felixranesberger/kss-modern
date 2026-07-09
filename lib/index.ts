@@ -206,6 +206,7 @@ async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory:
       js: config.html.assets.js,
       html: htmlMarkup,
       theme: config.theme,
+      deactivateDarkMode: config.deactivateDarkMode,
       ogImageUrl: config.plugins?.ogImage
         ? config.plugins.ogImage(section)
         : undefined,

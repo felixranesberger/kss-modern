@@ -76,6 +76,11 @@ export function joinSelectorSteps(steps: SelectorStep[]): string {
 // the selector crosses — whether the template is at the root, in the middle of
 // the path, or nested inside another template's content.
 export function queryWithinTemplates(root: Document | DocumentFragment | Element, selector: string): Element | null {
+  // guard against an empty/missing selector so a caller passing a falsy value
+  // (e.g. an html-validate message with no selector) can't crash the traversal
+  if (!selector)
+    return null
+
   // regular tree first, so the light DOM is preferred over template content
   const direct = root.querySelector(selector)
   if (direct)
