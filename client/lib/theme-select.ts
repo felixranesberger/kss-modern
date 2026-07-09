@@ -9,6 +9,32 @@ const THEME_CLASSES = {
   dark: 'theme-dark',
 } as const
 
+// The color scheme forced inside preview iframes per theme. `normal` follows the
+// OS (light dark); the explicit themes pin the scheme so light-dark() resolves
+// deterministically.
+const COLOR_SCHEME_BY_THEME = {
+  normal: 'light dark',
+  light: 'only light',
+  dark: 'only dark',
+} as const
+
+/**
+ * Apply the theme's color scheme to a preview iframe's OWN document root.
+ *
+ * `color-scheme` set on the <iframe> element does not cascade into the embedded
+ * document, so light-dark() inside a preview would otherwise ignore the
+ * styleguide theme and always resolve to its light value. Cross-origin iframes
+ * (e.g. Figma embeds) expose no contentDocument and are skipped.
+ */
+export function applyPreviewColorScheme(
+  iframe: HTMLIFrameElement,
+  theme: keyof typeof COLOR_SCHEME_BY_THEME,
+) {
+  const root = iframe.contentDocument?.documentElement
+  if (root)
+    root.style.colorScheme = COLOR_SCHEME_BY_THEME[theme]
+}
+
 export function handleThemeSelect(themeSelectForm: HTMLFormElement) {
   const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)')
 
@@ -41,6 +67,7 @@ export function handleThemeSelect(themeSelectForm: HTMLFormElement) {
     document.querySelectorAll('iframe').forEach((iframe) => {
       removeClasses(iframe)
       iframe.classList.add(effectiveClass)
+      applyPreviewColorScheme(iframe, value)
     })
 
     // Reload Figma iframes — they don't autodetect theme changes
@@ -59,6 +86,12 @@ export function handleThemeSelect(themeSelectForm: HTMLFormElement) {
 
   // Initial apply
   applyTheme()
+
+  // An iframe's embedded document is replaced when its src finishes loading,
+  // which drops the inline color-scheme set above — reapply it on every (re)load.
+  document.querySelectorAll('iframe').forEach((iframe) => {
+    iframe.addEventListener('load', () => applyPreviewColorScheme(iframe, getStoredTheme()))
+  })
 
   // Restore the form's checked state
   const currentInput = themeSelectForm.querySelector<HTMLInputElement>(`input[value="${getStoredTheme()}"]`)
