@@ -78,15 +78,8 @@ interface MarkdownOptionsBase {
   rootHeadingLevel: 1 | 2
 }
 
-/**
- * Parse markdown file to HTML
- */
-export async function parseMarkdown(data: MarkdownOptionsBase & {
-  filePath: string
-} | MarkdownOptionsBase & {
-  markdownContent: string
-}) {
-  // Initialize Markdown parser
+/** Lazily create the shared markdown-it instance (parser + component + Shiki plugins). */
+function getMarkdownRenderer(): ReturnType<typeof MarkdownItAsync> {
   if (!md) {
     md = MarkdownItAsync({ linkify: true, typographer: true })
     md.use(markdownItComponent, {
@@ -107,7 +100,78 @@ export async function parseMarkdown(data: MarkdownOptionsBase & {
       ),
     )
   }
+  return md
+}
 
+/**
+ * Rendered-HTML cache, keyed on the exact (post heading-shift) markdown source.
+ *
+ * `renderAsync` is a pure function of its input for our fixed `md` configuration, and its cost is
+ * dominated by Shiki highlighting every code fence. A structural rebuild — any css/scss KSS-comment
+ * or `.md` edit, see `parse()` in `../parser.ts` — re-runs the full section parse, so WITHOUT this
+ * cache every unchanged description is re-rendered (and re-highlighted) on each rebuild. Keying on
+ * the shifted source string is collision-free across heading levels: it is the whole of what the
+ * renderer sees, so file- and inline-sourced markdown correctly share one cache. Re-reading a file
+ * each build is cheap and makes the content itself the cache key, so edits invalidate for free
+ * without any mtime/signature bookkeeping.
+ *
+ * The value is the in-flight promise so concurrent identical renders coalesce; a rejected render is
+ * evicted so it can be retried rather than the failure being cached. FIFO-capped because inline
+ * descriptions are keyed by content (unlike the pug parse cache, which is bounded by filename), so
+ * a long editing session must not grow the map without bound.
+ */
+const RENDER_CACHE_MAX_ENTRIES = 2000
+const renderCache = new Map<string, Promise<string>>()
+let cacheHits = 0
+let cacheMisses = 0
+
+async function renderMarkdownCached(source: string): Promise<string> {
+  const cached = renderCache.get(source)
+  if (cached !== undefined) {
+    cacheHits++
+    return cached
+  }
+
+  cacheMisses++
+  const promise = getMarkdownRenderer().renderAsync(source)
+  renderCache.set(source, promise)
+
+  // don't let a failed render poison the cache — drop it so a later build can retry
+  promise.catch(() => {
+    if (renderCache.get(source) === promise)
+      renderCache.delete(source)
+  })
+
+  // FIFO eviction (Map preserves insertion order); never evict the entry we just added
+  if (renderCache.size > RENDER_CACHE_MAX_ENTRIES) {
+    const oldest = renderCache.keys().next().value
+    if (oldest !== undefined && oldest !== source)
+      renderCache.delete(oldest)
+  }
+
+  return promise
+}
+
+/** Drop all cached rendered markdown (test isolation; the cache is otherwise process-lifetime). */
+export function clearMarkdownCache(): void {
+  renderCache.clear()
+  cacheHits = 0
+  cacheMisses = 0
+}
+
+/** Hit/miss counters since the last clear, plus how many sources are cached (dev diagnostics). */
+export function getMarkdownCacheStats(): { hits: number, misses: number, size: number } {
+  return { hits: cacheHits, misses: cacheMisses, size: renderCache.size }
+}
+
+/**
+ * Parse markdown file to HTML
+ */
+export async function parseMarkdown(data: MarkdownOptionsBase & {
+  filePath: string
+} | MarkdownOptionsBase & {
+  markdownContent: string
+}) {
   if ('filePath' in data) {
     const doesFileExist = fs.existsSync(data.filePath)
     if (!doesFileExist) {
@@ -120,7 +184,7 @@ export async function parseMarkdown(data: MarkdownOptionsBase & {
     // shift heading levels if necessary
     fileContent = shiftHeadingLevels(fileContent, data.rootHeadingLevel)
 
-    const parsedMarkdown = await md.renderAsync(fileContent)
+    const parsedMarkdown = await renderMarkdownCached(fileContent)
 
     return parsedMarkdown
   }
@@ -133,6 +197,6 @@ export async function parseMarkdown(data: MarkdownOptionsBase & {
     // shift heading levels if necessary
     fileContent = shiftHeadingLevels(fileContent, data.rootHeadingLevel)
 
-    return await md.renderAsync(fileContent)
+    return await renderMarkdownCached(fileContent)
   }
 }
