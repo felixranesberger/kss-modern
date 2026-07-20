@@ -1,8 +1,10 @@
 import type { AxeResults, CrossTreeSelector, NodeResult, Result } from 'axe-core'
+import type { AxeRunner } from './lib/color-contrast-audit.ts'
 import { stripPugErrorOverlay } from '../lib/shared.ts'
 import { AUDIT_CONTEXT, getAuditColorSchemes, runColorContrastAcrossSchemes } from './lib/color-contrast-audit.ts'
 import { definePugErrorOverlay } from './lib/pug-error-overlay.ts'
 import { queryWithinTemplates } from './lib/query-within-templates.ts'
+import { augmentColorContrastResult } from './lib/text-over-image-contrast.ts'
 
 declare global {
   interface Window {
@@ -158,6 +160,24 @@ if (window.frameElement) {
     return targetMap
   }
 
+  // Run the per-scheme color-contrast audit, then measure any text-over-image
+  // nodes axe left incomplete (it can't sample image pixels) so they surface as
+  // real pass/fail instead of "needs review". The measurement runs while each
+  // scheme is still forced, so per-scheme colours resolve correctly.
+  const runContrastAudit = (
+    axe: AxeRunner & { utils: { shadowSelect: (selector: CrossTreeSelector) => Node | null } },
+  ) =>
+    runColorContrastAcrossSchemes(
+      axe,
+      getAuditColorSchemes(),
+      document.documentElement,
+      (result, mode) =>
+        augmentColorContrastResult(result, {
+          mode,
+          resolve: target => axe.utils.shadowSelect(target[target.length - 1]) as HTMLElement | null,
+        }),
+    )
+
   const dispatchAuditResult = (name: string, detail: unknown) => {
     window.frameElement?.dispatchEvent(new CustomEvent(name, { detail }))
   }
@@ -180,8 +200,9 @@ if (window.frameElement) {
       if (!result)
         throw new Error('No results from runAccessibilityTest function')
 
-      // run color-contrast once per supported color scheme (see module doc)
-      const colorContrast = await runColorContrastAcrossSchemes(axe, getAuditColorSchemes())
+      // run color-contrast once per supported color scheme (see module doc),
+      // measuring text-over-image nodes axe leaves incomplete
+      const colorContrast = await runContrastAudit(axe)
 
       const targetMap = buildAxeTargetMap(axe, [result, ...colorContrast.map(entry => entry.result)])
 
@@ -242,7 +263,7 @@ if (window.frameElement) {
   window.runColorContrastAudit = async () => {
     const { default: axe } = await import('axe-core')
 
-    const colorContrast = await runColorContrastAcrossSchemes(axe, getAuditColorSchemes())
+    const colorContrast = await runContrastAudit(axe)
     const targetMap = buildAxeTargetMap(axe, colorContrast.map(entry => entry.result))
     const modifier = window.frameElement?.getAttribute('data-modifier') ?? undefined
 

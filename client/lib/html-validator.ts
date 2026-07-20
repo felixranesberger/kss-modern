@@ -8,6 +8,7 @@ import type {
 } from 'axe-core'
 import type { Message as HTMLValidateMessage } from 'html-validate'
 import type { ColorSchemeMode, SchemeContrastResult } from './color-contrast-audit.ts'
+import type { AnnotatedNode, ContrastAnnotation, ReviewReason } from './text-over-image-contrast.ts'
 import { sanitizeSpecialCharacters } from '../../lib/shared.ts'
 import { each, when } from '../../lib/template-utils.ts'
 import { highlightCode } from '../code-highlight'
@@ -72,6 +73,40 @@ function prettyValidationError<T extends HTMLElement>(error: string, element: T)
   )
 
   console.groupEnd()
+}
+
+// A short, human explanation attached to a color-contrast node: either the
+// measured text-over-image ratio (once the background could be sampled) or the
+// concrete reason the node still needs a manual review.
+function renderContrastInfo(node: {
+  measured?: ContrastAnnotation['measured']
+  reviewReason?: ReviewReason
+}): string {
+  const swatch = (c: { r: number, g: number, b: number }): string =>
+    `<span class="inline-block h-3 w-3 rounded-sm border border-styleguide-border align-middle" style="background-color: rgb(${c.r}, ${c.g}, ${c.b})"></span>`
+
+  if (node.measured) {
+    const { ratio, required, passed, fg, worstBg } = node.measured
+    return `
+      <p class="mb-2 text-[13px] ${passed ? 'text-green-700' : 'text-red-600'}">
+        <span aria-hidden="true">${passed ? '✓' : '✗'}</span>
+        Measured ${swatch(fg)} on ${swatch(worstBg)}
+        <strong>${ratio.toFixed(2)}:1</strong>
+        at the least-readable spot over the background image (needs ${required}:1) — ${passed ? 'passes' : 'fails'}.
+      </p>
+    `
+  }
+
+  if (node.reviewReason) {
+    const message = sanitizeSpecialCharacters(node.reviewReason.message).replace(/`([^`]+)`/g, '<code>$1</code>')
+    return `
+      <p class="mb-2 text-[13px] text-styleguide-regular">
+        <span aria-hidden="true">⚠️</span> <span class="font-semibold">Needs manual review:</span> ${message}
+      </p>
+    `
+  }
+
+  return ''
 }
 
 interface AccessibilityTestResultEvent extends CustomEvent {
@@ -201,6 +236,10 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     type: 'axe'
     html: string
     target: UnlabelledFrameSelector
+    // present when text-over-image contrast was measured for this node
+    measured?: ContrastAnnotation['measured']
+    // present when the node stays "needs review" and we know the concrete reason
+    reviewReason?: ReviewReason
   }
 
   interface ResultNodeHTMLValidate {
@@ -252,11 +291,16 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       mode: options.mode,
       modifier: options.modifier,
       sourceIndex: options.sourceIndex ?? 0,
-      nodes: result.nodes.map(node => ({
-        type: 'axe',
-        html: node.html || '',
-        target: node.target,
-      })),
+      nodes: result.nodes.map((node) => {
+        const annotated = node as AnnotatedNode
+        return {
+          type: 'axe',
+          html: node.html || '',
+          target: node.target,
+          measured: annotated.measured,
+          reviewReason: annotated.reviewReason,
+        }
+      }),
     }) satisfies AccessibilityTest)
 
     mergedResults[type].push(...output)
@@ -352,6 +396,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     }
 
     const renderNodeAxe = (node: ResultNodeAxe, sourceIndex: number) => {
+      const info = renderContrastInfo(node)
       const source = auditSources[sourceIndex] ?? auditSources[0]
       const elements = node.target
         .map(selector => source.targetMap.get(selector))
@@ -361,6 +406,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       // shouldn't take down the whole audit — show the selector without a button
       if (elements.length === 0) {
         return `
+          ${info}
           <span class="block font-mono py-1.5 text-[13px] text-styleguide-regular">
             ${node.target.join(' ')}
           </span>
@@ -368,6 +414,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       }
 
       return `
+        ${info}
         ${each(elements, (element) => {
           const refId = id.next().value
           const ref: ValidatorReference = { element }

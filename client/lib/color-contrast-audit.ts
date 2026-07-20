@@ -55,11 +55,16 @@ export function getAuditColorSchemes(
  * (https://github.com/dequelabs/axe-core/issues/3605). `Canvas` resolves to the
  * real per-scheme UA surface and only takes effect when nothing above sets an
  * opaque background, so genuine component backgrounds still win.
+ *
+ * An optional `augment` hook runs *while the scheme is still forced*, so it can
+ * read per-scheme computed colours (e.g. to measure text-over-image contrast
+ * that axe leaves incomplete). Whatever it returns replaces the raw result.
  */
 export async function runColorContrastAcrossSchemes(
   axe: AxeRunner,
   modes: ColorSchemeMode[],
   root: HTMLElement = document.documentElement,
+  augment?: (result: AxeResults, mode: ColorSchemeMode) => AxeResults | Promise<AxeResults>,
 ): Promise<SchemeContrastResult[]> {
   const results: SchemeContrastResult[] = []
 
@@ -76,7 +81,7 @@ export async function runColorContrastAcrossSchemes(
         .catch(console.error)
 
       if (result)
-        results.push({ mode, result })
+        results.push({ mode, result: augment ? await augment(result, mode) : result })
     }
     finally {
       root.style.colorScheme = previousColorScheme
