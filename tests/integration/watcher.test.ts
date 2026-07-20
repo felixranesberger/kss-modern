@@ -95,4 +95,19 @@ describe('watchStyleguideForChanges (real fs events)', () => {
 
     expect(onStructuralChange).toHaveBeenCalled()
   })
+
+  it('swallows watcher error events instead of crashing the process', () => {
+    // Regression: FSWatcher is an EventEmitter, so before an 'error' listener was attached an
+    // emitted error with no listener was re-thrown and killed the dev server. A parallel build
+    // rewriting a watched output dir surfaces exactly this as a transient ENOENT (often a failed
+    // unlink of a path that already vanished).
+    const enoent = Object.assign(
+      new Error('ENOENT: no such file or directory, unlink \'HTML-Prototype/dist-typo3\''),
+      { code: 'ENOENT' },
+    )
+    expect(() => watcher.emit('error', enoent)).not.toThrow()
+
+    // a non-transient error is logged but likewise must not escape and take the process down
+    expect(() => watcher.emit('error', new Error('boom'))).not.toThrow()
+  })
 })

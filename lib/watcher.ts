@@ -2,6 +2,7 @@ import type { FSWatcher } from 'chokidar'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import chokidar from 'chokidar'
+import { logger } from './logger.ts'
 import { isTransientFsError } from './utils.ts'
 
 export interface StyleguideWatchHandlers {
@@ -159,5 +160,18 @@ export function watchStyleguideForChanges(
         handlers.onStructuralChange()
       else if (isMarkupFile(filePath))
         handlers.onMarkupChange(path.resolve(filePath))
+    })
+    // chokidar surfaces filesystem errors through an 'error' event, and FSWatcher is an
+    // EventEmitter: an 'error' with no listener is re-thrown and takes the whole dev server down.
+    // This fires when a watched directory is removed or rewritten out from under the watcher — e.g.
+    // a parallel build emptying the output dir — producing a transient ENOENT (often as a failed
+    // unlink of a path that already vanished). Such churn is expected while watching and must never
+    // crash the process; a later stable event settles the final state. Anything non-transient is
+    // logged but still swallowed, because a watcher is long-lived and losing it silently strands the
+    // user with a dead dev server.
+    .on('error', (error: unknown) => {
+      if (isTransientFsError(error))
+        return
+      logger.error('Styleguide watcher error (ignored to keep the dev server running):', error)
     })
 }
