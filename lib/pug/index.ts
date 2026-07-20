@@ -1,5 +1,6 @@
 import type { Mode } from './compile-core.ts'
 import type { PugWorkerInput, PugWorkerOutput } from './worker.ts'
+import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -48,11 +49,29 @@ export function resetPugState(): void {
   clearPugParseCache()
 }
 
-// resolve worker paths
+// Resolve the compile-worker entry robustly. It sits at a fixed spot per build: source dev runs
+// `./worker.ts` next to this file, while the bundle at dist/node/lib/index.mjs emits it to
+// dist/node/lib/pug/worker.mjs. Guessing that layout from a path substring (the old
+// `__dirname.includes('dist/')`) is fragile — it breaks on Windows, where separators are `\`, so a
+// real dist install falls into the source branch and resolves to a file that isn't there, which
+// crashes every worker spawn. Instead probe the known candidates and take the first that exists.
+// `undefined` means no worker file is available, and compilation falls back to the (correct, just
+// serial) main-thread path rather than crashing.
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const workerFilePath = __dirname.includes('dist/') ? './pug/worker.mjs' : './worker.ts'
-const workerFilePathResolved = path.resolve(__dirname, workerFilePath)
+
+function resolveWorkerFile(): string | undefined {
+  const candidates = ['./worker.ts', './worker.mjs', './pug/worker.mjs']
+  for (const candidate of candidates) {
+    const resolved = path.resolve(__dirname, candidate)
+    if (existsSync(resolved))
+      return resolved
+  }
+  return undefined
+}
+
+const workerFilePathResolved = resolveWorkerFile()
+let warnedMissingWorker = false
 
 // Persistent, affinity-routed worker pool. Each section is pinned to a fixed slot by a hash of its
 // id, so it always recompiles on the same worker and reuses that worker's warm parse cache (see
@@ -87,6 +106,11 @@ function slotIndexFor(id: string): number {
 }
 
 function spawnWorker(index: number): Worker {
+  // Guarded for safety: compileIds forces the inline path when no worker file was found, so this
+  // is never reached with an undefined path. If it somehow is, throwing here is caught by
+  // compileViaWorkerPool and recorded as a per-section failure rather than crashing the build.
+  if (!workerFilePathResolved)
+    throw new Error('pug compile worker file could not be located')
   const worker = new Worker(workerFilePathResolved, { name: `pug-worker-${index}` })
   allWorkers.add(worker)
   return worker
@@ -290,7 +314,13 @@ async function compileIds(
     return clonedRepository
 
   const errors: PugCompileError[] = []
-  const useInline = mode === 'development' && misses.length <= INLINE_THRESHOLD
+  // Without a worker file, everything must compile on the main thread — degraded (serial) but
+  // correct, and warned once so the slowdown is diagnosable rather than mysterious.
+  if (!workerFilePathResolved && misses.length > INLINE_THRESHOLD && !warnedMissingWorker) {
+    warnedMissingWorker = true
+    logger.warn('Pug compile worker not found; compiling markup on the main thread. Rebuilds stay correct but are slower.')
+  }
+  const useInline = !workerFilePathResolved || (mode === 'development' && misses.length <= INLINE_THRESHOLD)
   if (useInline) {
     await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors)))
   }
