@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0-beta.1](https://github.com/felixranesberger/kss-modern/compare/v1.3.0-beta.0...v1.3.0-beta.1) (2026-07-20)
+
+### Features
+
+* measure text-over-image `color-contrast` that the accessibility audit previously left as "needs review" — axe-core cannot read the pixels behind text, so text over a background image is reported as incomplete. The real background stack (the image plus any solid or `linear-gradient` overlay layers along the text's ancestor chain, including `::before`/`::after` scrims) is now composited onto an offscreen canvas and the worst-case contrast under the text's line boxes is measured, promoting the finding to a genuine pass/fail with the measured ratio. When the background truly can't be sampled — a cross-origin image without CORS, a radial/conic gradient, `mix-blend-mode`/`filter`/`opacity` compositing — the finding stays "needs review" with a concrete reason explaining why ([2bf4143](https://github.com/felixranesberger/kss-modern/commit/2bf4143))
+
+### Bug Fixes
+
+* keep the dev file watcher from crashing when chokidar surfaces an `error` event — `FSWatcher` is an `EventEmitter`, so an `error` with no listener was re-thrown and took the whole dev server down; this fired when a watched directory was removed or rewritten out from under the watcher (e.g. a parallel build emptying the output dir) as a transient `ENOENT`, often a failed `unlink` of a path that had already vanished. Transient fs errors (`ENOENT`/`EBUSY`/`EPERM`/`EACCES`) are now swallowed and anything else is logged, so watcher churn can never crash the process ([b7870b4](https://github.com/felixranesberger/kss-modern/commit/b7870b4))
+* locate the Pug compile worker by probing candidate paths instead of a `__dirname.includes('dist/')` substring — the substring check breaks on Windows (path separators are `\`), so a real `dist` install took the source-layout branch and resolved to a worker file that doesn't exist, crashing every worker spawn; the known candidates are now probed and the first that exists is used, falling back to the correct (serial) main-thread compile with a one-time warning when none is found ([933072a](https://github.com/felixranesberger/kss-modern/commit/933072a))
+
+### Performance Improvements
+
+* cache rendered markdown across rebuilds — `renderAsync` is a pure function of its (heading-shifted) source for the fixed markdown-it configuration and its cost is dominated by Shiki highlighting every code fence, yet a structural rebuild re-runs the full section parse and so re-rendered every unchanged description; results are now cached on the source string, with concurrent identical renders coalescing, failed renders evicted so they can retry, and the cache FIFO-capped ([99003d3](https://github.com/felixranesberger/kss-modern/commit/99003d3))
+
+### Miscellaneous
+
+* give the test-styleguide hero a photographic background (a surfing placeholder inlined as a same-origin data URI under a dark scrim) so text-over-image contrast measurement has a realistic fixture to exercise ([69a3d4e](https://github.com/felixranesberger/kss-modern/commit/69a3d4e))
+
 ## [1.3.0-beta.0](https://github.com/felixranesberger/kss-modern/compare/v1.2.2...v1.3.0-beta.0) (2026-07-09)
 
 ### Features
