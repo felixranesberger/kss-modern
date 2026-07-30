@@ -67,7 +67,7 @@ async function copyContentAssets(): Promise<void> {
     copyContentAssets().catch(error => logger.error('Content asset copy failed', error))
     logger.success(
       change.type === 'markup'
-        ? `Rebuilt ${change.sections.length} section(s) after ${change.file}`
+        ? `Rebuilt ${change.sections.length} section(s) after ${change.files.join(', ')}`
         : 'Styleguide rebuilt (structural change)',
     )
   }, (error) => {

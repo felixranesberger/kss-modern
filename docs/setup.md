@@ -166,6 +166,25 @@ await server.listen()
 server.printUrls()
 ```
 
+### How changes are batched
+
+Watch events are collected for 300 ms and handled as one batch, then rebuilds run strictly one at a time. Concrete consequences:
+
+- A branch switch, a bulk find-and-replace or a multi-file save causes **one** rebuild, not one per file.
+- A structural change (CSS section comment or `.md`) in the same batch as a markup change results in a single full rebuild — reparsing everything already covers the markup work.
+- Requests arriving while a rebuild is running are merged, so a burst costs at most one extra rebuild instead of one per event.
+- Editors that save atomically (JetBrains, vim with `backupcopy=auto`) emit several filesystem events per save; the watcher waits for the file to stop changing before reacting, so those collapse into one rebuild.
+
+### Watching inside Docker or DDEV
+
+Bind mounts on Docker Desktop (macOS/Windows) do not propagate inotify events into the container, so native watching silently does nothing — no error, no rebuilds. The watcher detects a container environment (`/.dockerenv`, `/run/.containerenv`, or the `container` env var) and switches to polling automatically.
+
+Set `FORCE_POLLING=1` to force polling in an environment that is not detected:
+
+```bash
+FORCE_POLLING=1 node ./build-styleguide.js
+```
+
 ## Project Structure
 
 A typical project using kss-modern:
@@ -209,5 +228,15 @@ Builds the styleguide and watches `contentDir` for changes. Only rebuilds when K
 
 **Parameters:**
 - `config` — `StyleguideConfiguration`
-- `onChange` — `() => void` — called after each successful rebuild
+- `onChange` — `(change: StyleguideChange) => void` — called after each successful rebuild
 - `onError` — `(errors) => void` — called when the build produces errors (e.g., duplicate section IDs)
+
+`StyleguideChange` describes what triggered the rebuild:
+
+```ts
+type StyleguideChange
+  = | { type: 'structural' }
+    | { type: 'markup', files: string[], sections: string[] }
+```
+
+Because events are batched, a markup rebuild reports **all** files of the batch in `files` and the union of the sections they affect in `sections`.
