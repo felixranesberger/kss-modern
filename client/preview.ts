@@ -1,3 +1,4 @@
+import type { A11yReport, A11yReportOptions } from './lib/a11y-report.ts'
 import { animate } from 'motion'
 import { highlightCode } from './code-highlight'
 import { useDialog } from './hooks/use-dialog.ts'
@@ -8,6 +9,20 @@ import './keyboard-shortcuts.ts'
 import './style.css'
 import './lib/menu.ts'
 import './lib/search.ts'
+
+declare global {
+  interface Window {
+    kssAudit: (options?: A11yReportOptions) => Promise<A11yReport>
+  }
+}
+
+// Machine-readable accessibility report over every preview on the page, for CI
+// scripts and AI agents driving a browser. The implementation is imported on
+// first call so automation never costs interactive users any bundle weight.
+window.kssAudit = async (options) => {
+  const { runStyleguideAudit } = await import('./lib/a11y-report.ts')
+  return runStyleguideAudit(options)
+}
 
 const styleguideSections = document.querySelectorAll<HTMLElement>('.styleguide-section')
 styleguideSections.forEach((section) => {

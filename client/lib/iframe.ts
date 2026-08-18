@@ -1,5 +1,11 @@
 const MAX_WAIT_TIME = 5000
 
+// NOTE: this module belongs to the `preview-inline` bundle, which is inlined
+// into every page as a classic <script>. It must therefore stay free of exports
+// that other entries import: a shared module would be split into a chunk, and
+// the inlined script would start with an `import` statement it cannot execute —
+// leaving the whole preview page invisible. `client/lib/a11y-report.ts` keeps
+// its own copy of the readiness wait for exactly that reason.
 async function waitForIframes(iframes: HTMLIFrameElement[]) {
   const getIsIframeLoaded = (iframe: HTMLIFrameElement) => {
     const doc = iframe.contentWindow?.document

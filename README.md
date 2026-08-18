@@ -9,7 +9,7 @@ A modern, KSS-compatible styleguide generator. Parses KSS comment blocks from CS
 - Pug template support via worker thread pool
 - Color palette and icon gallery documentation
 - Figma embed integration with light/dark theme sync
-- Accessibility auditing (axe-core) and HTML validation
+- Accessibility auditing (axe-core) and HTML validation, per component or page-wide via `window.kssAudit()` for CI and AI agents
 - Markdown descriptions with custom components (alerts, accordions)
 - Dark mode with three-way toggle (System/Light/Dark)
 - Global search, keyboard navigation, and "Open in Editor" links

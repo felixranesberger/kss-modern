@@ -242,6 +242,39 @@ describe('getMainContentHtml', () => {
     const html = getMainContentHtml(section, createMinimalConfig())
     expect(html).toContain('data-source-code')
   })
+
+  // `window.kssAudit()` reads these off the section element to attribute every
+  // finding to a file, so automation can go from violation to source directly
+  it('annotates each section with its KSS reference and source file', () => {
+    const childSection = createMockSection({
+      id: '1.1.5',
+      markup: '<div>Test</div>',
+      fullpageFileName: 'fullpage-1-1-5.html',
+      source: {
+        css: { file: 'components/button.scss', line: 42 },
+        markup: { file: 'templates/source/button.pug' },
+      },
+    })
+    const section = createMockSecondLevelSection({
+      sections: [childSection],
+    })
+    const html = getMainContentHtml(section, createMinimalConfig())
+
+    expect(html).toContain('data-section-reference="1.1.5"')
+    expect(html).toContain('data-source-file="components/button.scss"')
+    // +1 points at the section title rather than the comment's opening line
+    expect(html).toContain('data-source-line="43"')
+    expect(html).toContain('data-markup-file="templates/source/button.pug"')
+  })
+
+  it('omits the markup file attribute for sections without a template', () => {
+    const section = createMockSecondLevelSection({
+      sections: [createMockSection({ id: '1.1.6', markup: '<div>Test</div>' })],
+    })
+    const html = getMainContentHtml(section, createMinimalConfig())
+
+    expect(html).not.toContain('data-markup-file')
+  })
 })
 
 describe('getNextPageControlsHtml', () => {

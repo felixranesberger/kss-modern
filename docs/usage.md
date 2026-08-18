@@ -388,6 +388,113 @@ Each component preview includes a **Code Audit** button that runs two checks in 
 
 Results are grouped by severity (violations, warnings, passes) with links to rule documentation.
 
+### Accessibility Audit API (`window.kssAudit`)
+
+The same audit is available programmatically on every preview page, for CI scripts, browser automation and AI agents. `window.kssAudit()` runs axe-core and html-validate inside **every** component preview on the page and resolves with a plain JSON object — no clicking, no dialog, no screenshots.
+
+```js
+const report = await window.kssAudit()
+```
+
+No readiness dance needed: the preview bundle is a deferred module script, so the API is installed before `DOMContentLoaded` — every normal navigation command (Playwright's `page.goto`, a browser tool's `navigate`) already waits at least that long. The audit itself then waits for the preview iframes to finish rendering.
+
+Only code that evaluates *during* page load, before `DOMContentLoaded`, can arrive too early. For that case, poll for the function itself:
+
+```js
+await page.waitForFunction(() => typeof window.kssAudit === 'function')
+```
+
+#### Options
+
+```js
+await window.kssAudit({
+  sections: ['3.10', '3.20'], // default: all sections on the page
+  include: 'violations',      // 'violations' (default) | 'all'
+  modifiers: true,            // default: also audit modifier previews
+  timeout: 30000,             // per-iframe timeout in ms, default: 30000
+})
+```
+
+| Option | Effect |
+|---|---|
+| `sections` | Restrict the run. Accepts KSS references (`'3.10'`), dashed ids (`'3-10'`) or DOM ids (`'section-3-10'`). References that match nothing come back in `unmatchedSections` instead of failing the run. |
+| `include` | `'violations'` reports violations and incomplete ("needs review") — the actionable groups. `'all'` adds passes and inapplicable, which is many times larger. Counts always cover all four groups regardless. |
+| `modifiers` | Modifier previews are pure class swaps, so only their color-contrast is re-checked. Set to `false` to skip them on pages with many modifiers. |
+| `timeout` | How long one preview may take before it is reported as `"status": "failed"`. Raise it on slow CI machines. |
+
+#### Report shape
+
+```jsonc
+{
+  "generatedAt": "2026-08-12T09:12:44.201Z",
+  "page": { "url": "http://localhost:3000/preview-3.10.html", "title": "Card" },
+  "options": { "include": "violations", "modifiers": true },
+  "totals": { "sections": 4, "failed": 0, "violations": 3, "incomplete": 1 },
+  "sections": [
+    {
+      "reference": "3.10",
+      "header": "Card",
+      "url": "http://localhost:3000/fullpage-3.10.html",
+      "sourceFile": "css/03-components/card.css",
+      "sourceLine": 43,
+      "markupFile": "templates/source/03-components/card.pug",
+      "status": "audited",
+      "counts": { "violations": 2, "incomplete": 1, "passes": 61, "inapplicable": 42 },
+      "findings": [
+        {
+          "source": "axe",
+          "group": "violations",
+          "id": "color-contrast",
+          "impact": "serious",
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.12/color-contrast",
+          "mode": "dark",
+          "modifier": ".c-card--primary",
+          "nodes": [
+            {
+              "target": ".c-card--primary .c-card__title",
+              "html": "<h3 class=\"c-card__title\">Title</h3>",
+              "failureSummary": "Fix any of the following: Element has insufficient color contrast of 2.4:1",
+              "measured": { "ratio": 2.4, "required": 4.5, "passed": false }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Every finding carries the context needed to act on it without a second lookup:
+
+- **`sourceFile` / `sourceLine` / `markupFile`** — the section's KSS comment and template, so a violation maps straight onto a file to edit. Paths are relative to `contentDir`.
+- **`mode`** — the color scheme a theme-dependent finding was produced under (`light` or `dark`).
+- **`modifier`** — set when the finding comes from a modifier variant rather than the base preview.
+- **`measured` / `reviewReason`** — for text over background images, either the measured contrast ratio or the concrete reason it still needs a manual review.
+- **`source`** — `axe` for WCAG rules, `html-validate` for HTML structure; html-validate findings additionally carry `line` / `column` within the rendered preview document.
+
+#### What the report does and does not cover
+
+- One page at a time. A styleguide renders one page per second-level section, so automation iterates the pages linked in the sidebar and audits each.
+- A preview whose iframe never answers is reported as `"status": "failed"` with an `error` — the remaining sections still get audited, and `totals.failed` says how many are missing.
+- A modifier preview that fails is downgraded to an entry in the section's `warnings`, so partial coverage is never silent.
+- The `region` and `landmark-one-main` rules are disabled: a component preview is a fragment, not a document, and would fail both by construction.
+- Styling switched purely via `@media (prefers-color-scheme: dark)` cannot be flipped at runtime and is therefore only evaluated in its light appearance. Themes built on `light-dark()` or `color-scheme` are audited in both.
+
+#### Driving it from automation
+
+```js
+// Playwright
+await page.goto('/preview-3.10.html')
+const report = await page.evaluate(() => window.kssAudit())
+
+const blocking = report.sections
+  .flatMap(section => section.findings.map(finding => ({ ...finding, file: section.sourceFile })))
+  .filter(finding => finding.group === 'violations')
+```
+
+The report is deliberately free of `Map`s and DOM references, so it survives `page.evaluate`, CDP-based browser tools and `JSON.stringify` unchanged.
+
 ### Open in Editor
 
 When `launchInEditor` is configured, each component shows links to open its source CSS/SCSS file and Pug template directly in **VSCode** or **PHPStorm**. Switch between editors via the header dropdown.

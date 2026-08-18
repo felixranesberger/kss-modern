@@ -1,4 +1,5 @@
 import type { AxeResults, CrossTreeSelector, NodeResult, Result } from 'axe-core'
+import type { AccessibilityAuditDetail, ModifierContrastDetail } from './lib/audit-runner.ts'
 import type { AxeRunner } from './lib/color-contrast-audit.ts'
 import { stripPugErrorOverlay } from '../lib/shared.ts'
 import { AUDIT_CONTEXT, getAuditColorSchemes, runColorContrastAcrossSchemes } from './lib/color-contrast-audit.ts'
@@ -8,8 +9,8 @@ import { augmentColorContrastResult } from './lib/text-over-image-contrast.ts'
 
 declare global {
   interface Window {
-    runAccessibilityTest: () => Promise<void>
-    runColorContrastAudit: () => Promise<void>
+    runAccessibilityTest: () => Promise<AccessibilityAuditDetail>
+    runColorContrastAudit: () => Promise<ModifierContrastDetail>
     querySelectorAnywhere: (selector: string) => Element | null
   }
 }
@@ -134,8 +135,12 @@ if (window.frameElement) {
     ModifierReplacer.fromIframe()
   }
 
-  // Build a selector -> element map across every node of the given axe results,
+  // Build a selector -> element map across the nodes of the given axe results,
   // so the parent can highlight/log the affected elements of THIS document.
+  //
+  // Only violations and incomplete are resolved: those are the only groups whose
+  // affected nodes are ever rendered, and resolving a target is a DOM query —
+  // `passes` alone holds one node per text element, once per color scheme.
   const buildAxeTargetMap = (
     axe: { utils: { shadowSelect: (selector: CrossTreeSelector) => Node | null } },
     results: AxeResults[],
@@ -143,7 +148,7 @@ if (window.frameElement) {
     const targetMap = new Map<CrossTreeSelector, HTMLElement>()
 
     results.forEach((result) => {
-      const groups: Result[][] = [result.violations, result.incomplete, result.passes, result.inapplicable]
+      const groups: Result[][] = [result.violations, result.incomplete]
       groups.forEach((group) => {
         group.forEach((res) => {
           res.nodes.forEach((node: NodeResult) => {
@@ -178,11 +183,9 @@ if (window.frameElement) {
         }),
     )
 
-  const dispatchAuditResult = (name: string, detail: unknown) => {
-    window.frameElement?.dispatchEvent(new CustomEvent(name, { detail }))
-  }
-
-  // This function is executed by the parent, when we want to run a code audit
+  // These functions are called by the parent page, which awaits their result
+  // directly — the iframes are same-origin, so a promise crosses the realm
+  // boundary just fine and no event plumbing is needed.
   window.runAccessibilityTest = async () => {
     const runAxe = async () => {
       const { default: axe } = await import('axe-core')
@@ -234,14 +237,25 @@ if (window.frameElement) {
 
       const messages = results.map(r => r.messages).flat()
 
-      return await Promise.all(messages.map(async (message) => {
-        const ruleContext = await validator.getContextualDocumentation(message)
-        const ruleDescription = ruleContext?.description
+      // getContextualDocumentation builds a fresh html-validate Engine per call,
+      // and both consumers key the description by rule — so resolve it once per
+      // distinct rule instead of once per occurrence
+      const firstPerRule = new Map<string, (typeof messages)[number]>()
+      messages.forEach((message) => {
+        if (!firstPerRule.has(message.ruleId))
+          firstPerRule.set(message.ruleId, message)
+      })
 
-        return {
-          ...message,
-          ruleDescription,
-        }
+      const descriptions = new Map(await Promise.all(
+        Array.from(firstPerRule, async ([ruleId, message]) => {
+          const ruleContext = await validator.getContextualDocumentation(message)
+          return [ruleId, ruleContext?.description] as const
+        }),
+      ))
+
+      return messages.map(message => ({
+        ...message,
+        ruleDescription: descriptions.get(message.ruleId),
       }))
     }
 
@@ -250,10 +264,10 @@ if (window.frameElement) {
       runHtmlValidate(),
     ])
 
-    dispatchAuditResult('accessibility-result', {
+    return {
       axe: axeResult,
       htmlValidate: htmlValidateResult,
-    })
+    }
   }
 
   // Executed by the parent on each modifier-variant iframe. A modifier is a pure
@@ -267,7 +281,7 @@ if (window.frameElement) {
     const targetMap = buildAxeTargetMap(axe, colorContrast.map(entry => entry.result))
     const modifier = window.frameElement?.getAttribute('data-modifier') ?? undefined
 
-    dispatchAuditResult('color-contrast-result', { modifier, colorContrast, targetMap })
+    return { modifier, colorContrast, targetMap }
   }
 }
 else {

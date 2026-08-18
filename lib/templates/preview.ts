@@ -5,7 +5,17 @@ import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
 import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay } from '../shared.ts'
+import { attrs } from '../template-utils.ts'
 import { logicalWriteFile } from '../utils.ts'
+
+/**
+ * Line the KSS comment's section title sits on — one past the comment's opening
+ * line. Used by the "open in editor" links and reported by `window.kssAudit()`,
+ * which have to agree on where a section starts.
+ */
+function getSectionTitleLine(section: in2Section) {
+  return section.source.css.line + 1
+}
 
 function getHasSectionExternalFullpage(section: in2Section) {
   return section.markup.length > 0
@@ -328,10 +338,21 @@ function getMainContentSectionWrapper(section: in2Section, html?: string): strin
     return `<p class="mt-2${section.sectionLevel === 'second' ? ' text-xl' : ''}">${section.description}</p>`
   }
 
+  // The source metadata is what turns an audit finding into an editable file:
+  // `window.kssAudit()` reports it per section so automation can jump straight
+  // to the KSS comment (or template) a violation belongs to.
+  const sourceAttributes = attrs({
+    'data-section-reference': sanitizeSpecialCharacters(section.id),
+    'data-source-file': sanitizeSpecialCharacters(section.source.css.file),
+    'data-source-line': getSectionTitleLine(section),
+    'data-markup-file': section.source.markup?.file ? sanitizeSpecialCharacters(section.source.markup.file) : undefined,
+  })
+
   return `
-<section 
-  id="section-${sectionSanitizeId(section.id)}" 
+<section
+  id="section-${sectionSanitizeId(section.id)}"
   class="styleguide-section border-b px-4 py-10 border-b-styleguide-border scroll-mt-[50px] md:px-10"
+  ${sourceAttributes}
 >
     <div class="flex items-center justify-between gap-6">
         <a class="relative group" href="#section-${sectionSanitizeId(section.id)}">
@@ -380,7 +401,7 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
       : process.cwd()
 
     const cssFilePath = ensureStartingSlash(path.join(computedRootPath, section.source.css.file))
-    const cssLineNumber = section.source.css.line + 1 // increment by one to match section title directly
+    const cssLineNumber = getSectionTitleLine(section)
     openInEditorPaths.css = {
       vscode: `vscode://file//${cssFilePath}:${cssLineNumber}`,
       phpstorm: `phpstorm://open?file=${cssFilePath}&line=${cssLineNumber}`,
