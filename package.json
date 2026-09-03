@@ -65,7 +65,7 @@
     "@types/fs-extra": "^11.0.4",
     "@vitest/coverage-v8": "^4.1.10",
     "axe-core": "^4.12.1",
-    "bumpp": "^11.1.0",
+    "bumpp": "^12.0.0",
     "eslint": "^10.6.0",
     "eslint-plugin-format": "^2.0.1",
     "html-validate": "^11.5.5",
