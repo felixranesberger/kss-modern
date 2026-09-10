@@ -242,6 +242,111 @@ describe('getMainContentHtml', () => {
     const html = getMainContentHtml(section, createMinimalConfig())
     expect(html).toContain('data-source-code')
   })
+
+  // `window.kssAudit()` reads these off the section element to attribute every
+  // finding to a file, so automation can go from violation to source directly
+  it('annotates each section with its KSS reference and source file', () => {
+    const childSection = createMockSection({
+      id: '1.1.5',
+      markup: '<div>Test</div>',
+      fullpageFileName: 'fullpage-1-1-5.html',
+      source: {
+        css: { file: 'components/button.scss', line: 42 },
+        markup: { file: 'templates/source/button.pug' },
+      },
+    })
+    const section = createMockSecondLevelSection({
+      sections: [childSection],
+    })
+    const html = getMainContentHtml(section, createMinimalConfig())
+
+    expect(html).toContain('data-section-reference="1.1.5"')
+    expect(html).toContain('data-source-file="components/button.scss"')
+    // +1 points at the section title rather than the comment's opening line
+    expect(html).toContain('data-source-line="43"')
+    expect(html).toContain('data-markup-file="templates/source/button.pug"')
+  })
+
+  it('omits the markup file attribute for sections without a template', () => {
+    const section = createMockSecondLevelSection({
+      sections: [createMockSection({ id: '1.1.6', markup: '<div>Test</div>' })],
+    })
+    const html = getMainContentHtml(section, createMinimalConfig())
+
+    expect(html).not.toContain('data-markup-file')
+  })
+
+  describe('theme dropdown', () => {
+    const themes = [
+      { value: '.theme-midnight', description: 'Midnight' },
+      { value: '.theme-a.compact', description: 'A <compact>' },
+    ]
+
+    it('renders a select with a default option and one option per theme', () => {
+      const section = createMockSecondLevelSection({
+        sections: [createMockSection({ id: '1.1.7', markup: '<div>Test</div>', themes })],
+      })
+      const html = getMainContentHtml(section, createMinimalConfig())
+
+      expect(html).toContain('id="theme-select-1-1-7"')
+      expect(html).toContain('data-section-theme-select')
+      expect(html).toContain('<option value="">Default</option>')
+      expect(html).toContain('<option value="theme-midnight">Midnight</option>')
+    })
+
+    it('normalises option values to class lists and escapes labels', () => {
+      const section = createMockSecondLevelSection({
+        sections: [createMockSection({ id: '1.1.8', markup: '<div>Test</div>', themes })],
+      })
+      const html = getMainContentHtml(section, createMinimalConfig())
+
+      expect(html).toContain('<option value="theme-a compact">A &lt;compact&gt;</option>')
+    })
+
+    it('omits the dropdown for sections without themes', () => {
+      const section = createMockSecondLevelSection({
+        sections: [createMockSection({ id: '1.1.9', markup: '<div>Test</div>' })],
+      })
+      const html = getMainContentHtml(section, createMinimalConfig())
+
+      expect(html).not.toContain('data-section-theme-select')
+    })
+
+    it('omits the dropdown for sections without a preview to re-theme', () => {
+      const section = createMockSecondLevelSection({
+        sections: [createMockSection({ id: '1.1.10', markup: '', figma: 'https://embed.figma.com/design/abc?node-id=1-2', themes })],
+      })
+      const html = getMainContentHtml(section, createMinimalConfig())
+
+      expect(html).not.toContain('data-section-theme-select')
+    })
+
+    it('places the dropdown in the tab trigger row when Figma tabs are present', () => {
+      const section = createMockSecondLevelSection({
+        sections: [createMockSection({ id: '1.1.11', markup: '<div>Test</div>', figma: 'https://embed.figma.com/design/abc?node-id=1-2', themes })],
+      })
+      const html = getMainContentHtml(section, createMinimalConfig())
+
+      const tablistIndex = html.indexOf('role="tablist"')
+      const selectIndex = html.indexOf('data-section-theme-select')
+      const firstPanelIndex = html.indexOf('role="tabpanel"')
+
+      expect(tablistIndex).toBeGreaterThan(-1)
+      // after the triggers, before the first panel — i.e. on the same row as Preview/Design
+      expect(selectIndex).toBeGreaterThan(tablistIndex)
+      expect(selectIndex).toBeLessThan(firstPanelIndex)
+    })
+
+    it('places the dropdown above the preview box when there are no tabs', () => {
+      const section = createMockSecondLevelSection({
+        sections: [createMockSection({ id: '1.1.12', markup: '<div>Test</div>', themes })],
+      })
+      const html = getMainContentHtml(section, createMinimalConfig())
+
+      expect(html).not.toContain('role="tablist"')
+      expect(html.indexOf('data-section-theme-select')).toBeLessThan(html.indexOf('data-preview="true"'))
+    })
+  })
 })
 
 describe('getNextPageControlsHtml', () => {

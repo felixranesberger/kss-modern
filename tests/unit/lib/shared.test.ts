@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ensureStartingSlash, fixAccessibilityIssues, generateId, htmlToSearchText, replaceWrapperContent, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay } from '../../../lib/shared'
+import { ensureStartingSlash, fixAccessibilityIssues, generateId, htmlToSearchText, replaceWrapperContent, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../../../lib/shared'
 
 const overlay = (attrs = '') => `<pug-error-overlay${attrs}></pug-error-overlay>`
 
@@ -181,5 +181,24 @@ describe('replaceWrapperContent', () => {
 
   it('returns the wrapper unchanged when no slot is present', () => {
     expect(replaceWrapperContent('<div>no slot</div>', 'C')).toBe('<div>no slot</div>')
+  })
+})
+
+describe('themeClassList', () => {
+  it('strips the leading dot of a single class', () => {
+    expect(themeClassList('.theme-midnight')).toBe('theme-midnight')
+  })
+
+  it('turns a chained selector into a space-separated class list', () => {
+    expect(themeClassList('.theme-midnight.compact')).toBe('theme-midnight compact')
+  })
+
+  it('accepts classes that are already space-separated, with or without dots', () => {
+    expect(themeClassList('theme-midnight compact')).toBe('theme-midnight compact')
+    expect(themeClassList('.theme-midnight .compact')).toBe('theme-midnight compact')
+  })
+
+  it('ignores surrounding whitespace', () => {
+    expect(themeClassList('  .theme-midnight  ')).toBe('theme-midnight')
   })
 })

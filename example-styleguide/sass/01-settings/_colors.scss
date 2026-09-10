@@ -40,3 +40,19 @@ color-error: hsl(0deg 84% 60%)
 
 Styleguide 1.10.3
 */
+
+/* Theme hooks for the section theme dropdown (`Themes:` in 3.10 Card, 3.40 Hero). */
+html.theme-midnight {
+  color-scheme: dark;
+
+  --color-primary: #a5b4fc;
+  --color-neutral-100: #0f172a;
+  --color-neutral-200: #334155;
+  --color-neutral-900: #f8fafc;
+}
+
+html.theme-sunrise {
+  --color-primary: #ea580c;
+  --color-neutral-100: #fff7ed;
+  --color-neutral-200: #fed7aa;
+}

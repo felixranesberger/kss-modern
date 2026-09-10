@@ -12,6 +12,7 @@ import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './ins
 import { logger } from './logger.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
+import { createRebuildQueue } from './rebuild-queue.ts'
 import { htmlToSearchText, replaceWrapperContent } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
@@ -390,6 +391,40 @@ async function buildContext(config: StyleguideConfiguration): Promise<Styleguide
   }
 }
 
+/** Marker file recording which assets an output directory currently holds. */
+const ASSETS_MARKER_FILE = '.kss-modern-assets'
+
+/**
+ * Identity of the assets a build needs.
+ *
+ * The stylesheet filename is content-hashed and replaced at library build time,
+ * so it changes exactly when the client bundle changes — which makes it a build
+ * id that needs no version lookup. The theme is part of it because the favicons
+ * are generated from it rather than copied.
+ */
+function getAssetsBuildId(theme: StyleguideConfiguration['theme']): string {
+  return `__STYLEGUIDE_CSS__\n${JSON.stringify(theme)}\n`
+}
+
+async function readAssetsBuildId(markerPath: string): Promise<string | undefined> {
+  try {
+    return await fs.readFile(markerPath, 'utf-8')
+  }
+  catch {
+    return undefined
+  }
+}
+
+/**
+ * Copy the styleguide's own assets into the output directory.
+ *
+ * Skipped when the output directory already holds exactly these assets, because
+ * a structural rebuild would otherwise rewrite well over a megabyte (the axe and
+ * browser bundles) and make the dev server reload for nothing. The check is on
+ * the build id and not on "the directory has something in it": the HTML
+ * references content-hashed filenames, so assets left over from an older
+ * kss-modern version satisfy the weaker test while every asset request 404s.
+ */
 async function copyStyleguideAssets(config: StyleguideConfiguration): Promise<void> {
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = path.dirname(__filename)
@@ -405,11 +440,21 @@ async function copyStyleguideAssets(config: StyleguideConfiguration): Promise<vo
 
   const assetsDirectoryPath = findAssetsDirectoryPath()
   const assetsDirectoryOutputPath = path.join(config.outDir, 'styleguide-assets')
-  const isAssetsDirectoryAlreadyCopied = await fs.exists(assetsDirectoryOutputPath) && (await fs.readdir(assetsDirectoryOutputPath)).length > 0
-  if (!isAssetsDirectoryAlreadyCopied) {
-    await fs.copy(assetsDirectoryPath, assetsDirectoryOutputPath)
-    await generateFaviconFiles(assetsDirectoryOutputPath, config.theme)
+  const markerPath = path.join(assetsDirectoryOutputPath, ASSETS_MARKER_FILE)
+
+  const expectedBuildId = getAssetsBuildId(config.theme)
+  const currentBuildId = await readAssetsBuildId(markerPath)
+
+  if (currentBuildId === expectedBuildId) {
+    return
   }
+
+  // Replace rather than merge: with content-hashed filenames a plain copy would
+  // leave every previous version's assets behind as orphans.
+  await fs.remove(assetsDirectoryOutputPath)
+  await fs.copy(assetsDirectoryPath, assetsDirectoryOutputPath)
+  await generateFaviconFiles(assetsDirectoryOutputPath, config.theme)
+  await fs.writeFile(markerPath, expectedBuildId)
 }
 
 /**
@@ -544,7 +589,7 @@ export async function rebuildSections(
  */
 export type StyleguideChange
   = | { type: 'structural' }
-    | { type: 'markup', file: string, sections: string[] }
+    | { type: 'markup', files: string[], sections: string[] }
 
 /**
  * Builds the styleguide and watches for changes
@@ -567,33 +612,41 @@ export async function watchStyleguide(
   // make sure content dir ends with /
   const contentDirPath = config.contentDir.endsWith('/') ? config.contentDir : `${config.contentDir}/`
 
+  // Rebuilds run one at a time: concurrent builds race on `context` and on the
+  // output directory, where one build deleting what another is writing surfaces
+  // as a spurious ENOENT.
+  const queue = createRebuildQueue({
+    // css/scss/md/yaml edits can change section structure -> full rebuild + fresh context
+    onStructural: async () => {
+      const localBuild = await buildAll(config)
+      context = localBuild.context
+      if (onChange)
+        onChange({ type: 'structural' })
+      if (onError && localBuild.errors) {
+        onError(localBuild.errors)
+      }
+    },
+    // .pug/.html source edits -> recompile + rewrite only the sections that depend on them
+    onMarkup: async (changedFiles) => {
+      const dependencyGraph = getPugDependencyGraph()
+      const affected = [...new Set(
+        changedFiles.flatMap(changedFile => dependencyGraph.getAffectedSections(changedFile)),
+      )]
+
+      if (affected.length === 0)
+        return
+
+      await rebuildSections(config, context, affected)
+      if (onChange)
+        onChange({ type: 'markup', files: changedFiles, sections: affected })
+    },
+    onError: (error) => {
+      logger.error('Error during rebuild:', error)
+    },
+  })
+
   watchStyleguideForChanges(contentDirPath, {
-    // css/scss/md edits can change section structure -> full rebuild + fresh context
-    onStructuralChange: () => {
-      (async () => {
-        const localBuild = await buildAll(config)
-        context = localBuild.context
-        if (onChange)
-          onChange({ type: 'structural' })
-        if (onError && localBuild.errors) {
-          onError(localBuild.errors)
-        }
-      })().catch((error) => {
-        logger.error('Error during rebuild:', error)
-      })
-    },
-    // a .pug/.html source edit -> recompile + rewrite only the sections that depend on it
-    onMarkupChange: (changedFile: string) => {
-      (async () => {
-        const affected = getPugDependencyGraph().getAffectedSections(changedFile)
-        if (affected.length === 0)
-          return
-        await rebuildSections(config, context, affected)
-        if (onChange)
-          onChange({ type: 'markup', file: changedFile, sections: affected })
-      })().catch((error) => {
-        logger.error('Error during incremental rebuild:', error)
-      })
-    },
+    onStructuralChange: queue.requestStructural,
+    onMarkupChange: queue.requestMarkup,
   })
 }

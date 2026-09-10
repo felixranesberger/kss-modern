@@ -1,11 +1,21 @@
 import type { StyleguideConfiguration } from '../index.ts'
-import type { in2SecondLevelSection, in2Section } from '../parser.ts'
+import type { in2SecondLevelSection, in2Section, ThemeOption } from '../parser.ts'
 import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay } from '../shared.ts'
+import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
+import { attrs } from '../template-utils.ts'
 import { logicalWriteFile } from '../utils.ts'
+
+/**
+ * Line the KSS comment's section title sits on — one past the comment's opening
+ * line. Used by the "open in editor" links and reported by `window.kssAudit()`,
+ * which have to agree on where a section starts.
+ */
+function getSectionTitleLine(section: in2Section) {
+  return section.source.css.line + 1
+}
 
 function getHasSectionExternalFullpage(section: in2Section) {
   return section.markup.length > 0
@@ -223,31 +233,40 @@ export function getCodeAuditDialog() {
 
 interface Tab { title: string, content: string, icon?: string }
 
-function renderTab(data: Tab[]) {
+/**
+ * Render a tab group. `aside` is optional markup placed on the right-hand side of the tab
+ * trigger row (e.g. the section's theme dropdown), so per-section controls sit beside the
+ * Preview/Design triggers instead of above or below them.
+ */
+function renderTab(data: Tab[], aside = '') {
   const tabId = generateId()
 
   return `
     <div class="tabs">
-        <div
-            class="inline-flex relative justify-start flex-wrap rounded-md p-0.5 bg-styleguide-bg-highlight" 
-            role="tablist"
-        >
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <div
-                class="tab-trigger-background absolute inset-y-0.5 left-0 bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)] rounded"
-            ></div>
-        
-            ${data.map((tab, index) => `
-                <button 
-                    id="tab-trigger-${tabId}-${index}"
-                    role="tab"
-                    aria-selected="${(index === 0).toString()}"
-                    aria-controls="tab-panel-${tabId}-${index}" 
-                    class="inline-flex gap-1 items-center relative px-4 py-2 text-sm cursor-pointer aria-selected:text-styleguide-highlight transition duration-400"
-                >
-                    ${tab.icon ?? ''}
-                    ${tab.title}
-                </button>
-            `).join('\n')}
+                class="inline-flex relative justify-start flex-wrap rounded-md p-0.5 bg-styleguide-bg-highlight" 
+                role="tablist"
+            >
+                <div
+                    class="tab-trigger-background absolute inset-y-0.5 left-0 bg-[rgb(242,242,242)] dark:bg-[rgb(26,26,26)] rounded"
+                ></div>
+            
+                ${data.map((tab, index) => `
+                    <button 
+                        id="tab-trigger-${tabId}-${index}"
+                        role="tab"
+                        aria-selected="${(index === 0).toString()}"
+                        aria-controls="tab-panel-${tabId}-${index}" 
+                        class="inline-flex gap-1 items-center relative px-4 py-2 text-sm cursor-pointer aria-selected:text-styleguide-highlight transition duration-400"
+                    >
+                        ${tab.icon ?? ''}
+                        ${tab.title}
+                    </button>
+                `).join('\n')}
+            </div>
+
+            ${aside}
         </div>
         
         ${data.map((tab, index) => `
@@ -261,6 +280,34 @@ function renderTab(data: Tab[]) {
                 ${tab.content}
             </div>
         `).join('\n')}
+    </div>
+  `
+}
+
+/**
+ * The section's theme dropdown. Its option values are normalised class lists (see `themeClassList`);
+ * the empty "Default" option restores the unthemed preview. `client/lib/section-theme-select.ts`
+ * applies the selected classes to the <html> of every preview iframe in the section.
+ */
+function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
+  const selectId = `theme-select-${sectionSanitizeId(section.id)}`
+
+  return `
+    <div class="inline-flex items-center gap-2 text-sm">
+        <label for="${selectId}" class="select-none">Theme</label>
+        <span class="relative inline-flex">
+            <select
+                id="${selectId}"
+                class="section-theme-select appearance-none cursor-pointer rounded-md border py-1.5 pl-3 pr-8 text-sm transition duration-200 border-styleguide-border bg-styleguide-bg-highlight hover:text-styleguide-highlight focus:text-styleguide-highlight focus-visible:outline focus-visible:outline-blue-600"
+                data-section-theme-select
+            >
+                <option value="">Default</option>
+                ${themes.map(theme => `<option value="${sanitizeSpecialCharacters(themeClassList(theme.value))}">${sanitizeSpecialCharacters(theme.description)}</option>`).join('\n')}
+            </select>
+            <svg class="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
+            </svg>
+        </span>
     </div>
   `
 }
@@ -328,10 +375,21 @@ function getMainContentSectionWrapper(section: in2Section, html?: string): strin
     return `<p class="mt-2${section.sectionLevel === 'second' ? ' text-xl' : ''}">${section.description}</p>`
   }
 
+  // The source metadata is what turns an audit finding into an editable file:
+  // `window.kssAudit()` reports it per section so automation can jump straight
+  // to the KSS comment (or template) a violation belongs to.
+  const sourceAttributes = attrs({
+    'data-section-reference': sanitizeSpecialCharacters(section.id),
+    'data-source-file': sanitizeSpecialCharacters(section.source.css.file),
+    'data-source-line': getSectionTitleLine(section),
+    'data-markup-file': section.source.markup?.file ? sanitizeSpecialCharacters(section.source.markup.file) : undefined,
+  })
+
   return `
-<section 
-  id="section-${sectionSanitizeId(section.id)}" 
+<section
+  id="section-${sectionSanitizeId(section.id)}"
   class="styleguide-section border-b px-4 py-10 border-b-styleguide-border scroll-mt-[50px] md:px-10"
+  ${sourceAttributes}
 >
     <div class="flex items-center justify-between gap-6">
         <a class="relative group" href="#section-${sectionSanitizeId(section.id)}">
@@ -380,7 +438,7 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
       : process.cwd()
 
     const cssFilePath = ensureStartingSlash(path.join(computedRootPath, section.source.css.file))
-    const cssLineNumber = section.source.css.line + 1 // increment by one to match section title directly
+    const cssLineNumber = getSectionTitleLine(section)
     openInEditorPaths.css = {
       vscode: `vscode://file//${cssFilePath}:${cssLineNumber}`,
       phpstorm: `phpstorm://open?file=${cssFilePath}&line=${cssLineNumber}`,
@@ -427,6 +485,11 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
         >
     </a>
   `
+
+  // A theme dropdown only makes sense for a section with a live preview to re-theme.
+  const themeSelectMarkup = section.markup && section.themes && section.themes.length > 0
+    ? renderThemeSelect(section, section.themes)
+    : ''
 
   const codePreviewMarkup = `
     <!-- Preview Box -->
@@ -647,8 +710,18 @@ function getMainContentRegular(section: in2Section, config: StyleguideConfigurat
 
     return `
       <div class="mt-4">
-        ${renderTab(tabs).replaceAll('<replace-figma-iframe-loading-strategy>', tabs.length > 1 ? 'lazy' : 'eager')}
+        ${renderTab(tabs, themeSelectMarkup).replaceAll('<replace-figma-iframe-loading-strategy>', tabs.length > 1 ? 'lazy' : 'eager')}
       </div>
+    `
+  }
+
+  // Without Figma tabs the dropdown gets its own row above the preview box, still right-aligned.
+  if (themeSelectMarkup) {
+    return `
+      <div class="mt-4 flex flex-wrap items-center justify-end gap-3">
+        ${themeSelectMarkup}
+      </div>
+      ${codePreviewMarkup}
     `
   }
 

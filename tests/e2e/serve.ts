@@ -46,7 +46,8 @@ const mimeTypes: Record<string, string> = {
 }
 
 const server = createServer((req, res) => {
-  let url = req.url || '/'
+  // serve by pathname only — `?modifier=` / `?theme=` query strings are read client-side
+  let url = new URL(req.url || '/', 'http://localhost').pathname
   if (url.endsWith('/')) url += 'index.html'
 
   const filePath = path.join(outDir, url)

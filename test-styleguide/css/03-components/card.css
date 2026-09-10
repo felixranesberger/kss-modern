@@ -16,6 +16,10 @@ bodyclass: demo-canvas
 
 htmlclass: theme-cards
 
+Themes:
+.theme-midnight - Midnight
+.theme-sunrise - Sunrise
+
 Wrapper: <div class="o-container" style="max-width: 420px">{{wrapper-content}}</div>
 
 Markup: templates/source/03-components/card.pug

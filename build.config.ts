@@ -48,6 +48,25 @@ const previewInlineFilePath = `dist/styleguide-assets/${hashedFileNames['preview
 if (!fs.existsSync(previewInlineFilePath))
   throw new Error(`File not found: ${previewInlineFilePath}`)
 
+// The inline bundle is embedded as a classic <script>, so it cannot execute an
+// `import` statement. Vite splits a module that a second entry also imports into
+// a shared chunk, which would leave this script throwing on load — and since the
+// page body stays `invisible` until that script runs, the whole styleguide would
+// render blank. Fail the build instead of shipping that.
+const previewInlineEntry = manifest['client/preview-inline.ts']
+const previewInlineImports: string[] = [
+  ...previewInlineEntry.imports ?? [],
+  // a dynamic import emits a chunk the inline script would resolve against the
+  // page URL rather than the assets directory — equally broken, so it fails too
+  ...previewInlineEntry.dynamicImports ?? [],
+]
+if (previewInlineImports.length > 0) {
+  throw new Error(
+    `The inlined preview script must be self-contained, but it imports: ${previewInlineImports.join(', ')}.`
+    + ` Keep modules used by client/preview-inline.ts out of the other client entries (see client/lib/iframe.ts).`,
+  )
+}
+
 const previewInlineContent = `<script>
   ${escapeForTemplateLiteral(fs.readFileSync(previewInlineFilePath, 'utf-8'))};
 </script>`

@@ -1,18 +1,18 @@
 import type {
   Result as AxeResult,
-  AxeResults,
   CrossTreeSelector,
-  ImpactValue,
   resultGroups,
   UnlabelledFrameSelector,
 } from 'axe-core'
-import type { Message as HTMLValidateMessage } from 'html-validate'
+import type { ModifierContrastDetail } from './audit-runner.ts'
 import type { ColorSchemeMode, SchemeContrastResult } from './color-contrast-audit.ts'
 import type { AnnotatedNode, ContrastAnnotation, ReviewReason } from './text-over-image-contrast.ts'
 import { sanitizeSpecialCharacters } from '../../lib/shared.ts'
 import { each, when } from '../../lib/template-utils.ts'
 import { highlightCode } from '../code-highlight'
 import { id, queryRequired } from '../utils.ts'
+import { AXE_RESULT_GROUPS, flattenAxeTarget, htmlValidateImpact, runAccessibilityAudit, runModifierContrastAudit } from './audit-runner.ts'
+import { getSectionPreviews, SECTION_SELECTOR } from './section-previews.ts'
 
 interface ValidatorReference {
   element: HTMLElement
@@ -109,29 +109,6 @@ function renderContrastInfo(node: {
   return ''
 }
 
-interface AccessibilityTestResultEvent extends CustomEvent {
-  detail: {
-    axe: {
-      result: AxeResults
-      colorContrast: SchemeContrastResult[]
-      targetMap: Map<CrossTreeSelector, HTMLElement>
-    }
-    htmlValidate: (HTMLValidateMessage & {
-      ruleDescription?: string
-    })[]
-  }
-}
-
-// dispatched by each modifier-variant iframe: color-contrast only, tagged with
-// the iframe's modifier class
-interface ModifierContrastResultEvent extends CustomEvent {
-  detail: {
-    modifier?: string
-    colorContrast: SchemeContrastResult[]
-    targetMap: Map<CrossTreeSelector, HTMLElement>
-  }
-}
-
 export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResultDialog: HTMLDialogElement, closeDialog: () => Promise<void>) {
   const codeAuditIframeSelector = codeAuditTrigger.getAttribute('data-code-audit-iframe')
   if (!codeAuditIframeSelector)
@@ -166,63 +143,17 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     },
   }
 
-  // Run an audit function inside an iframe and resolve with the detail it
-  // dispatches back on the iframe element.
-  function runAuditInIframe<T>(
-    iframe: HTMLIFrameElement,
-    fnName: 'runAccessibilityTest' | 'runColorContrastAudit',
-    eventName: string,
-  ): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      let timeout: ReturnType<typeof setTimeout>
-
-      const eventHandler = (event: Event) => {
-        clearTimeout(timeout)
-        iframe.removeEventListener(eventName, eventHandler)
-        resolve((event as CustomEvent).detail as T)
-      }
-
-      timeout = setTimeout(() => {
-        iframe.removeEventListener(eventName, eventHandler)
-        reject(new Error(`Accessibility audit timed out (${eventName})`))
-      }, 30000)
-
-      iframe.addEventListener(eventName, eventHandler)
-
-      const auditFn = iframe.contentWindow?.[fnName]
-      if (typeof auditFn === 'function') {
-        auditFn()
-      }
-      else {
-        clearTimeout(timeout)
-        iframe.removeEventListener(eventName, eventHandler)
-        reject(new Error(`${fnName} not found in iframe`))
-      }
-    })
-  }
-
-  const results = await runAuditInIframe<AccessibilityTestResultEvent['detail']>(
-    codeAuditIFrame,
-    'runAccessibilityTest',
-    'accessibility-result',
-  )
+  const results = await runAccessibilityAudit(codeAuditIFrame)
 
   // A modifier is a pure class swap, so only color-contrast can differ from the
   // base. Audit each modifier variant's iframe (in the same section) for
   // color-contrast and tag the findings with the modifier class.
-  const modifierIframes = Array.from(
-    codeAuditIFrame.closest('.styleguide-section')?.querySelectorAll<HTMLIFrameElement>('iframe[data-modifier]') ?? [],
-  )
+  const { modifiers: modifierIframes } = getSectionPreviews(codeAuditIFrame.closest(SECTION_SELECTOR))
 
   const modifierResults = (await Promise.all(
     modifierIframes.map(async (iframe) => {
       try {
-        const detail = await runAuditInIframe<ModifierContrastResultEvent['detail']>(
-          iframe,
-          'runColorContrastAudit',
-          'color-contrast-result',
-        )
-        return { iframe, detail }
+        return { iframe, detail: await runModifierContrastAudit(iframe) }
       }
       catch (error) {
         // a single unloaded/broken modifier preview shouldn't fail the whole audit
@@ -230,7 +161,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
         return null
       }
     }),
-  )).filter(Boolean) as { iframe: HTMLIFrameElement, detail: ModifierContrastResultEvent['detail'] }[]
+  )).filter(Boolean) as { iframe: HTMLIFrameElement, detail: ModifierContrastDetail }[]
 
   interface ResultNodeAxe {
     type: 'axe'
@@ -310,17 +241,11 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
     // color-contrast runs once per color scheme; tag each result with its mode
     // (and modifier, if any) so a failure in either is surfaced and attributed
     colorContrast.forEach(({ mode, result }) => {
-      pushAxeResults('violations', result.violations, { ...options, mode })
-      pushAxeResults('incomplete', result.incomplete, { ...options, mode })
-      pushAxeResults('passes', result.passes, { ...options, mode })
-      pushAxeResults('inapplicable', result.inapplicable, { ...options, mode })
+      AXE_RESULT_GROUPS.forEach(group => pushAxeResults(group, result[group], { ...options, mode }))
     })
   }
 
-  pushAxeResults('violations', results.axe.result.violations)
-  pushAxeResults('incomplete', results.axe.result.incomplete)
-  pushAxeResults('passes', results.axe.result.passes)
-  pushAxeResults('inapplicable', results.axe.result.inapplicable)
+  AXE_RESULT_GROUPS.forEach(group => pushAxeResults(group, results.axe.result[group]))
 
   pushColorContrast(results.axe.colorContrast)
 
@@ -330,22 +255,6 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
   })
 
   // add html-validate results
-  function calculateHtmlValidatorImpact(ruleId: string, severity: string): ImpactValue {
-    switch (severity) {
-      case 'off':
-      case '0':
-        return 'minor'
-      case 'warn':
-      case '1':
-        return 'moderate'
-      case 'error':
-      case '2':
-        return 'serious'
-      default:
-        throw new Error(`Invalid severity "${severity}" for rule "${ruleId}"`)
-    }
-  }
-
   results.htmlValidate.forEach((message) => {
     const alreadyPresentViolation = mergedResults.violations.find(violation => violation.id === message.ruleId)
     if (alreadyPresentViolation) {
@@ -361,7 +270,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       id: message.ruleId,
       description: message.ruleDescription || message.message,
       helpUrl: message.ruleUrl || '',
-      impact: calculateHtmlValidatorImpact(message.ruleId, message.severity.toString()),
+      impact: htmlValidateImpact(message.severity.toString()),
       nodes: [{
         type: 'htmlvalidate',
         selector: message.selector ?? undefined,
@@ -408,7 +317,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
         return `
           ${info}
           <span class="block font-mono py-1.5 text-[13px] text-styleguide-regular">
-            ${node.target.join(' ')}
+            ${flattenAxeTarget(node.target)}
           </span>
         `
       }
@@ -427,7 +336,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
                 class="block font-mono py-1.5 text-[13px] text-blue-600 text-sm cursor-pointer text-left"
                 onclick="window.validator.logReference(window.validator.referenceMap.get('${refId}')); window.validator.logReferenceAlert(this)"
               >
-                ${node.target.join(' ')}
+                ${flattenAxeTarget(node.target)}
             </button>
           `
         })}

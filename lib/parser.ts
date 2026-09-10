@@ -2,7 +2,7 @@ import type { StyleguideConfiguration } from './index.ts'
 import path from 'node:path'
 import { logger } from './logger.ts'
 import { parseMarkdown } from './markdown'
-import { INSERT_VITE_PUG_TAG_RE, PUG_SRC_RE } from './shared.ts'
+import { INSERT_VITE_PUG_TAG_RE, PUG_SRC_RE, themeClassList } from './shared.ts'
 
 export interface FileObject {
   base?: string
@@ -38,6 +38,7 @@ interface Section {
   wrapper?: string
   htmlclass?: string
   bodyclass?: string
+  themes?: ThemeOption[]
   weight?: number
   source: {
     filename: string
@@ -48,6 +49,15 @@ interface Section {
 
 interface Modifier {
   name: string
+  description: string
+}
+
+/**
+ * One entry of a section's `Themes:` block — a theme class (or class list, e.g. `.theme-a.compact`)
+ * written as in the KSS comment, plus the label shown in the theme dropdown.
+ */
+export interface ThemeOption {
+  value: string
   description: string
 }
 
@@ -158,6 +168,32 @@ function parseIcons(text: string): IconObject[] {
 }
 
 /**
+ * Parse a `Themes:` block. Each line is a theme class followed by ` - ` and a label, the same line
+ * format as modifiers:
+ *
+ *     Themes:
+ *     .theme-midnight - Midnight
+ *     .theme-sunrise - Sunrise
+ *
+ * The label is optional and defaults to the class list itself.
+ */
+function parseThemes(text: string): ThemeOption[] {
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map((line) => {
+      const [value, ...labelParts] = line.split(/\s+-\s+/)
+      const description = labelParts.join(' - ').trim()
+
+      return {
+        value: value.trim(),
+        description: description.length > 0 ? description : themeClassList(value),
+      }
+    })
+}
+
+/**
  * Convert String to Float
  */
 function toFloat(value: string): number {
@@ -239,6 +275,7 @@ function kssParser(input: string | (string | FileObject)[], options: ParseOption
       processProperty(sectionRecord, paragraphs, 'Wrapper', x => x.trim())
       processProperty(sectionRecord, paragraphs, 'htmlclass', x => x.trim())
       processProperty(sectionRecord, paragraphs, 'bodyclass', x => x.trim())
+      processProperty(sectionRecord, paragraphs, 'Themes', parseThemes)
       processProperty(sectionRecord, paragraphs, 'Icons', parseIcons)
       processProperty(sectionRecord, paragraphs, 'Figma', x => x.trim())
       processProperty(sectionRecord, paragraphs, 'Status', x => x.trim().toLowerCase())
@@ -545,6 +582,8 @@ export interface in2Section {
   wrapper?: string
   htmlclass?: string
   bodyclass?: string
+  /** Theme contexts offered by the section's theme dropdown; classes are applied to the preview's <html>. */
+  themes?: ThemeOption[]
   source: {
     css: {
       file: string
@@ -679,6 +718,7 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
         wrapper: section.wrapper,
         htmlclass: section.htmlclass,
         bodyclass: section.bodyclass,
+        themes: section.themes,
         source: computeSource(section),
         previewFileName: `preview-${section.reference}.html`,
         fullpageFileName: `fullpage-${section.reference}.html`,
@@ -725,6 +765,7 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
           wrapper: section.wrapper,
           htmlclass: section.htmlclass,
           bodyclass: section.bodyclass,
+          themes: section.themes,
           source: computeSource(section),
           previewFileName: `preview-${section.reference}.html`,
           fullpageFileName: `fullpage-${section.reference}.html`,
@@ -758,6 +799,7 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
           wrapper: section.wrapper,
           htmlclass: section.htmlclass,
           bodyclass: section.bodyclass,
+          themes: section.themes,
           sections: [],
           source: computeSource(section),
           previewFileName: `preview-${section.reference}.html`,

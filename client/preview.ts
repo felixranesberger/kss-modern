@@ -1,3 +1,4 @@
+import type { A11yReport, A11yReportOptions } from './lib/a11y-report.ts'
 import { animate } from 'motion'
 import { highlightCode } from './code-highlight'
 import { useDialog } from './hooks/use-dialog.ts'
@@ -8,6 +9,20 @@ import './keyboard-shortcuts.ts'
 import './style.css'
 import './lib/menu.ts'
 import './lib/search.ts'
+
+declare global {
+  interface Window {
+    kssAudit: (options?: A11yReportOptions) => Promise<A11yReport>
+  }
+}
+
+// Machine-readable accessibility report over every preview on the page, for CI
+// scripts and AI agents driving a browser. The implementation is imported on
+// first call so automation never costs interactive users any bundle weight.
+window.kssAudit = async (options) => {
+  const { runStyleguideAudit } = await import('./lib/a11y-report.ts')
+  return runStyleguideAudit(options)
+}
 
 const styleguideSections = document.querySelectorAll<HTMLElement>('.styleguide-section')
 styleguideSections.forEach((section) => {
@@ -132,6 +147,14 @@ window.addEventListener('scroll', () => {
     document.body.classList.remove('is-scrolling')
   }, 250)
 })
+
+// Per-section theme dropdowns (sections with a `Themes:` block) — re-theme the section's previews
+const sectionThemeSelects = document.querySelectorAll<HTMLSelectElement>('[data-section-theme-select]')
+if (sectionThemeSelects.length > 0) {
+  import('./lib/section-theme-select.ts')
+    .then(({ default: init }) => init(sectionThemeSelects))
+    .catch(console.error)
+}
 
 const editorSelectForm = document.querySelector<HTMLFormElement>('.editor-select')
 if (editorSelectForm) {
