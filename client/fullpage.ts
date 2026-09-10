@@ -125,6 +125,17 @@ class ModifierReplacer {
   }
 }
 
+// Apply the section's selected theme classes to this document's root. Inside a preview
+// iframe they arrive in `data-theme-class` on the frame element (written by the theme
+// dropdown in `client/lib/section-theme-select.ts`); a fullpage opened on its own gets
+// them via `?theme=`. Same values in both places: a space-separated class list.
+const selectedThemeClass = window.frameElement
+  ? window.frameElement.getAttribute('data-theme-class')
+  : new URLSearchParams(window.location.search).get('theme')
+if (selectedThemeClass) {
+  document.documentElement.classList.add(...selectedThemeClass.split(/\s+/).filter(Boolean))
+}
+
 // add styleguide preview class when in iframe preview mode
 if (window.frameElement) {
   if (window.frameElement.getAttribute('data-preview') === 'true') {

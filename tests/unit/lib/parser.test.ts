@@ -550,6 +550,78 @@ describe('custom properties', () => {
     const result = await parse(scss, config)
     expect(result.content[0].bodyclass).toBe('custom-body-class')
   })
+
+  it('parses a Themes block into value/description pairs', async () => {
+    const scss = `
+/**
+ * Component
+ *
+ * Themes:
+ * .theme-midnight - Midnight
+ * .theme-sunrise - Sunrise
+ *
+ * Markup: <div class="c-card">Card</div>
+ *
+ * Styleguide 1.0
+ */
+`
+    const result = await parse(scss, config)
+    expect(result.content[0].themes).toEqual([
+      { value: '.theme-midnight', description: 'Midnight' },
+      { value: '.theme-sunrise', description: 'Sunrise' },
+    ])
+  })
+
+  it('accepts a Themes entry without a label and falls back to its class list', async () => {
+    const scss = `
+/**
+ * Component
+ *
+ * Themes:
+ * .theme-midnight.compact
+ * theme-sunrise
+ *
+ * Styleguide 1.0
+ */
+`
+    const result = await parse(scss, config)
+    expect(result.content[0].themes).toEqual([
+      { value: '.theme-midnight.compact', description: 'theme-midnight compact' },
+      { value: 'theme-sunrise', description: 'theme-sunrise' },
+    ])
+  })
+
+  it('keeps Themes separate from the modifier list', async () => {
+    const scss = `
+/**
+ * Component
+ *
+ * Themes:
+ * .theme-midnight - Midnight
+ *
+ * .c-card--primary - Primary
+ *
+ * Markup: <div class="c-card {{modifier_class}}">Card</div>
+ *
+ * Styleguide 1.0
+ */
+`
+    const result = await parse(scss, config)
+    expect(result.content[0].themes).toEqual([{ value: '.theme-midnight', description: 'Midnight' }])
+    expect(result.content[0].modifiers).toEqual([{ value: '.c-card--primary', description: 'Primary' }])
+  })
+
+  it('leaves themes undefined when no Themes block is present', async () => {
+    const scss = `
+/**
+ * Component
+ *
+ * Styleguide 1.0
+ */
+`
+    const result = await parse(scss, config)
+    expect(result.content[0].themes).toBeUndefined()
+  })
 })
 
 // ---------------------------------------------------------------------------

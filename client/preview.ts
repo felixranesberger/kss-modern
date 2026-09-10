@@ -148,6 +148,14 @@ window.addEventListener('scroll', () => {
   }, 250)
 })
 
+// Per-section theme dropdowns (sections with a `Themes:` block) — re-theme the section's previews
+const sectionThemeSelects = document.querySelectorAll<HTMLSelectElement>('[data-section-theme-select]')
+if (sectionThemeSelects.length > 0) {
+  import('./lib/section-theme-select.ts')
+    .then(({ default: init }) => init(sectionThemeSelects))
+    .catch(console.error)
+}
+
 const editorSelectForm = document.querySelector<HTMLFormElement>('.editor-select')
 if (editorSelectForm) {
   import('./lib/editor-select.ts')

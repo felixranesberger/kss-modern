@@ -330,6 +330,32 @@ Styleguide 3.1
 
 Useful for components that need a specific background color or theme context.
 
+### Themes
+
+Offer alternative theme contexts a component can be viewed in. Each line is a theme class (or class list) followed by a dash and a label — the same line format as modifiers:
+
+```scss
+/*
+Card
+
+Themes:
+.theme-midnight - Midnight
+.theme-sunrise - Sunrise
+
+Markup: <div class="c-card">...</div>
+
+Styleguide 3.1
+*/
+```
+
+The section gets a **Theme** dropdown above its preview; when the section also has a `Figma` design, the dropdown sits on the right of the Preview/Design tabs. Selecting a theme adds its classes to the `<html>` element of every preview iframe in the section — the base preview and each modifier variant — so token overrides scoped like `.theme-midnight { --color-primary: … }` take effect without a rebuild. **Default** restores the unthemed view.
+
+- A chained class (`.theme-midnight.compact`) applies both classes.
+- Classes from `htmlclass` stay in place; the theme is layered on top of them. Both sit on the same element, so if the `htmlclass` is itself a theme class that sets the same custom properties, the later rule in your CSS wins — give the theme hooks higher specificity (`html.theme-midnight { … }`) or keep the section's `htmlclass` free of theme classes.
+- The selection is remembered per section in `localStorage`.
+- "Open in fullpage" links carry the selection as `?theme=theme-midnight`, and a fullpage opened with that parameter applies the classes itself.
+- The **Code Audit** runs against whichever theme is currently selected.
+
 ---
 
 ## Complete KSS Block Example
@@ -350,6 +376,10 @@ Markdown: A flexible card component for displaying grouped content.
 Status: Complete
 
 bodyclass: bg-neutral
+
+Themes:
+.theme-midnight - Midnight
+.theme-sunrise - Sunrise
 
 Figma: https://embed.figma.com/design/FILE_ID?node-id=123-456
 
@@ -379,6 +409,10 @@ Press `Cmd+K` (Mac) or `Ctrl+K` to open the global search dialog. Searches acros
 ### Theme Toggle
 
 Three-way toggle: **System**, **Light**, **Dark**. The preference is persisted in `localStorage` across sessions. Figma embeds automatically reload with the matching theme.
+
+### Section Themes
+
+Sections with a [`Themes`](#themes) block show a **Theme** dropdown next to the preview. It switches every preview in that section between the default view and each themed view by toggling the theme class on the preview's `<html>` element. The choice is remembered per section.
 
 ### Accessibility Audit
 

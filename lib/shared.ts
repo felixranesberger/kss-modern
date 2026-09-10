@@ -141,6 +141,15 @@ export function replaceWrapperContent(wrapper: string, content: string): string 
   return wrapper.replace(WRAPPER_CONTENT_RE, () => content)
 }
 
+/**
+ * Normalise a `Themes:` entry to a space-separated class list: `.theme-a.compact`, `theme-a compact`
+ * and `.theme-a .compact` all become `theme-a compact`. This is the form written to the dropdown's
+ * option values, the preview iframe's `data-theme-class` attribute and the fullpage `?theme=` param.
+ */
+export function themeClassList(value: string): string {
+  return value.split(/[.\s]+/).filter(Boolean).join(' ')
+}
+
 function* idGenerator(): Generator<number, never, unknown> {
   let id = 0
 
