@@ -49,6 +49,10 @@ async function copyContentAssets(): Promise<void> {
       light: '#2563eb',
       dark: '#ffffff',
     },
+    themes: [
+      { value: 'theme-midnight', label: 'Midnight' },
+      { value: 'theme-sunrise', label: 'Sunrise' },
+    ],
     plugins: {
       ogImage: (section) => {
         const url = new URL('https://via.placeholder.com/1200x630.png')

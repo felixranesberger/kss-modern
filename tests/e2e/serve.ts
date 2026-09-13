@@ -32,6 +32,10 @@ await buildStyleguide({
     light: '#005075',
     dark: '#ffffff',
   },
+  themes: [
+    { value: 'theme-midnight', label: 'Midnight' },
+    { value: 'theme-sunrise', label: 'Sunrise' },
+  ],
 })
 console.info('[E2E] Styleguide built successfully.')
 

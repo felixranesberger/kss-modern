@@ -35,6 +35,16 @@ export interface StyleguideConfiguration {
   contentDir: `${string}/`
   projectTitle: string
   deactivateDarkMode?: boolean
+  /**
+   * Themes offered by the header's global **Theme** dropdown. Each entry is a theme class (or class
+   * list — `'theme-midnight'`, `'.theme-midnight.compact'`) that is added to the `<html>` of every
+   * preview iframe while selected, plus the label shown in the dropdown. A section's own `Themes:`
+   * dropdown overrides the global theme for that section.
+   */
+  themes?: {
+    value: string
+    label: string
+  }[]
   launchInEditor?: boolean | {
     rootDir: string
   }

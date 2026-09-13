@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import initSectionThemeSelects, { applyPreviewThemeClass } from '../../../client/lib/section-theme-select.ts'
+import { applyPreviewThemeClass } from '../../../client/lib/preview-theme.ts'
+import initSectionThemeSelects from '../../../client/lib/section-theme-select.ts'
 
 // jsdom gives an about:blank <iframe> a real contentDocument once it is in the
 // DOM, which is all the dropdown needs: it only ever touches the preview's root
 // classList. The load-time half (the preview reading `data-theme-class` on its
 // own) lives in client/fullpage.ts and is covered by tests/e2e/section-theme.spec.ts.
+// The interplay with the header's global theme is covered by global-theme-select.test.ts.
 
 const STORAGE_KEY = 'in2section-theme:3.10'
 

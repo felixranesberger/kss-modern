@@ -148,7 +148,15 @@ window.addEventListener('scroll', () => {
   }, 250)
 })
 
-// Per-section theme dropdowns (sections with a `Themes:` block) — re-theme the section's previews
+// Theme dropdowns re-theme the preview iframes by toggling classes on their <html>: the header's
+// global one (`themes` option) is the baseline, a section's own (`Themes:` block) overrides it
+const globalThemeSelect = document.querySelector<HTMLSelectElement>('[data-global-theme-select]')
+if (globalThemeSelect) {
+  import('./lib/global-theme-select.ts')
+    .then(({ default: init }) => init(globalThemeSelect))
+    .catch(console.error)
+}
+
 const sectionThemeSelects = document.querySelectorAll<HTMLSelectElement>('[data-section-theme-select]')
 if (sectionThemeSelects.length > 0) {
   import('./lib/section-theme-select.ts')

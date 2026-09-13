@@ -8,6 +8,9 @@
 /** A component section on the preview page. */
 export const SECTION_SELECTOR = '.styleguide-section'
 
+/** Every preview iframe — base and modifier variants alike. */
+export const PREVIEW_IFRAME_SELECTOR = 'iframe.preview-iframe'
+
 export interface SectionPreviews {
   /** The section's base preview, absent for colour/icon/description-only sections. */
   base: HTMLIFrameElement | null
@@ -17,7 +20,7 @@ export interface SectionPreviews {
 
 export function getSectionPreviews(section: ParentNode | null | undefined): SectionPreviews {
   return {
-    base: section?.querySelector<HTMLIFrameElement>('iframe.preview-iframe:not([data-modifier])') ?? null,
-    modifiers: Array.from(section?.querySelectorAll<HTMLIFrameElement>('iframe.preview-iframe[data-modifier]') ?? []),
+    base: section?.querySelector<HTMLIFrameElement>(`${PREVIEW_IFRAME_SELECTOR}:not([data-modifier])`) ?? null,
+    modifiers: Array.from(section?.querySelectorAll<HTMLIFrameElement>(`${PREVIEW_IFRAME_SELECTOR}[data-modifier]`) ?? []),
   }
 }

@@ -1,7 +1,5 @@
 import type { in2SecondLevelSection, in2Section } from '../../../../lib/parser.ts'
 import { describe, expect, it } from 'vitest'
-import { createMinimalConfig } from '../../../fixtures/config.ts'
-
 import {
   getAlerts,
   getCodeAuditDialog,
@@ -11,6 +9,8 @@ import {
   getSearchHtml,
   getSidebarMenuHtml,
 } from '../../../../lib/templates/preview.ts'
+
+import { createMinimalConfig } from '../../../fixtures/config.ts'
 
 function createMockSection(overrides: Partial<in2Section> = {}): in2Section {
   return {
@@ -68,6 +68,43 @@ describe('getHeaderHtml', () => {
   it('omits theme toggle when deactivateDarkMode is true', () => {
     const html = getHeaderHtml(createMinimalConfig({ deactivateDarkMode: true }))
     expect(html).not.toContain('Select a display theme')
+  })
+
+  describe('global theme dropdown', () => {
+    const themes = [
+      { value: '.theme-midnight', label: 'Midnight' },
+      { value: '.theme-a.compact', label: 'A <compact>' },
+    ]
+
+    it('renders a select with a default option and one option per configured theme', () => {
+      const html = getHeaderHtml(createMinimalConfig({ themes }))
+
+      expect(html).toContain('id="global-theme-select"')
+      expect(html).toContain('data-global-theme-select')
+      expect(html).toContain('<option value="">Default</option>')
+      expect(html).toContain('<option value="theme-midnight">Midnight</option>')
+    })
+
+    it('normalises class lists to option values and escapes labels', () => {
+      const html = getHeaderHtml(createMinimalConfig({ themes }))
+      expect(html).toContain('<option value="theme-a compact">A &lt;compact&gt;</option>')
+    })
+
+    it('does not mark the header select as a section dropdown', () => {
+      const html = getHeaderHtml(createMinimalConfig({ themes }))
+      expect(html).not.toContain('data-section-theme-select')
+    })
+
+    it('omits the dropdown without configured themes', () => {
+      expect(getHeaderHtml(createMinimalConfig())).not.toContain('data-global-theme-select')
+      expect(getHeaderHtml(createMinimalConfig({ themes: [] }))).not.toContain('data-global-theme-select')
+    })
+
+    it('renders independently of the color-scheme toggle', () => {
+      const html = getHeaderHtml(createMinimalConfig({ themes, deactivateDarkMode: true }))
+      expect(html).toContain('data-global-theme-select')
+      expect(html).not.toContain('Select a display theme')
+    })
   })
 })
 

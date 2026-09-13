@@ -78,7 +78,8 @@ Use `additionalAttributes` to add custom attributes like `type="module"` or `def
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `deactivateDarkMode` | `boolean` | `false` | Hides the theme toggle in the styleguide UI. |
+| `deactivateDarkMode` | `boolean` | `false` | Hides the color-scheme toggle (System/Light/Dark) in the styleguide UI. |
+| `themes` | `{ value: string, label: string }[]` | `undefined` | Adds a global **Theme** dropdown to the header. Each entry is a theme class (or class list, e.g. `'theme-midnight'` or `'.theme-midnight.compact'`) that is added to the `<html>` of every preview while selected, plus its label. See [Global Theme](usage.md#global-theme). |
 | `launchInEditor` | `boolean \| { rootDir: string }` | `undefined` | Enables "Open in Editor" links (VSCode/PHPStorm). Set `rootDir` to the project root for correct file paths. |
 | `logoSignet` | `{ href: string } \| { svgContent: string }` | `undefined` | Logo displayed in the header. Provide either an image URL or inline SVG content. |
 | `plugins.ogImage` | `(section) => string` | `undefined` | Function that returns an OG image URL for each section (used in fullpage meta tags). |
@@ -101,6 +102,10 @@ await buildStyleguide({
     light: '#005075',
     dark: '#ffffff',
   },
+  themes: [
+    { value: 'theme-midnight', label: 'Midnight' },
+    { value: 'theme-sunrise', label: 'Sunrise' },
+  ],
   logoSignet: {
     svgContent: '<svg viewBox="0 0 24 24">...</svg>',
   },

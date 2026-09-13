@@ -78,6 +78,7 @@ export function getHeaderHtml(config: StyleguideConfiguration) {
         </button>
 
         <div class="flex gap-4">
+          ${config.themes?.length ? renderGlobalThemeSelect(config.themes) : ''}
           ${config.mode === 'development' && config.launchInEditor
             ? `
               <form class="hidden editor-select md:block">
@@ -284,25 +285,28 @@ function renderTab(data: Tab[], aside = '') {
   `
 }
 
+type ThemeSelectOption = NonNullable<StyleguideConfiguration['themes']>[number]
+
 /**
- * The section's theme dropdown. Its option values are normalised class lists (see `themeClassList`);
- * the empty "Default" option restores the unthemed preview. `client/lib/section-theme-select.ts`
- * applies the selected classes to the <html> of every preview iframe in the section.
+ * A theme dropdown. Option values are normalised class lists (see `themeClassList`); the empty
+ * "Default" option restores the unthemed view. The header's global dropdown and the per-section
+ * dropdowns share this markup and differ only in `scope`: which client module picks the select up,
+ * and — the header being tight on space — whether it is hidden on small screens.
  */
-function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
-  const selectId = `theme-select-${sectionSanitizeId(section.id)}`
+function renderThemeSelectControl(id: string, themes: ThemeSelectOption[], scope: 'global' | 'section') {
+  const wrapperClass = scope === 'global' ? 'hidden md:inline-flex' : 'inline-flex'
 
   return `
-    <div class="inline-flex items-center gap-2 text-sm">
-        <label for="${selectId}" class="select-none">Theme</label>
+    <div class="${wrapperClass} items-center gap-2 text-sm">
+        <label for="${id}" class="select-none">Theme</label>
         <span class="relative inline-flex">
             <select
-                id="${selectId}"
-                class="section-theme-select appearance-none cursor-pointer rounded-md border py-1.5 pl-3 pr-8 text-sm transition duration-200 border-styleguide-border bg-styleguide-bg-highlight hover:text-styleguide-highlight focus:text-styleguide-highlight focus-visible:outline focus-visible:outline-blue-600"
-                data-section-theme-select
+                id="${id}"
+                class="appearance-none cursor-pointer rounded-md border py-1.5 pl-3 pr-8 text-sm transition duration-200 border-styleguide-border bg-styleguide-bg-highlight hover:text-styleguide-highlight focus:text-styleguide-highlight focus-visible:outline focus-visible:outline-blue-600"
+                data-${scope}-theme-select
             >
                 <option value="">Default</option>
-                ${themes.map(theme => `<option value="${sanitizeSpecialCharacters(themeClassList(theme.value))}">${sanitizeSpecialCharacters(theme.description)}</option>`).join('\n')}
+                ${themes.map(theme => `<option value="${sanitizeSpecialCharacters(themeClassList(theme.value))}">${sanitizeSpecialCharacters(theme.label)}</option>`).join('\n')}
             </select>
             <svg class="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/>
@@ -310,6 +314,27 @@ function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
         </span>
     </div>
   `
+}
+
+/**
+ * The header's global theme dropdown (`themes` styleguide option). `client/lib/global-theme-select.ts`
+ * applies the selected classes to the <html> of every preview iframe on the page; a section's own
+ * dropdown overrides it for that section.
+ */
+function renderGlobalThemeSelect(themes: ThemeSelectOption[]) {
+  return renderThemeSelectControl('global-theme-select', themes, 'global')
+}
+
+/**
+ * The section's theme dropdown (`Themes:` block). `client/lib/section-theme-select.ts` applies the
+ * selected classes to the <html> of every preview iframe in the section, overriding the global theme.
+ */
+function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
+  return renderThemeSelectControl(
+    `theme-select-${sectionSanitizeId(section.id)}`,
+    themes.map(theme => ({ value: theme.value, label: theme.description })),
+    'section',
+  )
 }
 
 export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: StyleguideConfiguration) {

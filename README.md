@@ -6,7 +6,7 @@ A modern, KSS-compatible styleguide generator. Parses KSS comment blocks from CS
 
 - KSS-compatible comment parsing from CSS/SCSS files
 - Live component previews with modifier variants
-- Per-section theme dropdown (`Themes:`) to switch previews between the default and themed views
+- Theme dropdowns — a global one in the header (`themes` option) and per-section ones (`Themes:`) — switch previews between the default and themed views
 - Pug template support via worker thread pool
 - Color palette and icon gallery documentation
 - Figma embed integration with light/dark theme sync

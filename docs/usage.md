@@ -355,6 +355,7 @@ The section gets a **Theme** dropdown above its preview; when the section also h
 - The selection is remembered per section in `localStorage`.
 - "Open in fullpage" links carry the selection as `?theme=theme-midnight`, and a fullpage opened with that parameter applies the classes itself.
 - The **Code Audit** runs against whichever theme is currently selected.
+- The section's selection overrides the [global theme](#global-theme) chosen in the header; **Default** means the section follows the global theme again.
 
 ---
 
@@ -406,13 +407,31 @@ Styleguide 3.10
 
 Press `Cmd+K` (Mac) or `Ctrl+K` to open the global search dialog. Searches across all section titles and descriptions. Click a result to jump directly to that section.
 
-### Theme Toggle
+### Color Scheme Toggle
 
-Three-way toggle: **System**, **Light**, **Dark**. The preference is persisted in `localStorage` across sessions. Figma embeds automatically reload with the matching theme.
+Three-way toggle: **System**, **Light**, **Dark**. The preference is persisted in `localStorage` across sessions. Figma embeds automatically reload with the matching scheme.
+
+### Global Theme
+
+When the configuration declares [`themes`](setup.md#optional-options), the header shows a **Theme** dropdown next to the color-scheme toggle:
+
+```ts
+themes: [
+  { value: 'theme-midnight', label: 'Midnight' },
+  { value: 'theme-sunrise', label: 'Sunrise' },
+],
+```
+
+Selecting a theme adds its classes to the `<html>` element of every preview iframe on the page — the same mechanism as a section's [`Themes`](#themes) dropdown, applied styleguide-wide — so the whole styleguide can be browsed in a themed variant. **Default** restores the unthemed previews.
+
+- The choice is remembered in `localStorage` and follows you across pages.
+- Every "Open in fullpage" link carries it as `?theme=`, so a fullpage opened from a themed preview stays themed.
+- A section's own **Theme** dropdown overrides the global theme for that section; setting it back to **Default** returns the section to the global theme.
+- Only the previews are themed — the styleguide UI itself never receives the classes.
 
 ### Section Themes
 
-Sections with a [`Themes`](#themes) block show a **Theme** dropdown next to the preview. It switches every preview in that section between the default view and each themed view by toggling the theme class on the preview's `<html>` element. The choice is remembered per section.
+Sections with a [`Themes`](#themes) block show a **Theme** dropdown next to the preview. It switches every preview in that section between the default view and each themed view by toggling the theme class on the preview's `<html>` element. The choice is remembered per section and takes precedence over the [global theme](#global-theme).
 
 ### Accessibility Audit
 
