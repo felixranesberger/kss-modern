@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0](https://github.com/felixranesberger/kss-modern/compare/v1.3.0...v1.4.0) (2026-09-13)
+
+### Features
+
+* add a global theme dropdown via the `themes` styleguide option — a list of `{ value, label }` entries, each value a theme class or class list (`.theme-midnight`, `.theme-midnight.compact`), adds a **Theme** dropdown to the header next to the color-scheme toggle. Selecting a theme adds its classes to the `<html>` of every preview iframe on every page — the same mechanism as a section's `Themes:` dropdown, applied styleguide-wide — so the whole styleguide can be browsed in a themed variant, with **Default** restoring the unthemed previews; only the previews are themed, never the styleguide UI shell. The choice is remembered in `localStorage` and follows the visitor across pages, every "Open in fullpage" link carries it as `?theme=`, and a section's own `Themes:` dropdown overrides it for that section and hands back to the global theme when set to **Default** ([5f77af5](https://github.com/felixranesberger/kss-modern/commit/5f77af5))
+
 ## [1.3.0](https://github.com/felixranesberger/kss-modern/compare/v1.2.2...v1.3.0) (2026-09-10)
 
 ### ⚠ BREAKING CHANGES
