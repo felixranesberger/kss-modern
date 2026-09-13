@@ -429,6 +429,28 @@ Selecting a theme adds its classes to the `<html>` element of every preview ifra
 - A section's own **Theme** dropdown overrides the global theme for that section; setting it back to **Default** returns the section to the global theme.
 - Only the previews are themed — the styleguide UI itself never receives the classes.
 
+#### Theme Stylesheets
+
+When a theme needs more than a class can express — a separate token file, a vendor theme build — give it `css`:
+
+```ts
+themes: [
+  {
+    value: '.theme-midnight',
+    label: 'Midnight',
+    css: ['/themes/midnight.css'],
+  },
+  { value: '.theme-sunrise', label: 'Sunrise' },
+],
+```
+
+Those stylesheets are **layered on top of** [`html.assets.css`](setup.md#html-options), never in place of it: the base CSS always loads, and the theme's files load after it so its rules win. Paths are resolved exactly like any other asset `src`, so the file has to be reachable from the styleguide output.
+
+- Every preview document carries a `<link>` for each themed stylesheet from the start, parked at `media="not all"`. The browser downloads them up front but applies nothing, so switching themes costs no request and shows no flash.
+- The CSS is keyed on the theme's **class list**, so a section's [`Themes`](#themes) entry picks up the same stylesheets as soon as it resolves to the same classes — `.theme-midnight` in the config and `.theme-midnight` in the KSS comment. A section theme matching no configured entry simply loads no extra CSS.
+- A theme without `css` is classes only, exactly as before — and selecting it deactivates any other theme's stylesheets.
+- A standalone fullpage opened with `?theme=` activates the matching stylesheets itself.
+
 ### Section Themes
 
 Sections with a [`Themes`](#themes) block show a **Theme** dropdown next to the preview. It switches every preview in that section between the default view and each themed view by toggling the theme class on the preview's `<html>` element. The choice is remembered per section and takes precedence over the [global theme](#global-theme).

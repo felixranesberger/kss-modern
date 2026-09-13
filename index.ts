@@ -22,6 +22,7 @@ async function copyContentAssets(): Promise<void> {
     fs.copy(`${CONTENT_DIR}/css`, `${CONTENT_ASSETS_DIR}/css`),
     fs.copy(`${CONTENT_DIR}/js`, `${CONTENT_ASSETS_DIR}/js`),
     fs.copy(`${CONTENT_DIR}/icons`, `${CONTENT_ASSETS_DIR}/icons`),
+    fs.copy(`${CONTENT_DIR}/themes`, `${CONTENT_ASSETS_DIR}/themes`),
   ])
 }
 
@@ -50,8 +51,11 @@ async function copyContentAssets(): Promise<void> {
       dark: '#ffffff',
     },
     themes: [
+      // Midnight and Sunrise are class-only (tokens live in css/01-settings/colors.css);
+      // Forest ships as its own stylesheet, linked into the previews and applied on selection
       { value: 'theme-midnight', label: 'Midnight' },
       { value: 'theme-sunrise', label: 'Sunrise' },
+      { value: 'theme-forest', label: 'Forest', css: ['/content-assets/themes/forest.css'] },
     ],
     plugins: {
       ogImage: (section) => {

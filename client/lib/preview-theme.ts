@@ -1,4 +1,5 @@
 import { PREVIEW_IFRAME_SELECTOR, SECTION_SELECTOR } from './section-previews.ts'
+import { applyThemeToDocument } from './theme-document.ts'
 
 /**
  * Theme classes on preview documents — the shared half of the header's global theme
@@ -41,14 +42,10 @@ const SECTION_THEME_SELECT_SELECTOR = '[data-section-theme-select]'
 
 const FULLPAGE_LINK_SELECTOR = 'a[href^="/fullpage-"]'
 
-function splitClasses(value: string): string[] {
-  return value.split(/\s+/).filter(Boolean)
-}
-
 /**
- * Swap the theme classes on a preview iframe's own document root. Only the classes
- * this module previously applied (recorded in `data-theme-class`) are removed, so a
- * static `htmlclass` that happens to equal a theme class is never stripped.
+ * Swap the theme on a preview iframe's own document — classes plus any themed stylesheets.
+ * The class list currently applied is recorded in `data-theme-class`, which is also what a
+ * reloading preview reads back (`client/fullpage.ts`).
  */
 export function applyPreviewThemeClass(iframe: HTMLIFrameElement, themeClass: string): void {
   const previous = iframe.getAttribute(THEME_CLASS_ATTRIBUTE) ?? ''
@@ -60,12 +57,9 @@ export function applyPreviewThemeClass(iframe: HTMLIFrameElement, themeClass: st
   else
     iframe.removeAttribute(THEME_CLASS_ATTRIBUTE)
 
-  const root = iframe.contentDocument?.documentElement
-  if (!root)
-    return
-
-  root.classList.remove(...splitClasses(previous))
-  root.classList.add(...splitClasses(themeClass))
+  const doc = iframe.contentDocument
+  if (doc)
+    applyThemeToDocument(doc, themeClass, previous)
 }
 
 /** Reflect a theme in an "Open in fullpage" link via `?theme=`; the empty theme drops the parameter. */

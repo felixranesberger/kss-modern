@@ -29,6 +29,7 @@ function createBaseData() {
     ] as { type?: 'regular' | 'overwriteStyleguide', src: string, additionalAttributes?: Record<string, string> }[],
     html: '<div>Hello</div>',
     theme: '#3F5E5A' as string | { light: string, dark: string },
+    themes: undefined as { value: string, label: string, css?: string[] }[] | undefined,
   }
 }
 
@@ -90,7 +91,7 @@ describe('generateFullPageFile', () => {
   it('renders additional attributes on JS script tags', async () => {
     const data = createBaseData()
     data.js = [
-      { src: '/scripts/main.js', additionalAttributes: { defer: 'true', 'data-module': 'app' } },
+      { src: '/scripts/main.js', additionalAttributes: { 'defer': 'true', 'data-module': 'app' } },
     ]
     await generateFullPageFile(data)
     expect(capturedContent).toContain('defer="true"')
@@ -182,5 +183,48 @@ describe('generateFullPageFile', () => {
   it('includes fullpage JS script tag', async () => {
     await generateFullPageFile(createBaseData())
     expect(capturedContent).toContain('<script type="module" src="/styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>')
+  })
+})
+
+describe('themed stylesheets', () => {
+  const themes = [
+    { value: '.theme-midnight', label: 'Midnight', css: ['/themes/midnight.css'] },
+    { value: '.theme-a.compact', label: 'A', css: ['/themes/a.css', '/themes/compact.css'] },
+    { value: '.theme-plain', label: 'Plain' },
+  ]
+
+  it('emits one inert link per themed stylesheet, keyed on the theme class list', async () => {
+    const data = createBaseData()
+    data.themes = themes
+    await generateFullPageFile(data)
+
+    expect(capturedContent).toContain('<link rel="stylesheet" type="text/css" href="/themes/midnight.css" media="not all" data-theme-css="theme-midnight">')
+    expect(capturedContent).toContain('<link rel="stylesheet" type="text/css" href="/themes/a.css" media="not all" data-theme-css="theme-a compact">')
+    expect(capturedContent).toContain('<link rel="stylesheet" type="text/css" href="/themes/compact.css" media="not all" data-theme-css="theme-a compact">')
+  })
+
+  it('layers themed stylesheets after the regular ones', async () => {
+    const data = createBaseData()
+    data.themes = themes
+    await generateFullPageFile(data)
+
+    expect(capturedContent.indexOf('/styles/main.css')).toBeLessThan(capturedContent.indexOf('/themes/midnight.css'))
+  })
+
+  it('emits nothing for a theme without css, or without configured themes', async () => {
+    const data = createBaseData()
+    data.themes = themes
+    await generateFullPageFile(data)
+    expect(capturedContent).not.toContain('theme-plain')
+
+    await generateFullPageFile(createBaseData())
+    expect(capturedContent).not.toContain('data-theme-css')
+  })
+
+  it('does not disturb the regular stylesheets', async () => {
+    const data = createBaseData()
+    data.themes = themes
+    await generateFullPageFile(data)
+    expect(capturedContent).toContain('<link rel="stylesheet" type="text/css" href="/styles/main.css">')
   })
 })

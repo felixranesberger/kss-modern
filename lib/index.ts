@@ -44,6 +44,17 @@ export interface StyleguideConfiguration {
   themes?: {
     value: string
     label: string
+    /**
+     * Stylesheets loaded into a preview while this theme is selected, layered on top of
+     * `html.assets.css` (they are never replaced). Every preview document carries a `<link>` for
+     * each of these from the start — inert until the theme is selected — so switching costs no
+     * request and shows no flash.
+     *
+     * The CSS is keyed on the theme's class list, so a section's `Themes:` entry gets the same
+     * stylesheets as soon as it resolves to the same classes (`.theme-midnight` here and in the
+     * KSS comment); a section theme that matches no configured entry simply loads no extra CSS.
+     */
+    css?: string[]
   }[]
   launchInEditor?: boolean | {
     rootDir: string
@@ -215,6 +226,7 @@ async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory:
       },
       css: config.html.assets.css,
       js: config.html.assets.js,
+      themes: config.themes,
       html: htmlMarkup,
       theme: config.theme,
       deactivateDarkMode: config.deactivateDarkMode,

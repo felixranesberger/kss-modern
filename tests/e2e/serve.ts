@@ -33,11 +33,18 @@ await buildStyleguide({
     dark: '#ffffff',
   },
   themes: [
-    { value: 'theme-midnight', label: 'Midnight' },
+    { value: 'theme-midnight', label: 'Midnight', css: ['/e2e-theme-midnight.css'] },
     { value: 'theme-sunrise', label: 'Sunrise' },
   ],
 })
 console.info('[E2E] Styleguide built successfully.')
+
+// Stylesheet for the Midnight theme (tests/e2e/theme-css.spec.ts). The rule is deliberately
+// unscoped, so it only ever takes effect if the theme's <link> was actually activated.
+fs.writeFileSync(
+  path.join(outDir, 'e2e-theme-midnight.css'),
+  'body { background-color: rgb(11, 22, 33); }\n',
+)
 
 const mimeTypes: Record<string, string> = {
   '.html': 'text/html',

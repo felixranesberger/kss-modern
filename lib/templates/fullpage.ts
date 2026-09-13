@@ -1,5 +1,5 @@
 import type { StyleguideConfiguration } from '../index.ts'
-import { sanitizeSpecialCharacters } from '../shared.ts'
+import { sanitizeSpecialCharacters, themeClassList } from '../shared.ts'
 import { logicalWriteFile } from '../utils.ts'
 
 export async function generateFullPageFile(data: {
@@ -14,6 +14,7 @@ export async function generateFullPageFile(data: {
   }
   css: StyleguideConfiguration['html']['assets']['css']
   js: StyleguideConfiguration['html']['assets']['js']
+  themes?: StyleguideConfiguration['themes']
   html: string
   theme: StyleguideConfiguration['theme']
   deactivateDarkMode?: boolean
@@ -38,6 +39,16 @@ export async function generateFullPageFile(data: {
     })
     .join('\n')
 
+  // One <link> per themed stylesheet, keyed on the theme's class list so the dropdowns can find it
+  // (`client/lib/preview-theme.ts`, `client/fullpage.ts`). They sit after the regular stylesheets so
+  // a theme layers on top, and start as `media="not all"`: the browser still downloads them but
+  // applies nothing, so selecting a theme is an instant, request-free switch.
+  const computedThemeStyleTags = (data.themes ?? [])
+    .flatMap(theme => (theme.css ?? []).map(src => ({ src, classList: themeClassList(theme.value) })))
+    .filter(entry => entry.classList)
+    .map(entry => `<link rel="stylesheet" type="text/css" href="${entry.src}" media="not all" data-theme-css="${sanitizeSpecialCharacters(entry.classList)}">`)
+    .join('\n')
+
   const content = `
 <!DOCTYPE html>
 <html lang="${data.page.lang}"${data.page.htmlclass ? ` class="scroll-smooth ${data.page.htmlclass}"` : ''} data-styleguide-dark-mode="${supportsDarkMode}">
@@ -57,6 +68,7 @@ export async function generateFullPageFile(data: {
       : `<meta name="theme-color" content="${data.theme}">`}
     <script type="module" src="/styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
     ${computedStyleTags}
+    ${computedThemeStyleTags}
 </head>
 <body${data.page.bodyclass ? ` class="${data.page.bodyclass}"` : ''}>
     ${data.html}

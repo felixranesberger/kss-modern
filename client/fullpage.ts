@@ -6,6 +6,7 @@ import { AUDIT_CONTEXT, getAuditColorSchemes, runColorContrastAcrossSchemes } fr
 import { definePugErrorOverlay } from './lib/pug-error-overlay.ts'
 import { queryWithinTemplates } from './lib/query-within-templates.ts'
 import { augmentColorContrastResult } from './lib/text-over-image-contrast.ts'
+import { applyThemeToDocument } from './lib/theme-document.ts'
 
 declare global {
   interface Window {
@@ -125,15 +126,16 @@ class ModifierReplacer {
   }
 }
 
-// Apply the selected theme classes to this document's root. Inside a preview iframe they
-// arrive in `data-theme-class` on the frame element (written by the global and per-section
-// theme dropdowns via `client/lib/preview-theme.ts`); a fullpage opened on its own gets
-// them via `?theme=`. Same values in both places: a space-separated class list.
+// Apply the selected theme to this document — its classes, and the stylesheets the `themes`
+// option gave it. Inside a preview iframe the theme arrives in `data-theme-class` on the frame
+// element (written by the global and per-section theme dropdowns via
+// `client/lib/preview-theme.ts`); a fullpage opened on its own gets it via `?theme=`. Same
+// values in both places: a space-separated class list.
 const selectedThemeClass = window.frameElement
   ? window.frameElement.getAttribute('data-theme-class')
   : new URLSearchParams(window.location.search).get('theme')
 if (selectedThemeClass) {
-  document.documentElement.classList.add(...selectedThemeClass.split(/\s+/).filter(Boolean))
+  applyThemeToDocument(document, selectedThemeClass)
 }
 
 // add styleguide preview class when in iframe preview mode

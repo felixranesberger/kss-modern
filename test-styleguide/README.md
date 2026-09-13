@@ -42,6 +42,7 @@ the preview iframes only — not the styleguide UI shell.
 | `Wrapper` + `bodyclass` + `htmlclass` | 3.10 Card |
 | `Themes` dropdown (alone / beside Preview+Design tabs) | 3.10 Card / 3.70 Hero |
 | Global `themes` dropdown in the header (`index.ts` config) | every section; `html.theme-*` hooks in 1.1 |
+| Theme delivered as its own stylesheet (`themes[].css`) | Forest, `themes/forest.css` (not imported by `styles.css`) |
 | Simple JS (accordion / modal / tabs) | 3.40 / 3.50 / 3.60 |
 | Legacy `<insert-vite-pug>` (bare / modifierClass / next-line) | 4.10.1 / 4.10.2 / 4.10.3 |
 | `<insert-markup>` (bare / trailing-dash / modifier-index) | 4.20.20 / 4.20.30 / 4.20.40 |
