@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0](https://github.com/felixranesberger/kss-modern/compare/v1.5.0...v1.6.0) (2026-09-13)
+
+### Deprecations
+
+* `theme` is renamed to `brandColor` and `themes` to `previewThemes` — `theme` never had anything to do with the preview themes it sat next to: it is the accent colour behind `<meta name="theme-color">`, the generated favicons and the styleguide UI's highlight, so the old pair of names collided on a distinction that was never real. Both old names keep working and are mapped onto the new ones with a one-time warning per option, and both are marked `@deprecated` in the types; they will be removed in the next major ([7305a15](https://github.com/felixranesberger/kss-modern/commit/7305a15))
+
+### Features
+
+* add `reloadPreviewsOnThemeChange` — by default a theme change is swapped into the loaded preview document, which is instant and keeps the preview's state but does not re-run the preview's own JavaScript, so a component that reads styling once at startup (measuring, canvas or chart rendering, a web component snapshotting tokens on connect) keeps the old theme's values. With the option on, the preview iframe is reloaded instead and applies the theme as it loads. Only previews whose effective theme actually changed are reloaded, so a section with its own override is left alone when the global theme changes, and the initial page load never reloads — the previews are already fetching and the restored theme is applied in place ([7305a15](https://github.com/felixranesberger/kss-modern/commit/7305a15))
+
 ## [1.5.0](https://github.com/felixranesberger/kss-modern/compare/v1.4.0...v1.5.0) (2026-09-13)
 
 ### Features
