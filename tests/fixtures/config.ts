@@ -1,12 +1,18 @@
-import type { StyleguideConfiguration } from '../../lib/index.ts'
+import type { ResolvedStyleguideConfiguration } from '../../lib/index.ts'
 
-export function createMinimalConfig(overrides: Partial<StyleguideConfiguration> = {}): StyleguideConfiguration {
+/**
+ * A resolved configuration — the shape everything past `resolveConfiguration` works with, and so
+ * the one the templates take. Tests for the deprecated `theme` / `themes` aliases go through
+ * `resolveConfiguration` itself rather than through here.
+ */
+export function createMinimalConfig(overrides: Partial<ResolvedStyleguideConfiguration> = {}): ResolvedStyleguideConfiguration {
   return {
     mode: 'production',
     outDir: 'styleguide-export',
     contentDir: 'example-styleguide/',
     projectTitle: 'Test Styleguide',
-    theme: '#3F5E5A',
+    brandColor: '#3F5E5A',
+    previewThemes: [],
     html: {
       lang: 'en',
       assets: {

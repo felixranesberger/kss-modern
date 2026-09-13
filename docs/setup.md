@@ -18,7 +18,7 @@ await buildStyleguide({
   outDir: './styleguide',
   contentDir: './src/sass/',
   projectTitle: 'My Design System',
-  theme: '#005075',
+  brandColor: '#005075',
   html: {
     lang: 'en',
     assets: {
@@ -41,7 +41,7 @@ This scans all `.css` and `.scss` files in `contentDir` for KSS comment blocks a
 | `outDir` | `string` | Output directory for the generated styleguide. |
 | `contentDir` | `` `${string}/` `` | Root directory containing your CSS/SCSS files. Must end with `/`. |
 | `projectTitle` | `string` | Project name displayed in the styleguide header. |
-| `theme` | `string \| { light: string, dark: string }` | Theme accent color as hex value. Pass an object to set separate light/dark mode colors. |
+| `brandColor` | `string \| { light: string, dark: string }` | The styleguide's accent colour as a hex value — it drives `<meta name="theme-color">`, the generated favicons and the UI highlight. Pass an object for separate light/dark values. Not a preview theme; those are [`previewThemes`](#optional-options). |
 | `html` | `object` | HTML configuration (see below). |
 
 ### `html` Options
@@ -79,7 +79,10 @@ Use `additionalAttributes` to add custom attributes like `type="module"` or `def
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `deactivateDarkMode` | `boolean` | `false` | Hides the color-scheme toggle (System/Light/Dark) in the styleguide UI. |
-| `themes` | `{ value: string, label: string, css?: string[] }[]` | `undefined` | Adds a global **Theme** dropdown to the header. Each entry is a theme class (or class list, e.g. `'theme-midnight'` or `'.theme-midnight.compact'`) that is added to the `<html>` of every preview while selected, plus its label and, optionally, `css` — stylesheets loaded into the previews on top of `html.assets.css` while the theme is selected. See [Global Theme](usage.md#global-theme). |
+| `previewThemes` | `{ value: string, label: string, css?: string[] }[]` | `undefined` | Adds a global **Theme** dropdown to the header. Each entry is a theme class (or class list, e.g. `'theme-midnight'` or `'.theme-midnight.compact'`) that is added to the `<html>` of every preview while selected, plus its label and, optionally, `css` — stylesheets loaded into the previews on top of `html.assets.css` while the theme is selected. See [Global Theme](usage.md#global-theme). |
+| `reloadPreviewsOnThemeChange` | `boolean` | `false` | Reload a preview iframe when its theme changes instead of swapping the classes and stylesheets into the loaded document. Turn it on when a preview's own JavaScript reads styling at startup and has to run again. See [Reloading previews](usage.md#reloading-previews-on-theme-change). |
+| `theme` | `string \| { light: string, dark: string }` | — | **Deprecated** — renamed to `brandColor`. Still accepted, with a warning. |
+| `themes` | `{ value: string, label: string, css?: string[] }[]` | `undefined` | **Deprecated** — renamed to `previewThemes`. Still accepted, with a warning. |
 | `launchInEditor` | `boolean \| { rootDir: string }` | `undefined` | Enables "Open in Editor" links (VSCode/PHPStorm). Set `rootDir` to the project root for correct file paths. |
 | `logoSignet` | `{ href: string } \| { svgContent: string }` | `undefined` | Logo displayed in the header. Provide either an image URL or inline SVG content. |
 | `plugins.ogImage` | `(section) => string` | `undefined` | Function that returns an OG image URL for each section (used in fullpage meta tags). |
@@ -98,11 +101,11 @@ await buildStyleguide({
   launchInEditor: {
     rootDir: '/absolute/path/to/project/',
   },
-  theme: {
+  brandColor: {
     light: '#005075',
     dark: '#ffffff',
   },
-  themes: [
+  previewThemes: [
     { value: 'theme-midnight', label: 'Midnight', css: ['/themes/midnight.css'] },
     { value: 'theme-sunrise', label: 'Sunrise' },
   ],
@@ -140,7 +143,7 @@ await watchStyleguide(
     outDir: './styleguide-export',
     contentDir: './src/sass/',
     projectTitle: 'My Design System',
-    theme: '#005075',
+    brandColor: '#005075',
     html: { lang: 'en', assets: { css: [], js: [] } },
   },
   () => console.log('Styleguide rebuilt'),
@@ -159,7 +162,7 @@ await watchStyleguide({
   outDir: './styleguide-export',
   contentDir: './src/sass/',
   projectTitle: 'My Design System',
-  theme: '#005075',
+  brandColor: '#005075',
   html: { lang: 'en', assets: { css: [], js: [] } },
 })
 

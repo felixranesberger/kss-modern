@@ -78,10 +78,10 @@ describe('build pipeline', () => {
     const markerPath = path.join(assetsDir, '.kss-modern-assets')
     const canaryPath = path.join(assetsDir, 'canary.txt')
 
-    const build = (theme: string) => buildStyleguide(createMinimalConfig({
+    const build = (brandColor: string) => buildStyleguide(createMinimalConfig({
       outDir: assetsTmpDir,
       contentDir: 'tests/fixtures/build-content/',
-      theme,
+      brandColor,
     }))
 
     beforeAll(async () => {
@@ -96,8 +96,8 @@ describe('build pipeline', () => {
 
     /**
      * The stylesheet part of the build id is a token replaced when the library is
-     * bundled, so running against source it stays literal. Only the theme is
-     * asserted here; that the id changes with the assets is covered by the
+     * bundled, so running against source it stays literal. Only the brand colour
+     * is asserted here; that the id changes with the assets is covered by the
      * leftover-version case below, which does not depend on the replacement.
      */
     it('records which assets the output directory holds', async () => {
@@ -114,7 +114,7 @@ describe('build pipeline', () => {
       expect(await fs.exists(canaryPath)).toBe(true)
     }, 60_000)
 
-    it('copies again when the theme changed, so favicons are regenerated', async () => {
+    it('copies again when the brand colour changed, so favicons are regenerated', async () => {
       await fs.writeFile(canaryPath, 'should be replaced')
 
       await build('#112233')

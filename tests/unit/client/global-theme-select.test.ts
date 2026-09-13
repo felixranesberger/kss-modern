@@ -192,3 +192,69 @@ describe('global and section theme together', () => {
     expect(rootClasses(alert)).toEqual(['theme-midnight'])
   })
 })
+
+describe('reloadPreviewsOnThemeChange', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.removeAttribute('data-reload-previews-on-theme-change')
+  })
+
+  function trackReloads(iframes: HTMLIFrameElement[]) {
+    const reloaded: HTMLIFrameElement[] = []
+    for (const iframe of iframes) {
+      Object.defineProperty(iframe, 'contentWindow', {
+        configurable: true,
+        value: { location: { reload: () => reloaded.push(iframe) } },
+      })
+    }
+    return reloaded
+  }
+
+  it('reloads every repainted preview when the shell opts in', () => {
+    document.documentElement.setAttribute('data-reload-previews-on-theme-change', '')
+    const { globalSelect, card, alert } = renderPage()
+    const reloaded = trackReloads([...card, alert])
+    initGlobalThemeSelect(globalSelect)
+
+    selectTheme(globalSelect, 'theme-midnight')
+
+    expect(reloaded).toEqual([...card, alert])
+    // the reloading document applies the theme itself, off the attribute already written
+    expect(alert.getAttribute('data-theme-class')).toBe('theme-midnight')
+  })
+
+  it('swaps in place, without reloading, when the shell does not opt in', () => {
+    const { globalSelect, card, alert } = renderPage()
+    const reloaded = trackReloads([...card, alert])
+    initGlobalThemeSelect(globalSelect)
+
+    selectTheme(globalSelect, 'theme-midnight')
+
+    expect(reloaded).toEqual([])
+    expect(rootClasses(alert)).toEqual(['theme-midnight'])
+  })
+
+  it('never reloads on the initial restore, only on a visitor change', () => {
+    document.documentElement.setAttribute('data-reload-previews-on-theme-change', '')
+    localStorage.setItem(STORAGE_KEY, 'theme-sunrise')
+    const { globalSelect, card, alert } = renderPage()
+    const reloaded = trackReloads([...card, alert])
+
+    initGlobalThemeSelect(globalSelect)
+
+    expect(reloaded).toEqual([])
+    expect(rootClasses(alert)).toEqual(['theme-sunrise'])
+  })
+
+  it('reloads only the section that changed, not the whole page', () => {
+    document.documentElement.setAttribute('data-reload-previews-on-theme-change', '')
+    const { globalSelect, sectionSelect, card, alert } = renderPage()
+    const reloaded = trackReloads([...card, alert])
+    initGlobalThemeSelect(globalSelect)
+    initSectionThemeSelects([sectionSelect])
+
+    selectTheme(sectionSelect, 'theme-sunrise')
+
+    expect(reloaded).toEqual(card)
+  })
+})

@@ -28,11 +28,11 @@ await buildStyleguide({
       js: [],
     },
   },
-  theme: {
+  brandColor: {
     light: '#005075',
     dark: '#ffffff',
   },
-  themes: [
+  previewThemes: [
     { value: 'theme-midnight', label: 'Midnight', css: ['/e2e-theme-midnight.css'] },
     { value: 'theme-sunrise', label: 'Sunrise' },
   ],

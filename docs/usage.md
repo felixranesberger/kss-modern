@@ -413,14 +413,21 @@ Three-way toggle: **System**, **Light**, **Dark**. The preference is persisted i
 
 ### Global Theme
 
-When the configuration declares [`themes`](setup.md#optional-options), the header shows a **Theme** dropdown next to the color-scheme toggle:
+When the configuration declares [`previewThemes`](setup.md#optional-options), the header shows a **Theme** dropdown next to the color-scheme toggle:
 
 ```ts
-themes: [
-  { value: 'theme-midnight', label: 'Midnight' },
-  { value: 'theme-sunrise', label: 'Sunrise' },
-],
+buildStyleguide({
+  // ...
+  previewThemes: [
+    { value: 'theme-midnight', label: 'Midnight' },
+    { value: 'theme-sunrise', label: 'Sunrise' },
+  ],
+})
 ```
+
+> **Naming.** `previewThemes` are the theme contexts the previews can be shown in. They are unrelated
+> to `brandColor` (the styleguide's own accent colour, once called `theme`) and to the
+> System/Light/Dark [colour-scheme toggle](#color-scheme-toggle).
 
 Selecting a theme adds its classes to the `<html>` element of every preview iframe on the page — the same mechanism as a section's [`Themes`](#themes) dropdown, applied styleguide-wide — so the whole styleguide can be browsed in a themed variant. **Default** restores the unthemed previews.
 
@@ -434,14 +441,17 @@ Selecting a theme adds its classes to the `<html>` element of every preview ifra
 When a theme needs more than a class can express — a separate token file, a vendor theme build — give it `css`:
 
 ```ts
-themes: [
-  {
-    value: '.theme-midnight',
-    label: 'Midnight',
-    css: ['/themes/midnight.css'],
-  },
-  { value: '.theme-sunrise', label: 'Sunrise' },
-],
+buildStyleguide({
+  // ...
+  previewThemes: [
+    {
+      value: '.theme-midnight',
+      label: 'Midnight',
+      css: ['/themes/midnight.css'],
+    },
+    { value: '.theme-sunrise', label: 'Sunrise' },
+  ],
+})
 ```
 
 Those stylesheets are **layered on top of** [`html.assets.css`](setup.md#html-options), never in place of it: the base CSS always loads, and the theme's files load after it so its rules win. Paths are resolved exactly like any other asset `src`, so the file has to be reachable from the styleguide output.
@@ -450,6 +460,30 @@ Those stylesheets are **layered on top of** [`html.assets.css`](setup.md#html-op
 - The CSS is keyed on the theme's **class list**, so a section's [`Themes`](#themes) entry picks up the same stylesheets as soon as it resolves to the same classes — `.theme-midnight` in the config and `.theme-midnight` in the KSS comment. A section theme matching no configured entry simply loads no extra CSS.
 - A theme without `css` is classes only, exactly as before — and selecting it deactivates any other theme's stylesheets.
 - A standalone fullpage opened with `?theme=` activates the matching stylesheets itself.
+
+#### Reloading previews on theme change
+
+By default a theme change is swapped into the loaded preview document: classes on `<html>`, themed
+stylesheets on or off. That is instant and keeps the preview's state, but it does **not** re-run the
+preview's own JavaScript. If a component reads styling once at startup — measuring, canvas or chart
+rendering, a web component that snapshots tokens on connect — it keeps the old theme's values.
+
+Set `reloadPreviewsOnThemeChange` for those styleguides:
+
+```ts
+buildStyleguide({
+  // ...
+  reloadPreviewsOnThemeChange: true,
+})
+```
+
+The preview iframe is then reloaded instead, and applies the theme as it loads.
+
+- Only previews whose effective theme actually changed are reloaded — a section with its own
+  override is left alone when the global theme changes.
+- The initial page load never reloads: previews are already fetching, and the restored theme is
+  applied in place.
+- It is a styleguide-wide setting, not a per-theme one.
 
 ### Section Themes
 

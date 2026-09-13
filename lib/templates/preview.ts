@@ -1,4 +1,4 @@
-import type { StyleguideConfiguration } from '../index.ts'
+import type { ResolvedStyleguideConfiguration } from '../index.ts'
 import type { in2SecondLevelSection, in2Section, ThemeOption } from '../parser.ts'
 import path from 'node:path'
 import process from 'node:process'
@@ -23,7 +23,7 @@ function getHasSectionExternalFullpage(section: in2Section) {
     && (section.colors === undefined || section.colors.length === 0)
 }
 
-function getLogoContent(config: StyleguideConfiguration) {
+function getLogoContent(config: ResolvedStyleguideConfiguration) {
   if (!config.logoSignet)
     return config.projectTitle
 
@@ -46,7 +46,7 @@ function getLogoContent(config: StyleguideConfiguration) {
   return signetContent
 }
 
-export function getHeaderHtml(config: StyleguideConfiguration) {
+export function getHeaderHtml(config: ResolvedStyleguideConfiguration) {
   return `
 <header class="sticky top-0 z-10 mx-auto flex w-full min-[1222px]:border-x border-b pr-6 max-w-[1600px] border-styleguide-border bg-styleguide-bg-highlight">
     <a
@@ -78,7 +78,7 @@ export function getHeaderHtml(config: StyleguideConfiguration) {
         </button>
 
         <div class="flex gap-4">
-          ${config.themes?.length ? renderGlobalThemeSelect(config.themes) : ''}
+          ${config.previewThemes.length > 0 ? renderGlobalThemeSelect(config.previewThemes) : ''}
           ${config.mode === 'development' && config.launchInEditor
             ? `
               <form class="hidden editor-select md:block">
@@ -285,7 +285,7 @@ function renderTab(data: Tab[], aside = '') {
   `
 }
 
-type ThemeSelectOption = NonNullable<StyleguideConfiguration['themes']>[number]
+type ThemeSelectOption = ResolvedStyleguideConfiguration['previewThemes'][number]
 
 /**
  * A theme dropdown. Option values are normalised class lists (see `themeClassList`); the empty
@@ -337,7 +337,7 @@ function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
   )
 }
 
-export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: StyleguideConfiguration) {
+export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: ResolvedStyleguideConfiguration) {
   let output = ''
 
   function renderSection(section: in2Section) {
@@ -448,7 +448,7 @@ ${html ?? ''}
   `
 }
 
-function getMainContentRegular(section: in2Section, config: StyleguideConfiguration): string {
+function getMainContentRegular(section: in2Section, config: ResolvedStyleguideConfiguration): string {
   // the section's source for the code views — without the dev-only pug compile-error overlay
   const sourceCode = stripPugErrorOverlay(section.markup)
 
@@ -1000,8 +1000,8 @@ export async function generatePreviewFile(data: {
     description?: string
     lang: string
   }
-  css: StyleguideConfiguration['html']['assets']['css']
-  js: StyleguideConfiguration['html']['assets']['js']
+  css: ResolvedStyleguideConfiguration['html']['assets']['css']
+  js: ResolvedStyleguideConfiguration['html']['assets']['js']
   html: {
     header: string
     sidebarMenu: string
@@ -1012,8 +1012,9 @@ export async function generatePreviewFile(data: {
     alerts: string
     preloadIframes: string[]
   }
-  theme: StyleguideConfiguration['theme']
+  brandColor: ResolvedStyleguideConfiguration['brandColor']
   deactivateDarkMode?: boolean
+  reloadPreviewsOnThemeChange?: boolean
   ogImageUrl?: string
 }) {
   const computedScriptTags = data.js
@@ -1037,7 +1038,7 @@ export async function generatePreviewFile(data: {
 
   const content = `
 <!DOCTYPE html>
-<html lang="${data.page.lang}" class="scroll-smooth">
+<html lang="${data.page.lang}" class="scroll-smooth"${data.reloadPreviewsOnThemeChange ? ' data-reload-previews-on-theme-change' : ''}>
 <head>
     <title>${sanitizeSpecialCharacters(data.page.title)}</title>
     ${data.page.description && shouldRenderMetaDescription ? `<meta name="description" content="${data.page.description.replaceAll(`'`, '').replaceAll(`"`, '')}">` : ''}
@@ -1046,12 +1047,12 @@ export async function generatePreviewFile(data: {
     <meta name="generator" content="styleguide">
     <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/preview.svg">
     ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
-    ${typeof data.theme === 'object' && 'dark' in data.theme && 'light' in data.theme
+    ${typeof data.brandColor === 'object' && 'dark' in data.brandColor && 'light' in data.brandColor
       ? `
-          <meta name="theme-color" media="(prefers-color-scheme: light)" content="${data.theme.light}">
-          <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.theme.dark}">
+          <meta name="theme-color" media="(prefers-color-scheme: light)" content="${data.brandColor.light}">
+          <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.brandColor.dark}">
       `
-      : `<meta name="theme-color" content="${data.theme}">`}
+      : `<meta name="theme-color" content="${data.brandColor}">`}
     <link rel="stylesheet" type="text/css" href="/styleguide-assets/__STYLEGUIDE_CSS__">
     __STYLEGUIDE_PREVIEW_INLINE__
     <script type="module" src="/styleguide-assets/__STYLEGUIDE_PREVIEW_JS__"></script>
@@ -1064,7 +1065,7 @@ export async function generatePreviewFile(data: {
     ${computedStyleTags}
     <style>
         :root {
-            --styleguide-color-theme-highlight: ${typeof data.theme === 'string' ? data.theme : `light-dark(${data.theme.light}, ${data.theme.dark})`};
+            --styleguide-color-theme-highlight: ${typeof data.brandColor === 'string' ? data.brandColor : `light-dark(${data.brandColor.light}, ${data.brandColor.dark})`};
         }
     </style>
 </head>

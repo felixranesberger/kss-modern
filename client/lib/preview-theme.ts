@@ -43,11 +43,20 @@ const SECTION_THEME_SELECT_SELECTOR = '[data-section-theme-select]'
 const FULLPAGE_LINK_SELECTOR = 'a[href^="/fullpage-"]'
 
 /**
+ * Set by the `reloadPreviewsOnThemeChange` styleguide option. With it, a theme change reloads the
+ * preview instead of swapping classes and stylesheets into the loaded document, so the preview's
+ * own scripts run again against the new theme.
+ */
+function shouldReloadPreviews(): boolean {
+  return document.documentElement.hasAttribute('data-reload-previews-on-theme-change')
+}
+
+/**
  * Swap the theme on a preview iframe's own document — classes plus any themed stylesheets.
  * The class list currently applied is recorded in `data-theme-class`, which is also what a
- * reloading preview reads back (`client/fullpage.ts`).
+ * reloading preview reads back (`client/fullpage.ts`), so `reload` needs no further handover.
  */
-export function applyPreviewThemeClass(iframe: HTMLIFrameElement, themeClass: string): void {
+export function applyPreviewThemeClass(iframe: HTMLIFrameElement, themeClass: string, reload = false): void {
   const previous = iframe.getAttribute(THEME_CLASS_ATTRIBUTE) ?? ''
   if (previous === themeClass)
     return
@@ -57,9 +66,23 @@ export function applyPreviewThemeClass(iframe: HTMLIFrameElement, themeClass: st
   else
     iframe.removeAttribute(THEME_CLASS_ATTRIBUTE)
 
+  if (reload) {
+    // the fresh document applies the theme itself, off the attribute just written
+    reloadPreview(iframe)
+    return
+  }
+
   const doc = iframe.contentDocument
   if (doc)
     applyThemeToDocument(doc, themeClass, previous)
+}
+
+function reloadPreview(iframe: HTMLIFrameElement): void {
+  // same-origin, so a real reload is available; re-setting the src is the fallback
+  if (iframe.contentWindow)
+    iframe.contentWindow.location.reload()
+  else
+    iframe.setAttribute('src', iframe.src)
 }
 
 /** Reflect a theme in an "Open in fullpage" link via `?theme=`; the empty theme drops the parameter. */
@@ -88,10 +111,15 @@ function getEffectiveThemeClass(section: Element | null): string {
   return sectionSelect?.value || globalSelect?.value || ''
 }
 
-/** Paint the effective theme onto every preview iframe and fullpage link under `scope`. */
-export function applyThemeClasses(scope: ParentNode = document): void {
+/**
+ * Paint the effective theme onto every preview iframe and fullpage link under `scope`.
+ *
+ * `reload` is passed only for a visitor-driven change, never for the initial restore: on load the
+ * previews are already fetching, and reloading them would double every request for no gain.
+ */
+export function applyThemeClasses(scope: ParentNode = document, reload = false): void {
   scope.querySelectorAll<HTMLIFrameElement>(PREVIEW_IFRAME_SELECTOR).forEach((iframe) => {
-    applyPreviewThemeClass(iframe, getEffectiveThemeClass(iframe.closest(SECTION_SELECTOR)))
+    applyPreviewThemeClass(iframe, getEffectiveThemeClass(iframe.closest(SECTION_SELECTOR)), reload)
   })
 
   scope.querySelectorAll<HTMLAnchorElement>(FULLPAGE_LINK_SELECTOR).forEach((link) => {
@@ -133,6 +161,6 @@ export function initThemeSelect(select: HTMLSelectElement, storageKey: string, s
 
   select.addEventListener('change', () => {
     writeStoredTheme(storageKey, select.value)
-    applyThemeClasses(scope)
+    applyThemeClasses(scope, shouldReloadPreviews())
   })
 }

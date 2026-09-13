@@ -29,40 +29,62 @@ import { watchStyleguideForChanges } from './watcher.ts'
 
 export { createLogger, type LogBox, type Logger, logger } from './logger.ts'
 
-export interface StyleguideConfiguration {
+/** The styleguide's accent colour: one value, or one per color scheme. */
+export type StyleguideBrandColor = string | {
+  light: string
+  dark: string
+}
+
+/**
+ * One entry of the header's **Theme** dropdown — an alternative theme context the previews can be
+ * shown in, not a color scheme (that is the separate System/Light/Dark toggle).
+ */
+export interface PreviewTheme {
+  /**
+   * The theme's class or class list — `'theme-midnight'`, `'.theme-midnight.compact'` — added to
+   * the `<html>` of every preview iframe while the theme is selected.
+   */
+  value: string
+  /** The label shown in the dropdown. */
+  label: string
+  /**
+   * Stylesheets loaded into a preview while this theme is selected, layered on top of
+   * `html.assets.css` (they are never replaced). Every preview document carries a `<link>` for
+   * each of these from the start — inert until the theme is selected — so switching costs no
+   * request and shows no flash.
+   *
+   * The CSS is keyed on the theme's class list, so a section's `Themes:` entry gets the same
+   * stylesheets as soon as it resolves to the same classes (`.theme-midnight` here and in the
+   * KSS comment); a section theme that matches no configured entry simply loads no extra CSS.
+   */
+  css?: string[]
+}
+
+/** Every styleguide option except the accent colour, which carries the deprecated `theme` alias. */
+interface StyleguideOptions {
   mode: 'development' | 'production'
   outDir: string
   contentDir: `${string}/`
   projectTitle: string
   deactivateDarkMode?: boolean
-  /**
-   * Themes offered by the header's global **Theme** dropdown. Each entry is a theme class (or class
-   * list — `'theme-midnight'`, `'.theme-midnight.compact'`) that is added to the `<html>` of every
-   * preview iframe while selected, plus the label shown in the dropdown. A section's own `Themes:`
-   * dropdown overrides the global theme for that section.
-   */
-  themes?: {
-    value: string
-    label: string
-    /**
-     * Stylesheets loaded into a preview while this theme is selected, layered on top of
-     * `html.assets.css` (they are never replaced). Every preview document carries a `<link>` for
-     * each of these from the start — inert until the theme is selected — so switching costs no
-     * request and shows no flash.
-     *
-     * The CSS is keyed on the theme's class list, so a section's `Themes:` entry gets the same
-     * stylesheets as soon as it resolves to the same classes (`.theme-midnight` here and in the
-     * KSS comment); a section theme that matches no configured entry simply loads no extra CSS.
-     */
-    css?: string[]
-  }[]
   launchInEditor?: boolean | {
     rootDir: string
   }
-  theme: string | {
-    light: string
-    dark: string
-  }
+  /** The themes offered by the header's **Theme** dropdown. */
+  previewThemes?: PreviewTheme[]
+  /** @deprecated Renamed to `previewThemes`, to tell it apart from `brandColor`. */
+  themes?: PreviewTheme[]
+  /**
+   * Reload a preview iframe when its theme changes, instead of swapping the theme's classes and
+   * stylesheets into the loaded document.
+   *
+   * Off by default: the in-place swap is instant and keeps the preview's state. Turn it on when a
+   * preview's own JavaScript reads styling at startup — components that measure, canvas/chart
+   * rendering, web components that snapshot tokens on connect — and so needs to run again against
+   * the new theme. A preview is reloaded only when the visitor actually changes a theme, never on
+   * the initial page load.
+   */
+  reloadPreviewsOnThemeChange?: boolean
   logoSignet?: {
     href: string
   } | {
@@ -84,6 +106,70 @@ export interface StyleguideConfiguration {
   }
   plugins?: {
     ogImage?: (section: in2Section) => string
+  }
+}
+
+/**
+ * The styleguide configuration. The accent colour is required under one of its two names:
+ * `brandColor`, or the deprecated `theme`.
+ *
+ * `theme` never had anything to do with the preview themes; it is the colour behind
+ * `<meta name="theme-color">`, the generated favicons and the styleguide UI's highlight — hence
+ * the rename, which also ends its collision with `themes` / `previewThemes`.
+ */
+export type StyleguideConfiguration =
+  | (StyleguideOptions & { brandColor: StyleguideBrandColor, theme?: never })
+  | (StyleguideOptions & {
+    /** @deprecated Renamed to `brandColor` — this is the accent colour, not a preview theme. */
+    theme: StyleguideBrandColor
+    brandColor?: never
+  })
+
+/**
+ * A configuration with the deprecated aliases resolved away. Everything past
+ * {@link resolveConfiguration} works with this, so no internal code has to know about the old names.
+ */
+export interface ResolvedStyleguideConfiguration extends StyleguideOptions {
+  brandColor: StyleguideBrandColor
+  previewThemes: PreviewTheme[]
+}
+
+const warnedDeprecations = new Set<string>()
+
+function warnDeprecatedOption(deprecated: string, replacement: string): void {
+  if (warnedDeprecations.has(deprecated))
+    return
+
+  warnedDeprecations.add(deprecated)
+  logger.warn(`\`${deprecated}\` is deprecated and will be removed in the next major — rename it to \`${replacement}\`.`)
+}
+
+/**
+ * Resolve the deprecated `theme` / `themes` aliases into `brandColor` / `previewThemes`, warning
+ * once per option. Idempotent, so the public entry points can each call it without re-warning.
+ */
+export function resolveConfiguration(config: StyleguideConfiguration | ResolvedStyleguideConfiguration): ResolvedStyleguideConfiguration {
+  const { theme, themes, ...options } = config as StyleguideOptions & {
+    brandColor?: StyleguideBrandColor
+    theme?: StyleguideBrandColor
+    previewThemes?: PreviewTheme[]
+    themes?: PreviewTheme[]
+  }
+
+  if (theme !== undefined)
+    warnDeprecatedOption('theme', 'brandColor')
+
+  if (themes !== undefined)
+    warnDeprecatedOption('themes', 'previewThemes')
+
+  const brandColor = options.brandColor ?? theme
+  if (brandColor === undefined)
+    throw new Error('Styleguide configuration is missing `brandColor` (the styleguide accent colour).')
+
+  return {
+    ...options,
+    brandColor,
+    previewThemes: options.previewThemes ?? themes ?? [],
   }
 }
 
@@ -204,7 +290,7 @@ function buildNavigationMappings(parsedContent: in2FirstLevelSection[]): {
  * Write a section's fullpage HTML file. Render failures are logged and swallowed so a single bad
  * section never aborts the build of all the others.
  */
-async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory: string, section: in2Section): Promise<void> {
+async function writeFullPageFile(config: ResolvedStyleguideConfiguration, baseDirectory: string, section: in2Section): Promise<void> {
   if (section.markup === undefined || section.markup.length === 0)
     return
 
@@ -226,9 +312,9 @@ async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory:
       },
       css: config.html.assets.css,
       js: config.html.assets.js,
-      themes: config.themes,
+      previewThemes: config.previewThemes,
       html: htmlMarkup,
-      theme: config.theme,
+      brandColor: config.brandColor,
       deactivateDarkMode: config.deactivateDarkMode,
       ogImageUrl: config.plugins?.ogImage
         ? config.plugins.ogImage(section)
@@ -241,7 +327,7 @@ async function writeFullPageFile(config: StyleguideConfiguration, baseDirectory:
 }
 
 function writePreviewFile(
-  config: StyleguideConfiguration,
+  config: ResolvedStyleguideConfiguration,
   context: StyleguideContext,
   firstLevelIndex: number,
   secondLevelIndex: number,
@@ -307,8 +393,9 @@ function writePreviewFile(
       alerts: getAlerts(),
       preloadIframes,
     },
-    theme: config.theme,
+    brandColor: config.brandColor,
     deactivateDarkMode: config.deactivateDarkMode,
+    reloadPreviewsOnThemeChange: config.reloadPreviewsOnThemeChange,
     ogImageUrl: config.plugins?.ogImage
       ? config.plugins.ogImage(secondLevelSection)
       : undefined,
@@ -344,7 +431,7 @@ function reindexInsertMarkupConsumer(context: StyleguideContext, id: string): vo
  * Parse the styleguide and compile all pug markup, producing the reusable context. Section nodes
  * are mutated to hold their final (compiled + insert-markup-resolved) markup, ready for writing.
  */
-async function buildContext(config: StyleguideConfiguration): Promise<StyleguideContext> {
+async function buildContext(config: ResolvedStyleguideConfiguration): Promise<StyleguideContext> {
   const { content: parsedContent, overwrittenSectionsIds } = await parseStyleguide(config.contentDir)
   const baseDirectory = path.relative(process.cwd(), config.outDir)
 
@@ -421,11 +508,11 @@ const ASSETS_MARKER_FILE = '.kss-modern-assets'
  *
  * The stylesheet filename is content-hashed and replaced at library build time,
  * so it changes exactly when the client bundle changes — which makes it a build
- * id that needs no version lookup. The theme is part of it because the favicons
- * are generated from it rather than copied.
+ * id that needs no version lookup. The brand colour is part of it because the
+ * favicons are generated from it rather than copied.
  */
-function getAssetsBuildId(theme: StyleguideConfiguration['theme']): string {
-  return `__STYLEGUIDE_CSS__\n${JSON.stringify(theme)}\n`
+function getAssetsBuildId(brandColor: ResolvedStyleguideConfiguration['brandColor']): string {
+  return `__STYLEGUIDE_CSS__\n${JSON.stringify(brandColor)}\n`
 }
 
 async function readAssetsBuildId(markerPath: string): Promise<string | undefined> {
@@ -447,7 +534,7 @@ async function readAssetsBuildId(markerPath: string): Promise<string | undefined
  * references content-hashed filenames, so assets left over from an older
  * kss-modern version satisfy the weaker test while every asset request 404s.
  */
-async function copyStyleguideAssets(config: StyleguideConfiguration): Promise<void> {
+async function copyStyleguideAssets(config: ResolvedStyleguideConfiguration): Promise<void> {
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = path.dirname(__filename)
 
@@ -464,7 +551,7 @@ async function copyStyleguideAssets(config: StyleguideConfiguration): Promise<vo
   const assetsDirectoryOutputPath = path.join(config.outDir, 'styleguide-assets')
   const markerPath = path.join(assetsDirectoryOutputPath, ASSETS_MARKER_FILE)
 
-  const expectedBuildId = getAssetsBuildId(config.theme)
+  const expectedBuildId = getAssetsBuildId(config.brandColor)
   const currentBuildId = await readAssetsBuildId(markerPath)
 
   if (currentBuildId === expectedBuildId) {
@@ -475,7 +562,7 @@ async function copyStyleguideAssets(config: StyleguideConfiguration): Promise<vo
   // leave every previous version's assets behind as orphans.
   await fs.remove(assetsDirectoryOutputPath)
   await fs.copy(assetsDirectoryPath, assetsDirectoryOutputPath)
-  await generateFaviconFiles(assetsDirectoryOutputPath, config.theme)
+  await generateFaviconFiles(assetsDirectoryOutputPath, config.brandColor)
   await fs.writeFile(markerPath, expectedBuildId)
 }
 
@@ -483,7 +570,9 @@ async function copyStyleguideAssets(config: StyleguideConfiguration): Promise<vo
  * Full build: parse, compile every section, and write all fullpage + preview files. Returns the
  * reusable context so the watcher can perform targeted incremental rebuilds afterwards.
  */
-export async function buildAll(config: StyleguideConfiguration): Promise<{ errors: StyleguideBuildOutput['errors'], context: StyleguideContext }> {
+export async function buildAll(input: StyleguideConfiguration | ResolvedStyleguideConfiguration): Promise<{ errors: StyleguideBuildOutput['errors'], context: StyleguideContext }> {
+  const config = resolveConfiguration(input)
+
   // ensure clean output directory and delete all html files
   if (config.mode === 'production' && await fs.exists(config.outDir)) {
     const files = await glob(`${config.outDir}/**/*.html`)
@@ -538,7 +627,7 @@ export async function buildStyleguide(config: StyleguideConfiguration): Promise<
  * `changedSectionIds` are the sections whose pug (or a dependency) changed.
  */
 export async function rebuildSections(
-  config: StyleguideConfiguration,
+  config: ResolvedStyleguideConfiguration,
   context: StyleguideContext,
   changedSectionIds: Iterable<string>,
 ): Promise<void> {
@@ -615,15 +704,17 @@ export type StyleguideChange
 
 /**
  * Builds the styleguide and watches for changes
- * @param config - The configuration for the styleguide
+ * @param input - The configuration for the styleguide
  * @param onChange - Optional callback invoked after each rebuild, with the change that triggered it
  * @param onError - Optional callback function to call when an error occurs while building the styleguide
  */
 export async function watchStyleguide(
-  config: StyleguideConfiguration,
+  input: StyleguideConfiguration | ResolvedStyleguideConfiguration,
   onChange?: (change: StyleguideChange) => void,
   onError?: (errorData: StyleguideBuildOutput['errors']) => void,
 ) {
+  const config = resolveConfiguration(input)
+
   const initialBuild = await buildAll(config)
   if (onError && initialBuild.errors) {
     onError(initialBuild.errors)

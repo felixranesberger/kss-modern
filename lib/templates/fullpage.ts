@@ -1,4 +1,4 @@
-import type { StyleguideConfiguration } from '../index.ts'
+import type { ResolvedStyleguideConfiguration } from '../index.ts'
 import { sanitizeSpecialCharacters, themeClassList } from '../shared.ts'
 import { logicalWriteFile } from '../utils.ts'
 
@@ -12,11 +12,11 @@ export async function generateFullPageFile(data: {
     htmlclass?: string
     bodyclass?: string
   }
-  css: StyleguideConfiguration['html']['assets']['css']
-  js: StyleguideConfiguration['html']['assets']['js']
-  themes?: StyleguideConfiguration['themes']
+  css: ResolvedStyleguideConfiguration['html']['assets']['css']
+  js: ResolvedStyleguideConfiguration['html']['assets']['js']
+  previewThemes?: ResolvedStyleguideConfiguration['previewThemes']
   html: string
-  theme: StyleguideConfiguration['theme']
+  brandColor: ResolvedStyleguideConfiguration['brandColor']
   deactivateDarkMode?: boolean
   ogImageUrl?: string
 }) {
@@ -43,7 +43,7 @@ export async function generateFullPageFile(data: {
   // (`client/lib/preview-theme.ts`, `client/fullpage.ts`). They sit after the regular stylesheets so
   // a theme layers on top, and start as `media="not all"`: the browser still downloads them but
   // applies nothing, so selecting a theme is an instant, request-free switch.
-  const computedThemeStyleTags = (data.themes ?? [])
+  const computedThemeStyleTags = (data.previewThemes ?? [])
     .flatMap(theme => (theme.css ?? []).map(src => ({ src, classList: themeClassList(theme.value) })))
     .filter(entry => entry.classList)
     .map(entry => `<link rel="stylesheet" type="text/css" href="${entry.src}" media="not all" data-theme-css="${sanitizeSpecialCharacters(entry.classList)}">`)
@@ -60,12 +60,12 @@ export async function generateFullPageFile(data: {
     <meta name="generator" content="styleguide">
     <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/fullpage.svg">
     ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
-    ${typeof data.theme === 'object' && 'dark' in data.theme && 'light' in data.theme
+    ${typeof data.brandColor === 'object' && 'dark' in data.brandColor && 'light' in data.brandColor
       ? `
-          <meta name="theme-color" media="(prefers-color-scheme: light)" content="${data.theme.light}">
-          <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.theme.dark}">
+          <meta name="theme-color" media="(prefers-color-scheme: light)" content="${data.brandColor.light}">
+          <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.brandColor.dark}">
       `
-      : `<meta name="theme-color" content="${data.theme}">`}
+      : `<meta name="theme-color" content="${data.brandColor}">`}
     <script type="module" src="/styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
     ${computedStyleTags}
     ${computedThemeStyleTags}

@@ -77,7 +77,7 @@ describe('getHeaderHtml', () => {
     ]
 
     it('renders a select with a default option and one option per configured theme', () => {
-      const html = getHeaderHtml(createMinimalConfig({ themes }))
+      const html = getHeaderHtml(createMinimalConfig({ previewThemes: themes }))
 
       expect(html).toContain('id="global-theme-select"')
       expect(html).toContain('data-global-theme-select')
@@ -86,22 +86,22 @@ describe('getHeaderHtml', () => {
     })
 
     it('normalises class lists to option values and escapes labels', () => {
-      const html = getHeaderHtml(createMinimalConfig({ themes }))
+      const html = getHeaderHtml(createMinimalConfig({ previewThemes: themes }))
       expect(html).toContain('<option value="theme-a compact">A &lt;compact&gt;</option>')
     })
 
     it('does not mark the header select as a section dropdown', () => {
-      const html = getHeaderHtml(createMinimalConfig({ themes }))
+      const html = getHeaderHtml(createMinimalConfig({ previewThemes: themes }))
       expect(html).not.toContain('data-section-theme-select')
     })
 
     it('omits the dropdown without configured themes', () => {
       expect(getHeaderHtml(createMinimalConfig())).not.toContain('data-global-theme-select')
-      expect(getHeaderHtml(createMinimalConfig({ themes: [] }))).not.toContain('data-global-theme-select')
+      expect(getHeaderHtml(createMinimalConfig({ previewThemes: [] }))).not.toContain('data-global-theme-select')
     })
 
     it('renders independently of the color-scheme toggle', () => {
-      const html = getHeaderHtml(createMinimalConfig({ themes, deactivateDarkMode: true }))
+      const html = getHeaderHtml(createMinimalConfig({ previewThemes: themes, deactivateDarkMode: true }))
       expect(html).toContain('data-global-theme-select')
       expect(html).not.toContain('Select a display theme')
     })

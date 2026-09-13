@@ -28,8 +28,8 @@ function createBaseData() {
       { src: '/scripts/main.js' },
     ] as { type?: 'regular' | 'overwriteStyleguide', src: string, additionalAttributes?: Record<string, string> }[],
     html: '<div>Hello</div>',
-    theme: '#3F5E5A' as string | { light: string, dark: string },
-    themes: undefined as { value: string, label: string, css?: string[] }[] | undefined,
+    brandColor: '#3F5E5A' as string | { light: string, dark: string },
+    previewThemes: undefined as { value: string, label: string, css?: string[] }[] | undefined,
   }
 }
 
@@ -155,14 +155,14 @@ describe('generateFullPageFile', () => {
 
   it('renders theme-color meta tag for string theme', async () => {
     const data = createBaseData()
-    data.theme = '#FF0000'
+    data.brandColor = '#FF0000'
     await generateFullPageFile(data)
     expect(capturedContent).toContain('<meta name="theme-color" content="#FF0000">')
   })
 
   it('renders favicon link and per-color-scheme theme-color for object theme (light/dark)', async () => {
     const data = createBaseData()
-    data.theme = { light: '#FFFFFF', dark: '#000000' }
+    data.brandColor = { light: '#FFFFFF', dark: '#000000' }
     await generateFullPageFile(data)
     expect(capturedContent).toContain('href="/styleguide-assets/favicon/fullpage.svg"')
     expect(capturedContent).toContain('<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">')
@@ -195,7 +195,7 @@ describe('themed stylesheets', () => {
 
   it('emits one inert link per themed stylesheet, keyed on the theme class list', async () => {
     const data = createBaseData()
-    data.themes = themes
+    data.previewThemes = themes
     await generateFullPageFile(data)
 
     expect(capturedContent).toContain('<link rel="stylesheet" type="text/css" href="/themes/midnight.css" media="not all" data-theme-css="theme-midnight">')
@@ -205,7 +205,7 @@ describe('themed stylesheets', () => {
 
   it('layers themed stylesheets after the regular ones', async () => {
     const data = createBaseData()
-    data.themes = themes
+    data.previewThemes = themes
     await generateFullPageFile(data)
 
     expect(capturedContent.indexOf('/styles/main.css')).toBeLessThan(capturedContent.indexOf('/themes/midnight.css'))
@@ -213,7 +213,7 @@ describe('themed stylesheets', () => {
 
   it('emits nothing for a theme without css, or without configured themes', async () => {
     const data = createBaseData()
-    data.themes = themes
+    data.previewThemes = themes
     await generateFullPageFile(data)
     expect(capturedContent).not.toContain('theme-plain')
 
@@ -223,7 +223,7 @@ describe('themed stylesheets', () => {
 
   it('does not disturb the regular stylesheets', async () => {
     const data = createBaseData()
-    data.themes = themes
+    data.previewThemes = themes
     await generateFullPageFile(data)
     expect(capturedContent).toContain('<link rel="stylesheet" type="text/css" href="/styles/main.css">')
   })

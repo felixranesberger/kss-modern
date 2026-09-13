@@ -46,11 +46,11 @@ async function copyContentAssets(): Promise<void> {
     launchInEditor: {
       rootDir: '/Users/franesberger/Documents/workspace/styleguide-rewrite/',
     },
-    theme: {
+    brandColor: {
       light: '#2563eb',
       dark: '#ffffff',
     },
-    themes: [
+    previewThemes: [
       // Midnight and Sunrise are class-only (tokens live in css/01-settings/colors.css);
       // Forest ships as its own stylesheet, linked into the previews and applied on selection
       { value: 'theme-midnight', label: 'Midnight' },
