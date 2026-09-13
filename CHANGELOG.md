@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.0](https://github.com/felixranesberger/kss-modern/compare/v1.4.0...v1.5.0) (2026-09-13)
+
+### Features
+
+* load per-theme stylesheets into the previews via `themes[].css` — a `themes` entry may now carry a list of stylesheets that are loaded into every preview while that theme is selected, for themes that need more than a class can express (a separate token file, a vendor theme build). They are layered on top of `html.assets.css` and never replace it: the base CSS always loads, the theme's files load after it so its rules win. Every preview document carries a `<link>` for each themed stylesheet from the start, parked at `media="not all"`, so the browser downloads them up front but applies nothing — switching themes costs no request and shows no flash. The CSS is keyed on the theme's class list rather than on the dropdown that selected it, so a section's `Themes:` entry picks up the same stylesheets as soon as it resolves to the same classes, and a standalone fullpage opened with `?theme=` activates them itself; a section theme matching no configured entry loads no extra CSS, and a theme without `css` stays classes-only ([41f9e26](https://github.com/felixranesberger/kss-modern/commit/41f9e26))
+
 ## [1.4.0](https://github.com/felixranesberger/kss-modern/compare/v1.3.0...v1.4.0) (2026-09-13)
 
 ### Features
