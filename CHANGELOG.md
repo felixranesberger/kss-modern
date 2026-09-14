@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.6.0](https://github.com/felixranesberger/kss-modern/compare/v1.5.0...v1.6.0) (2026-09-13)
+## [1.5.0](https://github.com/felixranesberger/kss-modern/compare/v1.4.0...v1.5.0) (2026-09-14)
 
 ### Deprecations
 
@@ -8,13 +8,8 @@
 
 ### Features
 
+* load per-theme stylesheets into the previews via `previewThemes[].css` — a `previewThemes` entry may now carry a list of stylesheets that are loaded into every preview while that theme is selected, for themes that need more than a class can express (a separate token file, a vendor theme build). They are layered on top of `html.assets.css` and never replace it: the base CSS always loads, the theme's files load after it so its rules win. Every preview document carries a `<link>` for each themed stylesheet from the start, parked at `media="not all"`, so the browser downloads them up front but applies nothing — switching themes costs no request and shows no flash. The CSS is keyed on the theme's class list rather than on the dropdown that selected it, so a section's `Themes:` entry picks up the same stylesheets as soon as it resolves to the same classes, and a standalone fullpage opened with `?theme=` activates them itself; a section theme matching no configured entry loads no extra CSS, and a theme without `css` stays classes-only ([41f9e26](https://github.com/felixranesberger/kss-modern/commit/41f9e26))
 * add `reloadPreviewsOnThemeChange` — by default a theme change is swapped into the loaded preview document, which is instant and keeps the preview's state but does not re-run the preview's own JavaScript, so a component that reads styling once at startup (measuring, canvas or chart rendering, a web component snapshotting tokens on connect) keeps the old theme's values. With the option on, the preview iframe is reloaded instead and applies the theme as it loads. Only previews whose effective theme actually changed are reloaded, so a section with its own override is left alone when the global theme changes, and the initial page load never reloads — the previews are already fetching and the restored theme is applied in place ([7305a15](https://github.com/felixranesberger/kss-modern/commit/7305a15))
-
-## [1.5.0](https://github.com/felixranesberger/kss-modern/compare/v1.4.0...v1.5.0) (2026-09-13)
-
-### Features
-
-* load per-theme stylesheets into the previews via `themes[].css` — a `themes` entry may now carry a list of stylesheets that are loaded into every preview while that theme is selected, for themes that need more than a class can express (a separate token file, a vendor theme build). They are layered on top of `html.assets.css` and never replace it: the base CSS always loads, the theme's files load after it so its rules win. Every preview document carries a `<link>` for each themed stylesheet from the start, parked at `media="not all"`, so the browser downloads them up front but applies nothing — switching themes costs no request and shows no flash. The CSS is keyed on the theme's class list rather than on the dropdown that selected it, so a section's `Themes:` entry picks up the same stylesheets as soon as it resolves to the same classes, and a standalone fullpage opened with `?theme=` activates them itself; a section theme matching no configured entry loads no extra CSS, and a theme without `css` stays classes-only ([41f9e26](https://github.com/felixranesberger/kss-modern/commit/41f9e26))
 
 ## [1.4.0](https://github.com/felixranesberger/kss-modern/compare/v1.3.0...v1.4.0) (2026-09-13)
 
