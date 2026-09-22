@@ -79,6 +79,7 @@ Use `additionalAttributes` to add custom attributes like `type="module"` or `def
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `deactivateDarkMode` | `boolean` | `false` | Hides the color-scheme toggle (System/Light/Dark) in the styleguide UI. |
+| `allowSearchEngineIndexing` | `boolean` | `false` | Lets search engines index the styleguide. Every build writes a `robots.txt` into the output root and a matching `<meta name="robots">` into every page: `Disallow: /` plus `noindex, nofollow` while this is off, `Allow: /` plus `index, follow` once it is on. |
 | `previewThemes` | `{ value: string, label: string, css?: string[] }[]` | `undefined` | Adds a global **Theme** dropdown to the header. Each entry is a theme class (or class list, e.g. `'theme-midnight'` or `'.theme-midnight.compact'`) that is added to the `<html>` of every preview while selected, plus its label and, optionally, `css` — stylesheets loaded into the previews on top of `html.assets.css` while the theme is selected. See [Global Theme](usage.md#global-theme). |
 | `reloadPreviewsOnThemeChange` | `boolean` | `false` | Reload a preview iframe when its theme changes instead of swapping the classes and stylesheets into the loaded document. Turn it on when a preview's own JavaScript reads styling at startup and has to run again. See [Reloading previews](usage.md#reloading-previews-on-theme-change). |
 | `theme` | `string \| { light: string, dark: string }` | — | **Deprecated** — renamed to `brandColor`. Still accepted, with a warning. |
@@ -98,6 +99,7 @@ await buildStyleguide({
   contentDir: './src/sass/',
   projectTitle: 'My Design System',
   deactivateDarkMode: false,
+  allowSearchEngineIndexing: false,
   launchInEditor: {
     rootDir: '/absolute/path/to/project/',
   },

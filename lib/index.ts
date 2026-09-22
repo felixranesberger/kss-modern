@@ -13,6 +13,7 @@ import { logger } from './logger.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
 import { createRebuildQueue } from './rebuild-queue.ts'
+import { writeRobotsFile } from './robots.ts'
 import { htmlToSearchText, replaceWrapperContent } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
@@ -85,6 +86,15 @@ interface StyleguideOptions {
    * the initial page load.
    */
   reloadPreviewsOnThemeChange?: boolean
+  /**
+   * Let search engines index the generated styleguide.
+   *
+   * Off by default: a styleguide is internal documentation, and its output directory is usually
+   * served from a host that is reachable without being meant for the public. Every build writes a
+   * `robots.txt` into the output root, and every page carries a matching `<meta name="robots">` —
+   * `noindex, nofollow` while this is off, `index, follow` once it is on.
+   */
+  allowSearchEngineIndexing?: boolean
   logoSignet?: {
     href: string
   } | {
@@ -316,6 +326,7 @@ async function writeFullPageFile(config: ResolvedStyleguideConfiguration, baseDi
       html: htmlMarkup,
       brandColor: config.brandColor,
       deactivateDarkMode: config.deactivateDarkMode,
+      allowSearchEngineIndexing: config.allowSearchEngineIndexing,
       ogImageUrl: config.plugins?.ogImage
         ? config.plugins.ogImage(section)
         : undefined,
@@ -395,6 +406,7 @@ function writePreviewFile(
     },
     brandColor: config.brandColor,
     deactivateDarkMode: config.deactivateDarkMode,
+    allowSearchEngineIndexing: config.allowSearchEngineIndexing,
     reloadPreviewsOnThemeChange: config.reloadPreviewsOnThemeChange,
     ogImageUrl: config.plugins?.ogImage
       ? config.plugins.ogImage(secondLevelSection)
@@ -598,8 +610,12 @@ export async function buildAll(input: StyleguideConfiguration | ResolvedStylegui
     })
   })
 
-  // asset copy and the HTML writes are independent — run them concurrently
-  await Promise.all([copyStyleguideAssets(config), ...fileWriteTasks])
+  // asset copy, robots.txt and the HTML writes are independent — run them concurrently
+  await Promise.all([
+    copyStyleguideAssets(config),
+    writeRobotsFile(config.outDir, config.allowSearchEngineIndexing ?? false),
+    ...fileWriteTasks,
+  ])
 
   const errors: StyleguideBuildOutput['errors'] = {}
   if (context.overwrittenSectionsIds.length > 0) {

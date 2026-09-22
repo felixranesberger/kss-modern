@@ -57,6 +57,12 @@ describe('build pipeline', () => {
       expect(fullpageFiles.length).toBeGreaterThan(0)
     })
 
+    it('robots.txt keeps crawlers out by default', async () => {
+      const robotsPath = path.join(tmpDir, 'robots.txt')
+      expect(await fs.exists(robotsPath)).toBe(true)
+      expect(await fs.readFile(robotsPath, 'utf-8')).toContain('Disallow: /')
+    })
+
     it('styleguide-assets/ directory is created', async () => {
       const assetsDir = path.join(tmpDir, 'styleguide-assets')
       expect(await fs.exists(assetsDir)).toBe(true)

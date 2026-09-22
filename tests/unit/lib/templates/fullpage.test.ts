@@ -57,6 +57,16 @@ describe('generateFullPageFile', () => {
     expect(capturedContent).toContain('<title>Test &lt;script&gt;</title>')
   })
 
+  it('marks the page as noindex by default', async () => {
+    await generateFullPageFile(createBaseData())
+    expect(capturedContent).toContain('<meta name="robots" content="noindex, nofollow">')
+  })
+
+  it('marks the page as indexable when allowSearchEngineIndexing is set', async () => {
+    await generateFullPageFile({ ...createBaseData(), allowSearchEngineIndexing: true })
+    expect(capturedContent).toContain('<meta name="robots" content="index, follow">')
+  })
+
   it('includes viewport meta tag', async () => {
     await generateFullPageFile(createBaseData())
     expect(capturedContent).toContain('<meta name="viewport" content="width=device-width, initial-scale=1.0">')

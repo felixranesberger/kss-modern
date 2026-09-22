@@ -1014,6 +1014,7 @@ export async function generatePreviewFile(data: {
   }
   brandColor: ResolvedStyleguideConfiguration['brandColor']
   deactivateDarkMode?: boolean
+  allowSearchEngineIndexing?: boolean
   reloadPreviewsOnThemeChange?: boolean
   ogImageUrl?: string
 }) {
@@ -1045,6 +1046,7 @@ export async function generatePreviewFile(data: {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="styleguide">
+    <meta name="robots" content="${data.allowSearchEngineIndexing ? 'index, follow' : 'noindex, nofollow'}">
     <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/preview.svg">
     ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
     ${typeof data.brandColor === 'object' && 'dark' in data.brandColor && 'light' in data.brandColor
