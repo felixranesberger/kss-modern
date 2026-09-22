@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0](https://github.com/felixranesberger/kss-modern/compare/v1.5.0...v1.6.0) (2026-09-22)
+
+### Features
+
+* add `allowSearchEngineIndexing` — every build now writes a `robots.txt` into the output root and a matching `<meta name="robots">` into every preview and fullpage document. The default keeps search engines out (`Disallow: /` and `noindex, nofollow`), because a styleguide is internal documentation that often ends up on a host reachable from the outside without being meant for the public. Setting the option to `true` flips both to `Allow: /` and `index, follow`. Both halves are written because they do different jobs: `robots.txt` stops the crawl, the meta tag keeps a URL someone linked to out of the result list
+
 ## [1.5.0](https://github.com/felixranesberger/kss-modern/compare/v1.4.0...v1.5.0) (2026-09-14)
 
 ### Deprecations
