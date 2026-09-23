@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1](https://github.com/felixranesberger/kss-modern/compare/v1.6.0...v1.6.1) (2026-09-23)
+
+### Bug Fixes
+
+* order sections numerically on every reference level — sections were sorted by a plain string comparison of their reference, so `1.100` came before `1.20` and `1.20.9` landed after `1.20.110`, which scrambled the navigation and page order as soon as a level held ten or more sections. References are now compared segment by segment as numbers, both for the top-level sort and for the third-level sections inside each page ([d23a98c](https://github.com/felixranesberger/kss-modern/commit/d23a98c))
+
 ## [1.6.0](https://github.com/felixranesberger/kss-modern/compare/v1.5.0...v1.6.0) (2026-09-22)
 
 ### Features
