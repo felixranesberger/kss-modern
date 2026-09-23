@@ -4,12 +4,8 @@
  *
  * Run `bun run build` first, this script imports the compiled library from `dist/`.
  *
- * The generated pages link their own files relatively, so the output works from any
- * subdirectory. Only the content assets configured below are root-absolute, which is why
- * `DEMO_BASE_PATH` has to match the path the demo is served from (GitHub Pages serves
- * project sites from `/<repository>/`).
- *
- *   DEMO_BASE_PATH=/kss-modern/ node demo/build.mjs
+ * Every URL in the output is relative, including the content assets below, so the demo
+ * works from any path. GitHub Pages serves it from `/kss-modern/`.
  */
 import process from 'node:process'
 import fs from 'fs-extra'
@@ -18,16 +14,10 @@ import { buildStyleguide, logger } from '../dist/node/lib/index.mjs'
 
 const CONTENT_DIR = './demo/content'
 const OUT_DIR = process.env.DEMO_OUT_DIR ?? './demo-dist'
-const BASE_PATH = normalizeBasePath(process.env.DEMO_BASE_PATH ?? '/')
 const CONTENT_ASSETS_DIR = `${OUT_DIR}/content-assets`
-const CONTENT_ASSETS_URL = `${BASE_PATH}content-assets`
+const CONTENT_ASSETS_URL = 'content-assets'
 
 const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/></svg>`
-
-function normalizeBasePath(input) {
-  const withLeading = input.startsWith('/') ? input : `/${input}`
-  return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
-}
 
 async function copyContentAssets() {
   await Promise.all(
@@ -73,5 +63,5 @@ async function copyContentAssets() {
   if (errors?.overwrittenSectionsIds?.length)
     logger.warn(`Duplicate section references: ${errors.overwrittenSectionsIds.join(', ')}`)
 
-  logger.success(`Built demo into ${OUT_DIR} (base ${BASE_PATH}) in ${Date.now() - start}ms`)
+  logger.success(`Built demo into ${OUT_DIR} in ${Date.now() - start}ms`)
 })()
