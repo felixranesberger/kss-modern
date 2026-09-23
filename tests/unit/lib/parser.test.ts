@@ -168,6 +168,18 @@ describe('section hierarchy', () => {
     const result = await parse(scss, config)
     expect(result.content[0].sectionLevel).toBe('first')
   })
+
+  it('orders sections numerically on every level', async () => {
+    const references = ['1.0', '1.100', '1.20', '1.20.100', '1.20.20', '1.20.110', '1.20.9', '1.3']
+    const scss = references
+      .map(reference => `/**\n * Section ${reference}\n *\n * Styleguide ${reference}\n */`)
+      .join('\n\n')
+
+    const result = await parse(scss, config)
+    const secondLevel = result.content[0].sections
+    expect(secondLevel.map(section => section.id)).toEqual(['1.3', '1.20', '1.100'])
+    expect(secondLevel[1].sections.map(section => section.id)).toEqual(['1.20.9', '1.20.20', '1.20.100', '1.20.110'])
+  })
 })
 
 // ---------------------------------------------------------------------------

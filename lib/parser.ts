@@ -605,16 +605,18 @@ export interface in2SecondLevelSection extends in2Section {
   sections: in2Section[]
 }
 
+function compareReferences(a: string, b: string) {
+  return a.localeCompare(b, undefined, { numeric: true })
+}
+
 export async function parse(input: string | (string | FileObject)[], contentDir: StyleguideConfiguration['contentDir']) {
   const data = kssParser(input).sections.filter(section => Boolean(section.reference))
 
   // stores the ids of the sections that are overwritten because the ids are duplicated
   const overwrittenSectionsIds: string[] = []
 
-  // sort by reference id
-  const sortedData = data.sort((a, b) => {
-    return a.reference!.localeCompare(b.reference!)
-  })
+  // sort by reference id, numerically per segment so 1.20 comes before 1.100
+  const sortedData = data.sort((a, b) => compareReferences(a.reference!, b.reference!))
 
   let output: in2FirstLevelSection[] = []
 
@@ -816,7 +818,7 @@ export async function parse(input: string | (string | FileObject)[], contentDir:
     firstLevelSection.sections.forEach((secondLevelSection) => {
       secondLevelSection.sections = secondLevelSection.sections
         .filter(section => Boolean(section))
-        .sort((a, b) => a.id.localeCompare(b.id))
+        .sort((a, b) => compareReferences(a.id, b.id))
     })
   })
 
