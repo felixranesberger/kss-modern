@@ -1,0 +1,96 @@
+/*
+Dialog
+
+Confirm destructive or important actions. Uses the native dialog element for
+focus trapping and the Escape key. Press the button to open it.
+
+Status: Complete
+
+Markup: templates/source/03-components/dialog.pug
+
+Styleguide 3.6
+*/
+
+.dialog {
+  width: min(440px, calc(100vw - 2rem));
+  padding: 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+}
+
+.dialog[open] {
+  animation: dialog-in 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.dialog::backdrop {
+  background: rgb(17 16 14 / 40%);
+  backdrop-filter: blur(4px);
+}
+
+.dialog__body {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-6);
+}
+
+.dialog__icon {
+  display: grid;
+  place-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--space-2);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border-radius: 50%;
+}
+
+.dialog__icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.dialog__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.dialog__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface-sunken);
+  border-top: 1px solid var(--border);
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog[open] { animation: none; }
+}
+
+.dialog-stage {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-6);
+}
+
+/* shown in place for documentation, the modal copy opens from the button */
+.dialog--inline[open] {
+  position: static;
+  margin: 0;
+  animation: none;
+}

@@ -1,0 +1,63 @@
+/*
+Avatars
+
+Initials or photos in three sizes. Stack them to show who is on a project.
+
+.avatar--sm - Small, for tables and dense lists
+.avatar--lg - Large, for profile headers
+
+Markup: <div class="stack">
+  <span class="avatar {{modifier_class}}" style="--avatar-hue: 150">AL</span>
+  <span class="avatar {{modifier_class}}" style="--avatar-hue: 30">GH</span>
+  <span class="avatar {{modifier_class}}" style="--avatar-hue: 260">KJ</span>
+  <span class="avatar-group">
+    <span class="avatar {{modifier_class}}" style="--avatar-hue: 200">MR</span>
+    <span class="avatar {{modifier_class}}" style="--avatar-hue: 340">TS</span>
+    <span class="avatar {{modifier_class}}" style="--avatar-hue: 90">BW</span>
+    <span class="avatar avatar--more {{modifier_class}}">+4</span>
+  </span>
+</div>
+
+Styleguide 2.5
+*/
+
+.avatar {
+  --avatar-size: 40px;
+
+  display: inline-grid;
+  place-content: center;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  flex-shrink: 0;
+  font-size: calc(var(--avatar-size) * 0.36);
+  font-weight: 600;
+  color: oklch(0.35 0.08 var(--avatar-hue, 150));
+  background: oklch(0.9 0.06 var(--avatar-hue, 150));
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--canvas);
+}
+
+.avatar--sm {
+  --avatar-size: 28px;
+}
+
+.avatar--lg {
+  --avatar-size: 56px;
+}
+
+.avatar--more {
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+
+.avatar-group {
+  display: inline-flex;
+}
+
+.avatar-group .avatar + .avatar {
+  margin-left: -10px;
+}
+
+.avatar-group .avatar--sm + .avatar--sm {
+  margin-left: -6px;
+}

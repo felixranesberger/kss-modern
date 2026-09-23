@@ -2,8 +2,8 @@
 
 A committed, synthetic content directory that exercises **every** kss-modern
 feature. It is the target of `bun run dev` (see the repo root `index.ts`), which
-serves it with styled previews. The public demo (`bun run demo`) builds from a
-user-facing copy in `demo/content/` instead.
+serves it with styled previews. The public demo (`bun run demo`) builds from its own
+content in `demo/content/` instead.
 
 Unlike the gitignored `test/` (real customer content), this folder is checked in
 so the generator's features can be regression-tested by hand.

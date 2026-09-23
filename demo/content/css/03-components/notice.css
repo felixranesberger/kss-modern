@@ -1,0 +1,17 @@
+/*
+Notice Bar
+
+Deprecated: Use the Alert component instead. The notice bar will be removed in Verdant 3.0.
+
+Markup: <div class="notice">Scheduled maintenance on Sunday, 02:00 to 04:00 CET.</div>
+
+Styleguide 3.11
+*/
+
+.notice {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  border-left: 3px solid var(--warning);
+}

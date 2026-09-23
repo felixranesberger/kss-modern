@@ -1,0 +1,21 @@
+/*
+ * Ocean theme. Shipped as its own stylesheet and loaded on demand through the
+ * `previewThemes[].css` option, so it adds no weight to the default theme.
+ */
+html.theme-ocean {
+  --brand-50: #ecfdff;
+  --brand-100: #cff9fe;
+  --brand-300: #67e3f9;
+  --brand-500: #06aed4;
+  --brand-600: #088ab2;
+  --brand-700: #0e7090;
+  --brand-800: #155b75;
+  --brand-950: #0d2d3a;
+
+  --brand: light-dark(var(--brand-700), var(--brand-500));
+  --brand-hover: light-dark(var(--brand-800), var(--brand-300));
+  --brand-contrast: light-dark(#ffffff, var(--brand-950));
+  --brand-soft: light-dark(var(--brand-50), color-mix(in srgb, var(--brand-500) 16%, transparent));
+  --brand-soft-text: light-dark(var(--brand-700), var(--brand-300));
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand-500) 35%, transparent);
+}

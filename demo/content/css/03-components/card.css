@@ -1,75 +1,117 @@
 /*
-Card
+Project Card
 
-Markdown: A flexible content card with a header, body and footer.
-
-## Anatomy
-- **Header** — title and optional eyebrow
-- **Body** — free-form content
-- **Footer** — a call-to-action link
+Markdown: css/03-components/card.md
 
 Status: Complete
 
-bodyclass: demo-canvas
-
-htmlclass: theme-cards
+bodyclass: is-centered
 
 Themes:
-.theme-midnight - Midnight
-.theme-sunrise - Sunrise
+.theme-dusk - Dusk
+.theme-ocean - Ocean
 
-Wrapper: <div class="o-container" style="max-width: 420px">{{wrapper-content}}</div>
+.card--interactive - Lifts on hover, for cards that are one big link
+
+Wrapper: <div class="card-row">{{wrapper-content}}</div>
 
 Markup: templates/source/03-components/card.pug
 
-Styleguide 3.10
+Styleguide 3.1
 */
 
-.c-card {
+body.is-centered {
+  padding: var(--space-12) var(--space-8);
+  background:
+    radial-gradient(ellipse at top, color-mix(in srgb, var(--brand-500) 10%, transparent), transparent 70%),
+    var(--canvas);
+}
+
+.card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 320px));
+  gap: var(--space-6);
+  justify-content: center;
+  width: 100%;
+}
+
+.card {
   display: flex;
   flex-direction: column;
-  background-color: #fff;
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
   overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
 }
 
-.c-card__header {
-  padding: var(--space-4) var(--space-4) 0;
+.card--interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-xl);
 }
 
-.c-card__eyebrow {
-  margin: 0 0 var(--space-1);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-primary);
+.card__media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--brand-300) 70%, transparent), transparent 55%),
+    radial-gradient(circle at 80% 70%, color-mix(in srgb, var(--brand-600) 80%, transparent), transparent 60%),
+    var(--brand-800);
 }
 
-.c-card__title {
+.card__media--warm {
+  background:
+    radial-gradient(circle at 75% 25%, #fec84b, transparent 55%),
+    radial-gradient(circle at 20% 80%, #f97066, transparent 60%),
+    #7a2e0e;
+}
+
+.card__media .badge {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  color: #ffffff;
+  background: rgb(0 0 0 / 30%);
+  border-color: rgb(255 255 255 / 20%);
+  backdrop-filter: blur(8px);
+}
+
+.card__body {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-5);
+}
+
+.card__eyebrow {
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-soft-text);
 }
 
-.c-card__body {
-  padding: var(--space-3) var(--space-4);
-  color: var(--color-neutral-600);
+.card__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-.c-card__footer {
+.card__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.card__footer {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-4) var(--space-4);
-}
-
-/* bodyclass / htmlclass hooks (applied to the fullpage preview) */
-.demo-canvas {
-  background-color: var(--color-neutral-100);
-}
-
-.theme-cards {
-  --color-primary: #7c3aed;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
 }

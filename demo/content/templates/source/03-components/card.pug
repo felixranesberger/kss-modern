@@ -1,10 +1,22 @@
-//- Direct .pug markup that `include`s a partial (which transitively includes the
-//- icon mixin). Demonstrates direct Pug include + dependency tracking.
-include ./_card-body
+include ../../mixins/_icon
+include ../../mixins/_progress
 
-article.c-card
-  +cardBody({
-    eyebrow: 'Design System',
-    title: 'Card title',
-    body: 'A flexible content card with a header, body, and footer.',
-  })
+mixin projectCard(p)
+  article.card(class=modifierClass)
+    .card__media(class=p.warm ? 'card__media--warm' : '')
+      span.badge.badge--dot= p.status
+    .card__body
+      p.card__eyebrow= p.team
+      h3.card__title= p.title
+      p.card__text= p.text
+      +progress(p.progress, 'Milestone')
+    .card__footer
+      span.avatar-group
+        each a in p.people
+          span.avatar.avatar--sm(style=`--avatar-hue: ${a[1]}`)= a[0]
+      button.btn.btn--secondary.btn--sm(type="button")
+        | Open
+        +icon('arrow-right')
+
++projectCard({ status: 'On track', team: 'Growth', title: 'Onboarding revamp', text: 'Shorter sign-up, guided setup and a first dashboard in under two minutes.', progress: 72, people: [['AL', 150], ['GH', 30], ['KJ', 260]] })
++projectCard({ status: 'At risk', team: 'Platform', title: 'Usage-based billing', text: 'Metered plans with live cost previews and alerts before limits are hit.', progress: 38, people: [['MR', 200], ['TS', 340]], warm: true })

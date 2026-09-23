@@ -1,19 +1,12 @@
-Interactive button component with multiple style variants. The Pug template uses
-a shared `+button` mixin.
+Buttons trigger actions. Each variant below is rendered from the same Pug template,
+kss-modern swaps the modifier class into every preview.
 
-## Guidelines
-
-- Use **primary** for the main call-to-action on a page
-- Use **outline** for secondary actions
-- Use **danger** sparingly — only for destructive actions like delete
-
-:::alert{type="info" title="Accessibility"}
-Always provide a visible text label. Icon-only buttons require an `aria-label`.
+:::alert{type="info" title="One primary per view"}
+Use a single primary button for the main action of a screen. Pair it with
+**secondary** or **ghost** buttons for everything else.
 :::
 
-## Keyboard Interaction
-
 | Key | Action |
-|-----|--------|
-| `Enter` | Activates the button |
-| `Space` | Activates the button |
+|---|---|
+| `Enter` / `Space` | Activates the button |
+| `Tab` | Moves focus to the next control |
