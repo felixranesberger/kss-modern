@@ -49,12 +49,16 @@ export function getAuditColorSchemes(
  * flipped by this — a page cannot override that media feature at runtime — so it
  * is evaluated in its light appearance in every pass.
  *
- * The root also gets `background-color: Canvas` for the duration of each run.
- * axe-core otherwise falls back to a hardcoded white backdrop for
- * transparent-background text, producing false violations in dark mode
- * (https://github.com/dequelabs/axe-core/issues/3605). `Canvas` resolves to the
- * real per-scheme UA surface and only takes effect when nothing above sets an
- * opaque background, so genuine component backgrounds still win.
+ * A root without an opaque background of its own gets `background-color: Canvas`
+ * for the duration of each run. axe-core otherwise falls back to a hardcoded
+ * white backdrop for transparent-background text, producing false violations in
+ * dark mode (https://github.com/dequelabs/axe-core/issues/3605). `Canvas`
+ * resolves to the real per-scheme UA surface. A root that paints its own
+ * background keeps it, since the inline value would override it.
+ *
+ * Transitions and animations are frozen while the scheme is forced. A component
+ * that transitions its colours would otherwise still be mid-fade from the
+ * previous scheme when axe reads the computed styles.
  *
  * An optional `augment` hook runs *while the scheme is still forced*, so it can
  * read per-scheme computed colours (e.g. to measure text-over-image contrast
@@ -67,27 +71,58 @@ export async function runColorContrastAcrossSchemes(
   augment?: (result: AxeResults, mode: ColorSchemeMode) => AxeResults | Promise<AxeResults>,
 ): Promise<SchemeContrastResult[]> {
   const results: SchemeContrastResult[] = []
+  const releaseMotion = freezeMotion(root)
 
-  for (const mode of modes) {
-    const previousColorScheme = root.style.colorScheme
-    const previousBackground = root.style.backgroundColor
+  try {
+    for (const mode of modes) {
+      const previousColorScheme = root.style.colorScheme
+      const previousBackground = root.style.backgroundColor
 
-    root.style.colorScheme = mode === 'dark' ? 'only dark' : 'only light'
-    root.style.backgroundColor = 'Canvas'
+      root.style.colorScheme = mode === 'dark' ? 'only dark' : 'only light'
+      if (!hasOwnOpaqueBackground(root))
+        root.style.backgroundColor = 'Canvas'
 
-    try {
-      const result = await axe
-        .run(AUDIT_CONTEXT, { runOnly: { type: 'rule', values: ['color-contrast'] } })
-        .catch(console.error)
+      try {
+        const result = await axe
+          .run(AUDIT_CONTEXT, { runOnly: { type: 'rule', values: ['color-contrast'] } })
+          .catch(console.error)
 
-      if (result)
-        results.push({ mode, result: augment ? await augment(result, mode) : result })
+        if (result)
+          results.push({ mode, result: augment ? await augment(result, mode) : result })
+      }
+      finally {
+        root.style.colorScheme = previousColorScheme
+        root.style.backgroundColor = previousBackground
+      }
     }
-    finally {
-      root.style.colorScheme = previousColorScheme
-      root.style.backgroundColor = previousBackground
-    }
+  }
+  finally {
+    releaseMotion()
   }
 
   return results
+}
+
+const FROZEN_MOTION_CSS = '*, *::before, *::after { transition: none !important; animation-play-state: paused !important; }'
+
+/** Stop transitions and animations in the root's document until the returned function runs. */
+function freezeMotion(root: HTMLElement): () => void {
+  const doc = root.ownerDocument
+  if (!doc?.head)
+    return () => {}
+
+  const style = doc.createElement('style')
+  style.textContent = FROZEN_MOTION_CSS
+  doc.head.append(style)
+  return () => style.remove()
+}
+
+/** Whether the root paints an opaque background itself, e.g. `html { background: … }` in the page CSS. */
+function hasOwnOpaqueBackground(root: HTMLElement): boolean {
+  const view = root.ownerDocument?.defaultView
+  if (!view)
+    return false
+
+  const color = view.getComputedStyle(root).backgroundColor
+  return color !== '' && color !== 'transparent' && !/^rgba\(.*,\s*0\)$/.test(color)
 }
