@@ -127,13 +127,13 @@ interface StyleguideOptions {
  * `<meta name="theme-color">`, the generated favicons and the styleguide UI's highlight — hence
  * the rename, which also ends its collision with `themes` / `previewThemes`.
  */
-export type StyleguideConfiguration =
-  | (StyleguideOptions & { brandColor: StyleguideBrandColor, theme?: never })
-  | (StyleguideOptions & {
+export type StyleguideConfiguration
+  = | (StyleguideOptions & { brandColor: StyleguideBrandColor, theme?: never })
+    | (StyleguideOptions & {
     /** @deprecated Renamed to `brandColor` — this is the accent colour, not a preview theme. */
-    theme: StyleguideBrandColor
-    brandColor?: never
-  })
+      theme: StyleguideBrandColor
+      brandColor?: never
+    })
 
 /**
  * A configuration with the deprecated aliases resolved away. Everything past
