@@ -1,0 +1,4 @@
+- [Hero](preview-3.70.html), [Navigation](preview-3.80.html): external Markdown files with alerts, accordions, tables and code
+- [Card](preview-3.10.html), [Alert](preview-3.20.html), [Badge](preview-3.30.html), [Modal](preview-3.40.html): `Status` badges in the sidebar
+- [Lifecycle Chart](preview-3.90.html), [Masonry Grid](preview-3.100.html): automatic `Deprecated:` and `Experimental:` status
+- [Container](preview-5.10.html), [Spacing](preview-6.10.html), [Visibility](preview-6.20.html): layout objects and utilities

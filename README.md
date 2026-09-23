@@ -2,6 +2,8 @@
 
 A modern, KSS-compatible styleguide generator. Parses KSS comment blocks from CSS/SCSS files and generates a static, accessible styleguide with live component previews.
 
+**[Live demo](https://felixranesberger.github.io/kss-modern/)** showing every feature, built from [`test-styleguide/`](test-styleguide/).
+
 ## Features
 
 - KSS-compatible comment parsing from CSS/SCSS files
@@ -91,6 +93,7 @@ Markup: templates/components/card.pug
 bun install
 bun run build          # Build: Vite (client assets) then Unbuild (Node.js library)
 bun run dev            # Build + run dev server with Deno (watches test-styleguide/ content)
+bun run demo           # Build the public demo into demo-dist/ (DEMO_BASE_PATH sets the served path)
 bun run lint           # ESLint
 bun run test           # Vitest unit + integration tests
 bun run release        # Lint + version bump via bumpp

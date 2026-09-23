@@ -33,6 +33,7 @@
   "scripts": {
     "build": "vite build && unbuild",
     "dev": "bun run build && deno run --unstable-sloppy-imports --allow-all index.ts",
+    "demo": "bun run build && node demo/build.mjs",
     "lint": "eslint {lib,client}",
     "release": "bun run lint && bumpp",
     "test": "vitest run",

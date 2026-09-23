@@ -7,6 +7,7 @@ dist
 # Styleguide output
 styleguide-export
 styleguide-export-e2e
+demo-dist
 
 # Test output
 test-results/

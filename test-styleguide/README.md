@@ -2,7 +2,8 @@
 
 A committed, synthetic content directory that exercises **every** kss-modern
 feature. It is the target of `bun run dev` (see the repo root `index.ts`), which
-serves it with styled previews.
+serves it with styled previews. `bun run demo` (`demo/build.mjs`) builds the same
+content as the public demo on GitHub Pages.
 
 Unlike the gitignored `test/` (real customer content), this folder is checked in
 so the generator's features can be regression-tested by hand.
@@ -23,6 +24,7 @@ the preview iframes only — not the styleguide UI shell.
 
 | Feature | Where |
 |---|---|
+| Welcome page with feature overview (public demo entry) | 0.1 / 0.1.1–0.1.6 (`css/00-introduction/`) |
 | First-level categories | `styles.css` (Styleguide 1–6) |
 | Colors block + 3rd-level subsections | 1.1 / 1.1.1–1.1.3 |
 | Typography (`Markdown` inline + `Weight`) | 1.2 |
