@@ -39,8 +39,6 @@ jobs:
 
       - name: Build demo styleguide
         run: node demo/build.mjs
-        env:
-          DEMO_BASE_PATH: /${{ github.event.repository.name }}/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
