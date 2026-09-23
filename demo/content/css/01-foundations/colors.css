@@ -1,0 +1,126 @@
+/*
+Colors
+
+Markdown: Verdant is built on a green brand ramp, warm neutrals and four signal
+colors. Components never use the raw ramps. They read semantic tokens such as
+`--surface`, `--text` and `--brand`, which is what lets the header's **Theme**
+dropdown and the dark mode toggle restyle every preview without a rebuild.
+
+Click a swatch to copy its value.
+
+Styleguide 1.1
+*/
+
+/*
+Brand
+
+The primary ramp. 700 carries text and actions on light surfaces, 500 on dark ones. 50 and 100 are for tinted surfaces.
+
+Colors:
+brand-50: #ecfdf3
+brand-100: #d1fadf
+brand-300: #6ce9a6
+brand-500: #12b76a
+brand-600: #039855
+brand-700: #027a48
+brand-800: #05603a
+
+Styleguide 1.1.1
+*/
+
+/*
+Neutral
+
+Warm greys for text, borders and surfaces.
+
+Colors:
+neutral-0: #ffffff
+neutral-100: #f4f3f1
+neutral-300: #d7d3cd
+neutral-500: #79736b
+neutral-700: #3f3a35
+neutral-900: #1a1714
+
+Styleguide 1.1.2
+*/
+
+/*
+Signal
+
+Status colors for feedback. Always pair them with an icon or a label.
+
+Colors:
+info: #2e90fa
+success: #12b76a
+warning: #f79009
+danger: #f04438
+
+Styleguide 1.1.3
+*/
+
+:root {
+  color-scheme: light dark;
+
+  --brand-50: #ecfdf3;
+  --brand-100: #d1fadf;
+  --brand-300: #6ce9a6;
+  --brand-500: #12b76a;
+  --brand-600: #039855;
+  --brand-700: #027a48;
+  --brand-800: #05603a;
+  --brand-950: #053321;
+
+  --neutral-0: #ffffff;
+  --neutral-50: #faf9f7;
+  --neutral-100: #f4f3f1;
+  --neutral-200: #e8e5e1;
+  --neutral-300: #d7d3cd;
+  --neutral-500: #79736b;
+  --neutral-700: #3f3a35;
+  --neutral-800: #2a2622;
+  --neutral-850: #211e1b;
+  --neutral-900: #1a1714;
+  --neutral-950: #11100e;
+
+  /* semantic tokens, resolved per color scheme */
+  --canvas: light-dark(var(--neutral-50), var(--neutral-950));
+  --surface: light-dark(var(--neutral-0), var(--neutral-900));
+  --surface-sunken: light-dark(var(--neutral-100), var(--neutral-850));
+  --border: light-dark(var(--neutral-200), var(--neutral-800));
+  --border-strong: light-dark(var(--neutral-300), var(--neutral-700));
+  --text: light-dark(var(--neutral-900), #f5f3f0);
+  --text-muted: light-dark(#67615a, #a8a29a);
+
+  --brand: light-dark(var(--brand-700), var(--brand-500));
+  --brand-hover: light-dark(var(--brand-800), var(--brand-300));
+  --brand-contrast: light-dark(#ffffff, var(--brand-950));
+  --brand-soft: light-dark(var(--brand-50), color-mix(in srgb, var(--brand-500) 16%, transparent));
+  --brand-soft-text: light-dark(var(--brand-700), var(--brand-300));
+
+  --info: light-dark(#175cd3, #53b1fd);
+  --success: light-dark(#027a48, #32d583);
+  --warning: light-dark(#93370d, #fdb022);
+  --danger: light-dark(#b42318, #f97066);
+
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--brand-500) 35%, transparent);
+}
+
+/* Dusk theme: a deep green night palette, independent of the dark mode toggle. */
+html.theme-dusk {
+  --canvas: #0b1512;
+  --surface: #11201b;
+  --surface-sunken: #172a24;
+  --border: #213a31;
+  --border-strong: #2d4d41;
+  --text: #e8f3ee;
+  --text-muted: #8fb0a3;
+  --brand: var(--brand-300);
+  --brand-hover: var(--brand-100);
+  --brand-contrast: var(--brand-950);
+  --brand-soft: color-mix(in srgb, var(--brand-300) 14%, transparent);
+  --brand-soft-text: var(--brand-300);
+  --info: #53b1fd;
+  --success: #32d583;
+  --warning: #fdb022;
+  --danger: #f97066;
+}

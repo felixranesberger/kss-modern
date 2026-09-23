@@ -1,0 +1,16 @@
+include ../../mixins/_icon
+include ../../mixins/_field
+
+.field-grid
+  +field('Full name', { placeholder: 'Ada Lovelace', hint: 'As it appears on your invoice.' })
+  +field('Email', { type: 'email', icon: 'mail', placeholder: 'you@company.com' })
+  +field('Workspace URL', { value: 'verdant.app/acme!', invalid: true, hint: 'Only letters, numbers and dashes.' })
+  .field
+    label.field__label(for=useId('plan')) Plan
+    select.input(id=useId('plan'))
+      option Starter
+      option(selected) Growth
+      option Enterprise
+  .field(style="grid-column: 1 / -1; max-width: none")
+    label.field__label(for=useId('notes')) Notes
+    textarea.input(id=useId('notes') placeholder="Anything we should know?")

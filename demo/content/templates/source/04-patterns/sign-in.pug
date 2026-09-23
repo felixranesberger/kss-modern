@@ -1,0 +1,34 @@
+include ../../mixins/_icon
+include ../../mixins/_field
+
+.auth
+  aside.auth__aside
+    .auth__logo
+      +icon('leaf')
+      | Verdant
+    div
+      p.auth__quote “We replaced four spreadsheets and a weekly status meeting with one Verdant dashboard. Everyone finally looks at the same numbers.”
+      .auth__author
+        span.avatar(style="--avatar-hue: 30") GH
+        div
+          strong Grace Hopper
+          | Head of Operations, Acme
+  main.auth__main
+    form.auth__form(action="#")
+      div
+        h1.auth__title Welcome back
+        p.auth__subtitle Sign in to continue to your workspace.
+      +field('Email', { type: 'email', icon: 'mail', placeholder: 'you@company.com', autocomplete: 'email' })
+      +field('Password', { type: 'password', icon: 'lock', placeholder: '••••••••', autocomplete: 'current-password' })
+      .auth__row
+        label.choice
+          input.choice__box(type="checkbox" checked)
+          | Remember me
+        a.auth__link(href="#") Forgot password?
+      button.btn.btn--lg.btn--block(type="submit")
+        | Sign in
+        +icon('arrow-right')
+      .auth__divider or
+      button.btn.btn--secondary.btn--lg.btn--block(type="button")
+        +icon('lock')
+        | Continue with SSO

@@ -1,0 +1,21 @@
+extends ../../layouts/_app
+
+block title
+  p.app__eyebrow Tuesday, 23 September
+  h1.app__title Good morning, Ada
+
+block actions
+  button.btn.btn--secondary(type="button")
+    +icon('calendar')
+    | Last 30 days
+  button.btn(type="button")
+    +icon('download')
+    | Export
+
+block content
+  <insert-markup>3.2</insert-markup>
+  .app__columns
+    <insert-markup>3.7</insert-markup>
+    .app__side
+      <insert-markup>3.3-0</insert-markup>
+      <insert-markup>3.5</insert-markup>

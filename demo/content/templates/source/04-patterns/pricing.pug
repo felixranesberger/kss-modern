@@ -1,0 +1,32 @@
+include ../../mixins/_icon
+
+- const plans = [{ name: 'Starter', price: '€0', desc: 'For side projects and trying things out.', features: ['3 dashboards', '1 workspace member', '30 days of history'], cta: 'Start for free' }, { name: 'Growth', price: '€29', desc: 'For teams that make decisions with data.', features: ['Unlimited dashboards', 'Up to 25 members', '2 years of history', 'Slack and email alerts'], cta: 'Start 14-day trial', featured: true }, { name: 'Enterprise', price: '€99', desc: 'For companies with security and scale needs.', features: ['Everything in Growth', 'SSO and audit log', 'EU data residency', 'Dedicated support'], cta: 'Talk to sales' }]
+
+section.pricing
+  .pricing__header
+    span.badge.badge--brand Pricing
+    h2.pricing__title Simple plans that grow with you
+    p.pricing__lead Start free, upgrade when your team does. Every plan includes dark mode, exports and the full API.
+    .tabs.tabs--pills
+      .tabs__list(role="tablist" aria-label="Billing cycle")
+        button.tabs__tab(role="tab" type="button" aria-selected="false" tabindex="-1") Monthly
+        button.tabs__tab(role="tab" type="button" aria-selected="true")
+          | Yearly
+          span.badge.badge--brand −20%
+  .pricing__grid
+    each plan in plans
+      article.plan(class=plan.featured ? 'plan--featured' : '')
+        h3.plan__name
+          = plan.name
+          if plan.featured
+            span.badge Most popular
+        p.plan__price
+          span.plan__amount= plan.price
+          span.plan__period / member / month
+        p.plan__desc= plan.desc
+        button.btn.btn--block(type="button" class=plan.featured ? '' : 'btn--secondary')= plan.cta
+        ul.plan__features
+          each f in plan.features
+            li
+              +icon('check')
+              = f

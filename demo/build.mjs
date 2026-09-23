@@ -1,6 +1,6 @@
 /**
- * Builds the public demo styleguide from `demo/content/`, a user-facing copy of
- * `test-styleguide/` without the regression fixtures.
+ * Builds the public demo styleguide from `demo/content/`, which documents Verdant,
+ * a small fictional design system made to show what kss-modern can do.
  *
  * Run `bun run build` first, this script imports the compiled library from `dist/`.
  *
@@ -31,7 +31,7 @@ function normalizeBasePath(input) {
 
 async function copyContentAssets() {
   await Promise.all(
-    ['styles.css', 'css', 'js', 'icons', 'themes'].map(entry =>
+    ['styles.css', 'css', 'js', 'themes'].map(entry =>
       fs.copy(`${CONTENT_DIR}/${entry}`, `${CONTENT_ASSETS_DIR}/${entry}`),
     ),
   )
@@ -60,9 +60,8 @@ async function copyContentAssets() {
       },
     },
     previewThemes: [
-      { value: 'theme-midnight', label: 'Midnight' },
-      { value: 'theme-sunrise', label: 'Sunrise' },
-      { value: 'theme-forest', label: 'Forest', css: [`${CONTENT_ASSETS_URL}/themes/forest.css`] },
+      { value: 'theme-dusk', label: 'Dusk' },
+      { value: 'theme-ocean', label: 'Ocean', css: [`${CONTENT_ASSETS_URL}/themes/ocean.css`] },
     ],
   })
 

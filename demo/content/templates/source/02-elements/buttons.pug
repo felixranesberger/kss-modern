@@ -1,4 +1,12 @@
-include ../../mixins/_button
+include ../../mixins/_icon
 
-+button('Button Label', { modifier: modifierClass })
-+button('With Icon', { modifier: modifierClass, icon: 'arrow-right' })
+.stack
+  button.btn(type="button" class=modifierClass) Save changes
+  button.btn(type="button" class=modifierClass)
+    +icon('plus')
+    | New project
+  button.btn(type="button" class=modifierClass)
+    | Continue
+    +icon('arrow-right')
+  button.btn.btn--icon(type="button" class=modifierClass aria-label="Download")
+    +icon('download')

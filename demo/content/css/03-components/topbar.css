@@ -1,0 +1,104 @@
+/*
+Top Bar
+
+The application header with the workspace switcher, navigation, search and the
+current user. The dashboard pattern uses it through its Pug layout.
+
+Status: In Progress
+
+Markup: templates/source/03-components/topbar.pug
+
+Styleguide 3.9
+*/
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: 60px;
+  padding: 0 var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.topbar__logo {
+  display: grid;
+  place-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--brand-contrast);
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  border-radius: 8px;
+}
+
+.topbar__logo .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.topbar__nav {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.topbar__link {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.topbar__link:hover {
+  color: var(--text);
+  background: var(--surface-sunken);
+}
+
+.topbar__link[aria-current='page'] {
+  color: var(--text);
+  background: var(--surface-sunken);
+}
+
+.topbar__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.topbar__search {
+  width: 200px;
+}
+
+.topbar__bell {
+  position: relative;
+}
+
+.topbar__bell::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  background: var(--danger);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+@media (width < 720px) {
+  .topbar__nav,
+  .topbar__search {
+    display: none;
+  }
+}

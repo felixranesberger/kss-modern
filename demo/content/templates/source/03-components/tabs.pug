@@ -1,12 +1,13 @@
-//- Direct .pug markup. tabs.js handles selection + arrow-key navigation.
-.c-tabs
-  .c-tabs__list(role="tablist" aria-label="Demo tabs")
-    button.c-tabs__tab(role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true") Overview
-    button.c-tabs__tab(role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false" tabindex="-1") Details
-    button.c-tabs__tab(role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false" tabindex="-1") Reviews
-  .c-tabs__panel#panel-1(role="tabpanel" aria-labelledby="tab-1")
-    p Overview panel — the default selected tab.
-  .c-tabs__panel#panel-2(role="tabpanel" aria-labelledby="tab-2" hidden)
-    p Details panel — technical specifications go here.
-  .c-tabs__panel#panel-3(role="tabpanel" aria-labelledby="tab-3" hidden)
-    p Reviews panel — customer feedback.
+- const tabs = [['Overview', null, 'Everything at a glance', 'Revenue is up 12% this month, driven by the new Growth plan. Two projects need attention before Friday.'], ['Activity', '24', 'Recent activity', 'Ada closed three issues, Grace shipped the billing preview and Kai invited two new members.'], ['Settings', null, 'Workspace settings', 'Manage members, billing and integrations for the Acme workspace.']]
+
+.tabs(class=modifierClass)
+  .tabs__list(role="tablist" aria-label="Workspace")
+    each t, i in tabs
+      button.tabs__tab(role="tab" type="button" id=useId(`tab-${i}`) aria-controls=useId(`panel-${i}`) aria-selected=i === 0 ? 'true' : 'false' tabindex=i === 0 ? false : '-1')
+        = t[0]
+        if t[1]
+          span.badge.badge--brand= t[1]
+  each t, i in tabs
+    .tabs__panel(role="tabpanel" id=useId(`panel-${i}`) aria-labelledby=useId(`tab-${i}`) hidden=i !== 0)
+      h4= t[2]
+      p= t[3]

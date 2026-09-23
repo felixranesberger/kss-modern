@@ -1,56 +1,66 @@
 /*
 Accordion
 
-Expandable disclosure panels. Direct `.pug` markup; toggle behaviour and
-`aria-expanded` handling come from the `accordion.js` ES module.
+Markdown: Built on native `<details>` elements, so it works without JavaScript.
+`accordion.js` adds one extra: opening a panel closes its siblings.
 
-Status: Complete
+Status: Awaits Feedback
 
 Markup: templates/source/03-components/accordion.pug
 
-Styleguide 3.50
+Styleguide 3.5
 */
 
-.c-accordion {
-  border: 1px solid var(--color-neutral-200);
-  border-radius: var(--radius-md);
+.accordion {
+  max-width: 560px;
   overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
-.c-accordion__item + .c-accordion__item {
-  border-top: 1px solid var(--color-neutral-200);
+.accordion__item + .accordion__item {
+  border-top: 1px solid var(--border);
 }
 
-.c-accordion__trigger {
+.accordion__summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  font-weight: var(--font-weight-medium);
-  text-align: left;
-  background-color: #fff;
-  border: 0;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  list-style: none;
   cursor: pointer;
 }
 
-.c-accordion__trigger:hover {
-  background-color: var(--color-neutral-50);
-}
-
-.c-accordion__icon {
-  transition: transform 0.2s ease;
-}
-
-.c-accordion__trigger[aria-expanded="true"] .c-accordion__icon {
-  transform: rotate(180deg);
-}
-
-.c-accordion__panel {
-  padding: 0 var(--space-4) var(--space-4);
-  color: var(--color-neutral-600);
-}
-
-.c-accordion__panel[hidden] {
+.accordion__summary::-webkit-details-marker {
   display: none;
+}
+
+.accordion__summary:hover {
+  background: var(--surface-sunken);
+}
+
+.accordion__summary .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+  transition: transform 200ms ease-out;
+}
+
+.accordion__item[open] .accordion__summary .icon {
+  transform: rotate(45deg);
+}
+
+.accordion__body {
+  padding: 0 var(--space-5) var(--space-5);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.accordion__body p {
+  margin: 0;
 }

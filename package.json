@@ -34,6 +34,7 @@
     "build": "vite build && unbuild",
     "dev": "bun run build && deno run --unstable-sloppy-imports --allow-all index.ts",
     "demo": "bun run build && node demo/build.mjs",
+    "demo:screenshots": "bun run demo && node demo/screenshots.mjs",
     "lint": "eslint {lib,client}",
     "release": "bun run lint && bumpp",
     "test": "vitest run",

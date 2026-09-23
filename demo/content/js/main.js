@@ -1,19 +1,16 @@
-// Entry module loaded into every preview iframe (served as /content-assets/js/main.js).
-// Each component initializer queries by selector, so it is a no-op in iframes
-// that don't contain that component.
+// Entry module loaded into every preview. Each initializer only acts on the
+// components present in the current preview.
 import { initAccordions } from './accordion.js'
-import { initModals } from './modal.js'
+import { initDialogs } from './dialog.js'
 import { initTabs } from './tabs.js'
 
 function init() {
   initAccordions()
-  initModals()
+  initDialogs()
   initTabs()
 }
 
-if (document.readyState === 'loading') {
+if (document.readyState === 'loading')
   document.addEventListener('DOMContentLoaded', init)
-}
-else {
+else
   init()
-}

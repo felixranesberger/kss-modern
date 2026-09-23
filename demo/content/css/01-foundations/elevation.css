@@ -1,0 +1,38 @@
+/*
+Elevation
+
+Markdown: Three shadow levels. Raised surfaces sit on the page, overlays float
+above it. In dark mode the shadows fade and borders carry the separation.
+
+.shadow-xs - Level 1, cards and inputs
+.shadow-md - Level 2, popovers and menus
+.shadow-xl - Level 3, dialogs and toasts
+
+Markup: <div class="elevation-demo {{modifier_class}}"><span>Surface</span></div>
+
+Weight: 30
+
+Styleguide 1.4
+*/
+
+:root {
+  --shadow-xs: 0 1px 2px rgb(26 23 20 / 6%);
+  --shadow-md: 0 4px 8px -2px rgb(26 23 20 / 8%), 0 2px 4px -2px rgb(26 23 20 / 6%);
+  --shadow-xl: 0 20px 24px -4px rgb(26 23 20 / 10%), 0 8px 8px -4px rgb(26 23 20 / 4%);
+}
+
+.elevation-demo {
+  display: grid;
+  place-content: center;
+  width: 220px;
+  height: 120px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.elevation-demo.shadow-xs { box-shadow: var(--shadow-xs); }
+.elevation-demo.shadow-md { box-shadow: var(--shadow-md); }
+.elevation-demo.shadow-xl { box-shadow: var(--shadow-xl); }

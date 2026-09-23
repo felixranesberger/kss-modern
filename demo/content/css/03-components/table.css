@@ -1,0 +1,97 @@
+/*
+Data Table
+
+Markdown: css/03-components/table.md
+
+Status: Pending
+
+.table--compact - Compact rows for dense admin screens
+
+Markup: templates/source/03-components/table.pug
+
+Styleguide 3.7
+*/
+
+.table-card {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.table-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.table-card__title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.table-card__search {
+  width: 220px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  text-align: left;
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+}
+
+.table td {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-sunken) 60%, transparent);
+}
+
+.table--compact td {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.table__person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.table__person strong {
+  display: block;
+  font-weight: 500;
+}
+
+.table__person div span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.table .table__num {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+th.table .table__num {
+  font-family: var(--font-sans);
+}

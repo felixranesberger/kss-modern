@@ -5,69 +5,94 @@ Markdown: css/02-elements/buttons.md
 
 Status: Complete
 
-.btn--primary - Primary action button
-.btn--danger - Destructive action button
-.btn--outline - Outlined variant
-.btn--large - Large size variant
+.btn--secondary - Secondary, for the second most important action
+.btn--ghost - Ghost, for toolbars and dense layouts
+.btn--danger - Danger, for destructive actions
+.btn--sm - Small size
+.btn--lg - Large size
 
 Markup: templates/source/02-elements/buttons.pug
 
-Styleguide 2.20
+Styleguide 2.1
 */
 
 .btn {
+  --btn-bg: var(--brand);
+  --btn-bg-hover: var(--brand-hover);
+  --btn-text: var(--brand-contrast);
+  --btn-border: transparent;
+
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.5;
-  color: var(--color-neutral-800);
-  background-color: var(--color-neutral-100);
-  border: 1px solid var(--color-neutral-200);
+  height: 40px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs), inset 0 1px 0 rgb(255 255 255 / 12%);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color 150ms ease-out, transform 100ms ease-out, box-shadow 150ms ease-out;
 }
 
 .btn:hover {
-  background-color: var(--color-neutral-200);
+  background: var(--btn-bg-hover);
 }
 
-.btn .c-icon {
-  width: 1.1em;
-  height: 1.1em;
+.btn:active {
+  transform: scale(0.97);
 }
 
-.btn--primary {
-  color: #fff;
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+.btn .icon {
+  width: 16px;
+  height: 16px;
 }
 
-.btn--primary:hover {
-  background-color: var(--color-primary-dark);
+.btn--secondary {
+  --btn-bg: var(--surface);
+  --btn-bg-hover: var(--surface-sunken);
+  --btn-text: var(--text);
+  --btn-border: var(--border-strong);
+}
+
+.btn--ghost {
+  --btn-bg: transparent;
+  --btn-bg-hover: var(--surface-sunken);
+  --btn-text: var(--text);
+
+  box-shadow: none;
 }
 
 .btn--danger {
-  color: #fff;
-  background-color: var(--color-error);
-  border-color: var(--color-error);
+  --btn-bg: #d92d20;
+  --btn-bg-hover: #b42318;
+  --btn-text: #ffffff;
 }
 
-.btn--outline {
-  color: var(--color-primary);
-  background-color: transparent;
-  border-color: var(--color-primary);
+.btn--sm {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
 }
 
-.btn--outline:hover {
-  color: #fff;
-  background-color: var(--color-primary);
+.btn--lg {
+  height: 48px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-md);
 }
 
-.btn--large {
-  padding: var(--space-3) var(--space-6);
-  font-size: var(--font-size-lg);
+.btn--icon {
+  width: 40px;
+  padding: 0;
+}
+
+.btn--block {
+  width: 100%;
 }
