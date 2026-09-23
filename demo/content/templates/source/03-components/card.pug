@@ -1,0 +1,10 @@
+//- Direct .pug markup that `include`s a partial (which transitively includes the
+//- icon mixin). Demonstrates direct Pug include + dependency tracking.
+include ./_card-body
+
+article.c-card
+  +cardBody({
+    eyebrow: 'Design System',
+    title: 'Card title',
+    body: 'A flexible content card with a header, body, and footer.',
+  })

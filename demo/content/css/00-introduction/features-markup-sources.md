@@ -3,5 +3,4 @@
 - [Card](preview-3.10.html): Pug `include` chain
 - [Navigation](preview-3.80.html): Pug `extends` with blocks
 - [Badge](preview-3.30.html): static `.html` file
-- [Legacy Pug Embed](preview-4.10.html): legacy `<insert-vite-pug>` tag
-- [Insert Markup](preview-4.20.html): `<insert-markup>` cross references, including the error output for a missing reference
+- [Insert Markup](preview-4.20.html): reuse another section's markup with `<insert-markup>`

@@ -1,0 +1,26 @@
+/*
+Links
+
+Inline text links with a hover underline and an external-link variant.
+
+.c-link--external - Adds a trailing external-link icon
+
+Markup: <p class="prose">Read the <a class="c-link {{modifier_class}}" href="#">documentation</a> for details.</p>
+
+Styleguide 2.40
+*/
+
+.c-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.c-link:hover {
+  border-bottom-color: currentColor;
+}
+
+.c-link--external::after {
+  content: " ↗";
+  font-size: 0.85em;
+}

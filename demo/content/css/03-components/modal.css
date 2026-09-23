@@ -1,0 +1,57 @@
+/*
+Modal
+
+A dialog opened from a trigger button. Markup comes from a direct `.pug` file;
+behaviour is wired by the `modal.js` ES module (open, close, Escape, backdrop).
+
+Status: Pending
+
+Markup: templates/source/03-components/modal.pug
+
+Styleguide 3.40
+*/
+
+.c-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.c-modal.is-open {
+  display: flex;
+}
+
+.c-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgb(0 0 0 / 45%);
+}
+
+.c-modal__dialog {
+  position: relative;
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--space-5);
+  background-color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.c-modal__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.c-modal__body {
+  margin: 0 0 var(--space-4);
+  color: var(--color-neutral-600);
+}
+
+.c-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

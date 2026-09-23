@@ -1,0 +1,14 @@
+//- Card body partial. Included by card.pug and itself includes the icon mixin,
+//- so editing this file (or _icon.pug) re-compiles the Card section.
+include ../../mixins/_icon
+
+mixin cardBody(data)
+  .c-card__header
+    if data.eyebrow
+      p.c-card__eyebrow= data.eyebrow
+    h3.c-card__title= data.title
+  .c-card__body
+    p= data.body
+  .c-card__footer
+    a.c-link(href="#") Read more
+    +icon('arrow-right')

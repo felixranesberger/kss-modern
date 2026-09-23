@@ -1,0 +1,16 @@
+/*
+Container
+
+A max-width, horizontally-centered layout object with no cosmetic styling.
+
+Markup: <div class="o-container" style="outline: 1px dashed var(--color-neutral-400)"><p style="margin:0">Centered, width-constrained content.</p></div>
+
+Styleguide 5.10
+*/
+
+.o-container {
+  width: 100%;
+  max-width: 64rem;
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}

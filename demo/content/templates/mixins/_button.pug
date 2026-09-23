@@ -1,0 +1,9 @@
+//- Shared button mixin. Includes the icon mixin so that editing _icon.pug
+//- invalidates every template that depends on this one (transitive includes).
+include ./_icon
+
+mixin button(label, options = {})
+  button.btn(class=options.modifier, type="button")
+    if options.icon
+      +icon(options.icon)
+    span= label

@@ -2,7 +2,7 @@
 
 A modern, KSS-compatible styleguide generator. Parses KSS comment blocks from CSS/SCSS files and generates a static, accessible styleguide with live component previews.
 
-**[Live demo](https://felixranesberger.github.io/kss-modern/)** showing every feature, built from [`test-styleguide/`](test-styleguide/).
+**[Live demo](https://felixranesberger.github.io/kss-modern/)** showing every feature, built from [`demo/content/`](demo/content/).
 
 ## Features
 

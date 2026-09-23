@@ -1,5 +1,6 @@
 /**
- * Builds the public demo styleguide from `test-styleguide/`.
+ * Builds the public demo styleguide from `demo/content/`, a user-facing copy of
+ * `test-styleguide/` without the regression fixtures.
  *
  * Run `bun run build` first, this script imports the compiled library from `dist/`.
  *
@@ -15,7 +16,7 @@ import fs from 'fs-extra'
 // eslint-disable-next-line antfu/no-import-dist
 import { buildStyleguide, logger } from '../dist/node/lib/index.mjs'
 
-const CONTENT_DIR = './test-styleguide'
+const CONTENT_DIR = './demo/content'
 const OUT_DIR = process.env.DEMO_OUT_DIR ?? './demo-dist'
 const BASE_PATH = normalizeBasePath(process.env.DEMO_BASE_PATH ?? '/')
 const CONTENT_ASSETS_DIR = `${OUT_DIR}/content-assets`
@@ -44,12 +45,12 @@ async function copyContentAssets() {
     mode: 'production',
     outDir: OUT_DIR,
     contentDir: `${CONTENT_DIR}/`,
-    projectTitle: 'kss-modern Demo',
+    projectTitle: 'kss-modern',
     allowSearchEngineIndexing: true,
     logoSignet: { svgContent: LOGO_SVG },
     brandColor: {
-      light: '#2563eb',
-      dark: '#ffffff',
+      light: '#15803d',
+      dark: '#4ade80',
     },
     html: {
       lang: 'en',

@@ -1,0 +1,12 @@
+//- Direct .pug markup. tabs.js handles selection + arrow-key navigation.
+.c-tabs
+  .c-tabs__list(role="tablist" aria-label="Demo tabs")
+    button.c-tabs__tab(role="tab" id="tab-1" aria-controls="panel-1" aria-selected="true") Overview
+    button.c-tabs__tab(role="tab" id="tab-2" aria-controls="panel-2" aria-selected="false" tabindex="-1") Details
+    button.c-tabs__tab(role="tab" id="tab-3" aria-controls="panel-3" aria-selected="false" tabindex="-1") Reviews
+  .c-tabs__panel#panel-1(role="tabpanel" aria-labelledby="tab-1")
+    p Overview panel — the default selected tab.
+  .c-tabs__panel#panel-2(role="tabpanel" aria-labelledby="tab-2" hidden)
+    p Details panel — technical specifications go here.
+  .c-tabs__panel#panel-3(role="tabpanel" aria-labelledby="tab-3" hidden)
+    p Reviews panel — customer feedback.
