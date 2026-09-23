@@ -40,7 +40,9 @@ export const SECTION_THEME_STORAGE_KEY_PREFIX = 'in2section-theme:'
 const GLOBAL_THEME_SELECT_SELECTOR = '[data-global-theme-select]'
 const SECTION_THEME_SELECT_SELECTOR = '[data-section-theme-select]'
 
-const FULLPAGE_LINK_SELECTOR = 'a[href^="/fullpage-"]'
+// fullpage links are relative since the styleguide may be served from a subdirectory;
+// the root-absolute form is still matched for hand-written markup
+const FULLPAGE_LINK_SELECTOR = 'a[href^="fullpage-"], a[href^="/fullpage-"]'
 
 /**
  * Set by the `reloadPreviewsOnThemeChange` styleguide option. With it, a theme change reloads the
@@ -87,15 +89,18 @@ function reloadPreview(iframe: HTMLIFrameElement): void {
 
 /** Reflect a theme in an "Open in fullpage" link via `?theme=`; the empty theme drops the parameter. */
 function updateFullpageLink(link: HTMLAnchorElement, themeClass: string): void {
-  const url = new URL(link.getAttribute('href')!, window.location.href)
+  const originalHref = link.getAttribute('href')!
+  const url = new URL(originalHref, window.location.href)
 
   if (themeClass)
     url.searchParams.set(THEME_URL_PARAM, themeClass)
   else
     url.searchParams.delete(THEME_URL_PARAM)
 
-  const href = `${url.pathname}${url.search}${url.hash}`
-  if (href !== link.getAttribute('href'))
+  // keep the link's own path form, so a relative link stays relative
+  const path = originalHref.split(/[?#]/)[0]
+  const href = `${path}${url.search}${url.hash}`
+  if (href !== originalHref)
     link.setAttribute('href', href)
 }
 

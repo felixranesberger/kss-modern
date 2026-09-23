@@ -174,7 +174,7 @@ describe('generateFullPageFile', () => {
     const data = createBaseData()
     data.brandColor = { light: '#FFFFFF', dark: '#000000' }
     await generateFullPageFile(data)
-    expect(capturedContent).toContain('href="/styleguide-assets/favicon/fullpage.svg"')
+    expect(capturedContent).toContain('href="styleguide-assets/favicon/fullpage.svg"')
     expect(capturedContent).toContain('<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFFFFF">')
     expect(capturedContent).toContain('<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">')
   })
@@ -192,7 +192,7 @@ describe('generateFullPageFile', () => {
 
   it('includes fullpage JS script tag', async () => {
     await generateFullPageFile(createBaseData())
-    expect(capturedContent).toContain('<script type="module" src="/styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>')
+    expect(capturedContent).toContain('<script type="module" src="styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>')
   })
 })
 

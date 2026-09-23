@@ -22,7 +22,7 @@ test.describe('Styleguide Loading', () => {
 
     const headerLink = header.locator('a').first()
     await expect(headerLink).toBeVisible()
-    await expect(headerLink).toHaveAttribute('href', '/')
+    await expect(headerLink).toHaveAttribute('href', './')
   })
 
   test('has sidebar navigation with sections', async ({ page }) => {

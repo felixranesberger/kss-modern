@@ -78,7 +78,7 @@ test.describe('Section theme dropdown', () => {
     await page.goto('/preview-3.10.html', { waitUntil: 'networkidle' })
     await page.locator(cardSelect).selectOption('theme-midnight')
 
-    const links = page.locator(`${cardSection} a[href^="/fullpage-3.10.html"]`)
+    const links = page.locator(`${cardSection} a[href^="fullpage-3.10.html"]`)
     expect(await links.count()).toBeGreaterThan(0)
     for (const href of await links.evaluateAll(anchors => anchors.map(anchor => anchor.getAttribute('href')!)))
       expect(new URL(href, 'http://localhost').searchParams.get('theme')).toBe('theme-midnight')

@@ -200,7 +200,7 @@ function resetItem(ref: ItemRef) {
 function applyMatch(ref: ItemRef, entry: HaystackEntry, ranges: number[]) {
   // Jump straight to the matched subsection; otherwise land on the page top.
   if (entry.id) {
-    const url = new URL(ref.baseHref, window.location.origin)
+    const url = new URL(ref.baseHref, window.location.href)
     url.hash = `#${entry.id}`
     ref.link.setAttribute('href', url.toString())
   }

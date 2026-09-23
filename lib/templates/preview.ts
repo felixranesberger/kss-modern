@@ -51,7 +51,7 @@ export function getHeaderHtml(config: ResolvedStyleguideConfiguration) {
 <header class="sticky top-0 z-10 mx-auto flex w-full min-[1222px]:border-x border-b pr-6 max-w-[1600px] border-styleguide-border bg-styleguide-bg-highlight">
     <a
       class="mr-4 flex gap-4 items-center border-r py-4 pr-4 pl-6 border-styleguide-border w-[260px] font-semibold tracking-tight text-styleguide-theme-highlight [&>svg]:!size-6 [&>img]:!size-6"
-      href="/"
+      href="./"
     >
         ${getLogoContent(config)}
     </a>
@@ -430,7 +430,7 @@ function getMainContentSectionWrapper(section: in2Section, html?: string): strin
           ? `
           <a 
             class="p-2 group hover:text-styleguide-highlight focus:text-styleguide-highlight" 
-            href="/${section.fullpageFileName}" 
+            href="${section.fullpageFileName}" 
             target="_blank" 
             title="Open ${section.header} in fullpage"
           >
@@ -523,7 +523,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
             <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none">
                 <iframe
                       id="preview-fullpage-${sectionSanitizeId(section.id)}"
-                      src="/${section.fullpageFileName}"
+                      src="${section.fullpageFileName}"
                       class="preview-iframe"
                       data-preview="true"
                       title="${section.header} Preview"
@@ -621,7 +621,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
                       ? `
                        <a
                             class="pointer-events-auto hidden [.styleguide-section--large_&]:inline-block -mr-2 px-2 py-4 group/externallink hover:text-styleguide-highlight focus:text-styleguide-highlight"
-                            href="/${section.fullpageFileName}"
+                            href="${section.fullpageFileName}"
                             target="_blank"
                             title="Open ${section.header} in fullpage"
                         >
@@ -666,7 +666,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
     
                         <a 
                             class="p-2 group"
-                            href="/${section.fullpageFileName}?modifier=${modifier.value}" 
+                            href="${section.fullpageFileName}?modifier=${modifier.value}" 
                             target="_blank" 
                             title="Open in fullpage"
                           >
@@ -680,7 +680,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
     
                     <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none mt-2">
                         <iframe
-                              src="/${section.fullpageFileName}"
+                              src="${section.fullpageFileName}"
                               class="preview-iframe"
                               data-preview="true"
                               data-modifier="${modifier.value}"
@@ -1047,7 +1047,7 @@ export async function generatePreviewFile(data: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="styleguide">
     <meta name="robots" content="${data.allowSearchEngineIndexing ? 'index, follow' : 'noindex, nofollow'}">
-    <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/preview.svg">
+    <link rel="icon" type="image/svg+xml" href="styleguide-assets/favicon/preview.svg">
     ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
     ${typeof data.brandColor === 'object' && 'dark' in data.brandColor && 'light' in data.brandColor
       ? `
@@ -1055,14 +1055,14 @@ export async function generatePreviewFile(data: {
           <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.brandColor.dark}">
       `
       : `<meta name="theme-color" content="${data.brandColor}">`}
-    <link rel="stylesheet" type="text/css" href="/styleguide-assets/__STYLEGUIDE_CSS__">
+    <link rel="stylesheet" type="text/css" href="styleguide-assets/__STYLEGUIDE_CSS__">
     __STYLEGUIDE_PREVIEW_INLINE__
-    <script type="module" src="/styleguide-assets/__STYLEGUIDE_PREVIEW_JS__"></script>
-    <link rel="preload" href="/styleguide-assets/fonts/geist-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <link rel="preload" href="/styleguide-assets/fonts/geist-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <link rel="preload" href="/styleguide-assets/fonts/geist-mono-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <link rel="preload" href="/styleguide-assets/fonts/geist-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <link rel="preload" href="/styleguide-assets/fonts/geist-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <script type="module" src="styleguide-assets/__STYLEGUIDE_PREVIEW_JS__"></script>
+    <link rel="preload" href="styleguide-assets/fonts/geist-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="styleguide-assets/fonts/geist-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="styleguide-assets/fonts/geist-mono-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="styleguide-assets/fonts/geist-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="preload" href="styleguide-assets/fonts/geist-mono-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin="anonymous">
     ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
     ${computedStyleTags}
     <style>

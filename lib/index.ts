@@ -264,7 +264,7 @@ function buildNavigationMappings(parsedContent: in2FirstLevelSection[]): {
     menuSectionMapping[indexFirstLevel] = { title: firstLevelSection.header, items: [] }
 
     firstLevelSection.sections.forEach((secondLevelSection, indexSecondLevel) => {
-      const menuHref = indexFirstLevel === 0 && indexSecondLevel === 0 ? '/index.html' : `/${secondLevelSection.previewFileName}`
+      const menuHref = indexFirstLevel === 0 && indexSecondLevel === 0 ? 'index.html' : secondLevelSection.previewFileName
 
       searchSectionMapping[indexFirstLevel].items.push({
         label: secondLevelSection.header,

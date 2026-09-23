@@ -228,7 +228,7 @@ describe('getMainContentHtml', () => {
     })
     const html = getMainContentHtml(section, createMinimalConfig())
     expect(html).toContain('data-preview="true"')
-    expect(html).toContain('src="/fullpage-1-1-1.html"')
+    expect(html).toContain('src="fullpage-1-1-1.html"')
   })
 
   it('renders color swatches for color sections', () => {

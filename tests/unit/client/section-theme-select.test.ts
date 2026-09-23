@@ -111,6 +111,22 @@ describe('initSectionThemeSelects', () => {
     expect(document.querySelector('.modifier-link')!.getAttribute('href')).toBe('/fullpage-3.10.html?modifier=.c-card--primary')
   })
 
+  it('keeps generated relative fullpage links relative', () => {
+    const { select } = renderSection()
+    document.querySelector('.header-link')!.setAttribute('href', 'fullpage-3.10.html')
+    document.querySelector('.modifier-link')!.setAttribute('href', 'fullpage-3.10.html?modifier=.c-card--primary')
+    initSectionThemeSelects([select])
+
+    selectTheme(select, 'theme-midnight')
+
+    expect(document.querySelector('.header-link')!.getAttribute('href')).toBe('fullpage-3.10.html?theme=theme-midnight')
+    expect(document.querySelector('.modifier-link')!.getAttribute('href')).toBe('fullpage-3.10.html?modifier=.c-card--primary&theme=theme-midnight')
+
+    selectTheme(select, '')
+
+    expect(document.querySelector('.header-link')!.getAttribute('href')).toBe('fullpage-3.10.html')
+  })
+
   it('remembers the selection per section and forgets it for the default theme', () => {
     const { select } = renderSection()
     initSectionThemeSelects([select])

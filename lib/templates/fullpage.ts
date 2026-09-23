@@ -60,7 +60,7 @@ export async function generateFullPageFile(data: {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="styleguide">
     <meta name="robots" content="${data.allowSearchEngineIndexing ? 'index, follow' : 'noindex, nofollow'}">
-    <link rel="icon" type="image/svg+xml" href="/styleguide-assets/favicon/fullpage.svg">
+    <link rel="icon" type="image/svg+xml" href="styleguide-assets/favicon/fullpage.svg">
     ${data.ogImageUrl ? `<meta property="og:image" content="${data.ogImageUrl}">` : ''}
     ${typeof data.brandColor === 'object' && 'dark' in data.brandColor && 'light' in data.brandColor
       ? `
@@ -68,7 +68,7 @@ export async function generateFullPageFile(data: {
           <meta name="theme-color" media="(prefers-color-scheme: dark)" content="${data.brandColor.dark}">
       `
       : `<meta name="theme-color" content="${data.brandColor}">`}
-    <script type="module" src="/styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
+    <script type="module" src="styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
     ${computedStyleTags}
     ${computedThemeStyleTags}
 </head>

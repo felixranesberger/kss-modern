@@ -78,7 +78,7 @@ test.describe('Global theme dropdown', () => {
     await page.goto('/preview-3.20.html', { waitUntil: 'networkidle' })
     await page.locator(globalSelect).selectOption('theme-midnight')
 
-    const links = page.locator(`${alertSection} a[href^="/fullpage-3.20.html"]`)
+    const links = page.locator(`${alertSection} a[href^="fullpage-3.20.html"]`)
     const hrefs = await links.evaluateAll(anchors => anchors.map(anchor => anchor.getAttribute('href')!))
     expect(hrefs.length).toBeGreaterThan(0)
     for (const href of hrefs)
