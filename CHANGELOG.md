@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/felixranesberger/kss-modern/compare/v1.6.1...v1.6.2) (2026-10-02)
+
+### Bug Fixes
+
+* render the markup of previews and fullpages exactly as compiled — production builds formatted it with Biome using `whitespaceSensitivity: 'ignore'`, which adds and removes whitespace around inline elements, so `der <a>Link</a>` was served as `der<a>Link</a>` and text wrapped differently than on the dev server; Pug's `pretty` output in development changed the whitespace between tags as well. Both modes now render the same unformatted markup, and only the code views and copy to clipboard get a Biome-formatted copy ([d34575c](https://github.com/felixranesberger/kss-modern/commit/d34575c))
+* emit relative URLs so the styleguide works from a subdirectory — navigation, preview iframes, fullpage links, the favicon and the fullpage script used root-absolute paths, which broke a styleguide served below `/` ([3befe93](https://github.com/felixranesberger/kss-modern/commit/3befe93))
+
 ## [1.6.1](https://github.com/felixranesberger/kss-modern/compare/v1.6.0...v1.6.1) (2026-09-23)
 
 ### Bug Fixes
