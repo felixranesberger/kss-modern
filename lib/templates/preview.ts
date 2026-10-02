@@ -450,7 +450,7 @@ ${html ?? ''}
 
 function getMainContentRegular(section: in2Section, config: ResolvedStyleguideConfiguration): string {
   // the section's source for the code views — without the dev-only pug compile-error overlay
-  const sourceCode = stripPugErrorOverlay(section.markup)
+  const sourceCode = section.sourceCode ?? stripPugErrorOverlay(section.markup)
 
   const openInEditorPaths: {
     css?: { vscode: string, phpstorm: string }

@@ -12,9 +12,10 @@ import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './ins
 import { logger } from './logger.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
+import { formatSourceCode } from './pug/compile-core.ts'
 import { createRebuildQueue } from './rebuild-queue.ts'
 import { writeRobotsFile } from './robots.ts'
-import { htmlToSearchText, replaceWrapperContent } from './shared.ts'
+import { htmlToSearchText, replaceWrapperContent, stripPugErrorOverlay } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import {
   generatePreviewFile,
@@ -440,6 +441,20 @@ function reindexInsertMarkupConsumer(context: StyleguideContext, id: string): vo
 }
 
 /**
+ * Assigns the resolved markup to the section nodes. `markup` is rendered as is, `sourceCode` is its
+ * formatted copy for the code views, without the dev-only pug compile-error overlay.
+ */
+async function assignMarkup(nodeById: Map<string, in2Section>, resolved: Map<string, string>): Promise<void> {
+  await Promise.all([...resolved].map(async ([id, markup]) => {
+    const node = nodeById.get(id)
+    if (!node)
+      return
+    node.markup = markup
+    node.sourceCode = await formatSourceCode(stripPugErrorOverlay(markup), id)
+  }))
+}
+
+/**
  * Parse the styleguide and compile all pug markup, producing the reusable context. Section nodes
  * are mutated to hold their final (compiled + insert-markup-resolved) markup, ready for writing.
  */
@@ -486,11 +501,7 @@ async function buildContext(config: ResolvedStyleguideConfiguration): Promise<St
 
   // resolve <insert-markup> cross-references and assign the final markup onto the section nodes
   const resolved = resolveInsertMarkupForSections(compiledRepository, sectionsById, compiledRepository.keys())
-  for (const [id, markup] of resolved) {
-    const node = nodeById.get(id)
-    if (node)
-      node.markup = markup
-  }
+  await assignMarkup(nodeById, resolved)
 
   const { searchSectionMapping, menuSectionMapping } = buildNavigationMappings(parsedContent)
   const headerHtml = getHeaderHtml(config)
@@ -682,11 +693,7 @@ export async function rebuildSections(
 
   // re-resolve <insert-markup> for the affected sections and update their nodes
   const resolved = resolveInsertMarkupForSections(context.compiledRepository, context.sectionsById, affected)
-  for (const [id, markup] of resolved) {
-    const node = context.nodeById.get(id)
-    if (node)
-      node.markup = markup
-  }
+  await assignMarkup(context.nodeById, resolved)
 
   // write only the affected fullpages and their (deduped) owning preview pages
   const writeTasks: Promise<void>[] = []

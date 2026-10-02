@@ -18,20 +18,18 @@ export type Mode = StyleguideConfiguration['mode']
 installPugParseCache()
 
 export interface CompileResult {
-  /** Final HTML: pug-compiled, formatted, accessibility-fixed. */
+  /** Final HTML: pug-compiled and accessibility-fixed. Never formatted, see `formatSourceCode`. */
   html: string
   /** Absolute paths of every file this section's markup depends on (entry pug/html + includes/extends). */
   dependencies: string[]
 }
 
-// Memoised Biome instance + project key, created on first use (production formatting only) and
-// reused for the process lifetime.
+// Memoised Biome instance + project key, created on first use and reused for the process lifetime.
 let biomePromise: Promise<{ biome: Biome, projectKey: number }> | undefined
 
 function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
   biomePromise ??= (async () => {
-    // Loaded lazily: Biome only formats in production, so dev never pays this (heavy) import,
-    // and worker threads no longer load it at boot.
+    // Loaded lazily, so worker threads never load it and a build without code views never pays the import.
     const { Biome, Distribution } = await import('@biomejs/js-api')
     const biome = await Biome.create({ distribution: Distribution.NODE })
     const { projectKey } = biome.openProject('.')
@@ -52,7 +50,12 @@ function getBiome(): Promise<{ biome: Biome, projectKey: number }> {
   return biomePromise
 }
 
-async function biomeFormat(content: string, sectionId: string): Promise<string> {
+/**
+ * Formats a section's HTML for the code views ("Show code", copy to clipboard). The result must never
+ * be rendered: `whitespaceSensitivity: 'ignore'` adds and removes whitespace around inline elements,
+ * so `der <a>Link</a>` can become `der<a>Link</a>` and wrap differently.
+ */
+export async function formatSourceCode(content: string, sectionId: string): Promise<string> {
   const filePath = 'example.html'
   try {
     const { biome, projectKey } = await getBiome()
@@ -137,8 +140,9 @@ function compilePugFile(
     filename: pugFilePath,
     // define doctype to avoid self-closing tags on wrong places
     doctype: 'html',
-    // pretty output in dev keeps the "Show code" view readable without Biome
-    pretty: mode === 'development',
+    // pretty output adds whitespace between tags and would render differently than production.
+    // The code views are formatted separately, see `formatSourceCode`.
+    pretty: false,
     // pug defaults this to true, which wraps the generated function in per-line try/catch +
     // line-mapping — measurably bloating codegen and `new Function`. We surface compile errors via
     // our own overlay, so the precise pug line in a runtime stack isn't worth the cost.
@@ -236,11 +240,6 @@ export async function compileMarkup(
   const expanded = await expandVitePugTags(contentDir, mode, result, sectionId)
   result = expanded.html
   dependencies.push(...expanded.dependencies)
-
-  // Production output is canonically formatted with Biome; dev relies on pug `pretty`.
-  if (mode === 'production') {
-    result = await biomeFormat(result, sectionId)
-  }
 
   result = fixAccessibilityIssues(result)
 

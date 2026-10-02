@@ -570,7 +570,10 @@ export interface in2Section {
   header: string
   description: string
   hasMarkdownDescription: boolean
+  /** Compiled markup, rendered in previews and fullpages exactly as it is. */
   markup: string
+  /** `markup` formatted for the code views. Set once the markup is compiled. */
+  sourceCode?: string
   modifiers: {
     value: string
     description: string
