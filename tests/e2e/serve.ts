@@ -39,6 +39,30 @@ await buildStyleguide({
 })
 console.info('[E2E] Styleguide built successfully.')
 
+// A second, small styleguide for the mixin playground, served from /mixin-e2e/. Its project CSS
+// is deliberately hostile (tests/fixtures/mixin-e2e/project.css) to prove the controls are isolated.
+const mixinFixtureDir = './tests/fixtures/mixin-e2e'
+const mixinOutDir = path.join(outDir, 'mixin-e2e')
+await buildStyleguide({
+  mode: 'production',
+  outDir: mixinOutDir,
+  contentDir: `${mixinFixtureDir}/`,
+  projectTitle: 'Mixin Playground',
+  cacheDir: false,
+  html: {
+    lang: 'en',
+    assets: {
+      css: [{ src: 'project.css' }],
+      js: [{ src: 'project.js', additionalAttributes: { type: 'module' } }],
+    },
+  },
+  brandColor: '#005075',
+  previewThemes: [{ value: 'theme-midnight', label: 'Midnight' }],
+})
+fs.copyFileSync(path.join(mixinFixtureDir, 'project.css'), path.join(mixinOutDir, 'project.css'))
+fs.copyFileSync(path.join(mixinFixtureDir, 'project.js'), path.join(mixinOutDir, 'project.js'))
+console.info('[E2E] Mixin playground styleguide built successfully.')
+
 // Stylesheet for the Midnight theme (tests/e2e/theme-css.spec.ts). The rule is deliberately
 // unscoped, so it only ever takes effect if the theme's <link> was actually activated.
 fs.writeFileSync(

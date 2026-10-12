@@ -1,0 +1,20 @@
+include _button
+include _tag
+
+//- internal helper, no schema: its public calls show up under the card
+mixin cardActions(label)
+  .card__actions
+    +button({ label: label })
+    +button({ label: 'Cancel', variant: 'ghost' })
+
+mixin card(props)
+  - var mixinName = 'organisms/Card'
+  -
+    var mixinSchema = z.object({
+      title: z.string().meta({ examples: ['Card title'] }),
+    })
+  - const p = mixinSchema.parse(props)
+  article.card
+    h3= p.title
+    +tag({ text: 'New' })
+    +cardActions('Save')

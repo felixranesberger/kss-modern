@@ -1,5 +1,7 @@
 import type { SectionMeta } from './insert-markup.ts'
+import type { MixinManifest, MixinPipeline } from './mixins/index.ts'
 import type { FileObject, in2FirstLevelSection, in2Section } from './parser.ts'
+import type { CompiledSection } from './pug/index.ts'
 import type { MenuSearchKeywords } from './templates/preview.ts'
 import path from 'node:path'
 import process from 'node:process'
@@ -10,6 +12,7 @@ import { sectionSanitizeId } from '../client/utils.ts'
 import { generateFaviconFiles } from './favicon.ts'
 import { getInsertMarkupReferences, resolveInsertMarkupForSections } from './insert-markup.ts'
 import { logger } from './logger.ts'
+import { createMixinPipeline, getMixinExplorerHref, getMixinStandaloneFileName, MIXIN_GRAPH_PREFIX, MIXIN_OVERVIEW_FILE } from './mixins/index.ts'
 import { parse } from './parser.ts'
 import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } from './pug'
 import { formatSourceCode } from './pug/compile-core.ts'
@@ -17,6 +20,8 @@ import { createRebuildQueue } from './rebuild-queue.ts'
 import { writeRobotsFile } from './robots.ts'
 import { htmlToSearchText, replaceWrapperContent, stripPugErrorOverlay } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
+import { renderMixinUsage } from './templates/mixin-usage.ts'
+import { generateMixinStandaloneFile, getMixinExplorerHtml } from './templates/mixins.ts'
 import {
   generatePreviewFile,
   getAlerts,
@@ -87,6 +92,19 @@ interface StyleguideOptions {
    * the initial page load.
    */
   reloadPreviewsOnThemeChange?: boolean
+  /**
+   * Reload the mixin playground preview with the new props on every change, instead of swapping the
+   * rendered markup into the loaded document and dispatching `kss-modern:playground-render`.
+   *
+   * Off by default. Turn it on when the project's JavaScript initialises components only on page
+   * load and does not listen for that event.
+   */
+  reloadPlaygroundOnChange?: boolean
+  /**
+   * Directory of the persistent build cache, which makes a restarted build start warm. Defaults to
+   * `node_modules/.cache/kss-modern`; `false` keeps the cache in memory only.
+   */
+  cacheDir?: string | false
   /**
    * Let search engines index the generated styleguide.
    *
@@ -216,8 +234,8 @@ export interface StyleguideContext {
   sectionsById: Map<string, SectionMeta>
   /** section id -> original (pre-compile) markup, i.e. the compile input */
   rawMarkupBySection: Map<string, string>
-  /** section id -> compiled markup that is NOT yet <insert-markup>-resolved (persistent) */
-  compiledRepository: Map<string, { markup: string }>
+  /** section id -> compiled markup that is NOT yet <insert-markup>-resolved, with the mixins it called */
+  compiledRepository: Map<string, CompiledSection>
   /** refId -> ids whose compiled markup embeds <insert-markup>refId</insert-markup> */
   insertMarkupConsumers: Map<string, Set<string>>
   headerHtml: string
@@ -227,6 +245,10 @@ export interface StyleguideContext {
   nodeById: Map<string, in2Section>
   /** any section id -> the location of its owning second-level section (for preview regen) */
   ownerLocationById: Map<string, { firstLevelIndex: number, secondLevelIndex: number }>
+  /** Every page reachable through previous/next, in navigation order. */
+  pageSequence: { label: string, href: string }[]
+  /** The mixins found in the content directory (empty without zod). */
+  mixins: MixinManifest
 }
 
 /**
@@ -253,9 +275,10 @@ export async function parseStyleguide(contentDir: StyleguideConfiguration['conte
   return rawParsedOutput
 }
 
-function buildNavigationMappings(parsedContent: in2FirstLevelSection[]): {
+function buildNavigationMappings(parsedContent: in2FirstLevelSection[], mixins: MixinManifest): {
   searchSectionMapping: SearchSectionMapping[]
   menuSectionMapping: MenuSectionMapping[]
+  pageSequence: { label: string, href: string }[]
 } {
   const searchSectionMapping: SearchSectionMapping[] = []
   const menuSectionMapping: MenuSectionMapping[] = []
@@ -294,7 +317,43 @@ function buildNavigationMappings(parsedContent: in2FirstLevelSection[]): {
     })
   })
 
-  return { searchSectionMapping, menuSectionMapping }
+  const pageSequence = parsedContent.flatMap(firstLevelSection => firstLevelSection.sections.map(section => ({
+    label: section.header,
+    href: section.previewFileName,
+  })))
+
+  // the mixins are one more top-level entry after the sections, a single explorer page
+  if (mixins.mixins.length > 0) {
+    menuSectionMapping.push({ title: 'Mixins', items: [{ label: 'Explorer', href: MIXIN_OVERVIEW_FILE }] })
+    searchSectionMapping.push({
+      title: 'Mixins',
+      items: [
+        { label: 'Mixin explorer', href: MIXIN_OVERVIEW_FILE, searchKeywords: [{ keywords: ['Mixins', 'Explorer', 'Playground'] }] },
+        ...mixins.mixins.map(entry => ({
+          label: entry.path.join(' / '),
+          href: getMixinExplorerHref(entry.id),
+          searchKeywords: [{ keywords: [entry.path.join(' '), entry.name, entry.file] }],
+        })),
+        ...mixins.mixins.filter(entry => entry.hasSchema).map(entry => ({
+          label: `${entry.path.join(' / ')} (standalone)`,
+          href: getMixinStandaloneFileName(entry.id),
+          searchKeywords: [{ keywords: [`${entry.name} standalone`] }],
+        })),
+      ],
+    })
+    pageSequence.push({ label: 'Mixins', href: MIXIN_OVERVIEW_FILE })
+  }
+
+  return { searchSectionMapping, menuSectionMapping, pageSequence }
+}
+
+/** The previous and next page around `href` for the page controls. */
+function getNextPageControlsData(pageSequence: { label: string, href: string }[], href: string) {
+  const index = pageSequence.findIndex(page => page.href === href)
+  return {
+    before: index > 0 ? pageSequence[index - 1] : undefined,
+    after: index >= 0 ? pageSequence[index + 1] : undefined,
+  }
 }
 
 /**
@@ -348,28 +407,7 @@ function writePreviewFile(
   const firstLevelSection = parsedContent[firstLevelIndex]
   const secondLevelSection = firstLevelSection.sections[secondLevelIndex]
 
-  let sectionBefore = firstLevelSection.sections[secondLevelIndex - 1]
-  if (!sectionBefore && !(firstLevelIndex === 0)) {
-    sectionBefore = parsedContent[firstLevelIndex - 1].sections.at(-1)!
-  }
-
-  let sectionAfter = firstLevelSection.sections[secondLevelIndex + 1]
-  if (!sectionAfter && parsedContent[firstLevelIndex + 1]) {
-    sectionAfter = parsedContent[firstLevelIndex + 1].sections.at(0)!
-  }
-
-  const nextPageControlsData: {
-    before?: { label: string, href: string }
-    after?: { label: string, href: string }
-  } = {}
-
-  if (sectionBefore) {
-    nextPageControlsData.before = { label: sectionBefore.header, href: sectionBefore.previewFileName }
-  }
-
-  if (sectionAfter) {
-    nextPageControlsData.after = { label: sectionAfter.header, href: sectionAfter.previewFileName }
-  }
+  const nextPageControlsData = getNextPageControlsData(context.pageSequence, secondLevelSection.previewFileName)
 
   const preloadIframes: string[] = []
   if (secondLevelSection.markup) {
@@ -398,7 +436,11 @@ function writePreviewFile(
     html: {
       header: headerHtml,
       sidebarMenu: getSidebarMenuHtml(menuSectionMapping, secondLevelSection.previewFileName),
-      mainContent: getMainContentHtml(secondLevelSection, config),
+      mainContent: getMainContentHtml(
+        secondLevelSection,
+        config,
+        section => renderMixinUsage(context.compiledRepository.get(section.id)?.mixinUsage, context.mixins),
+      ),
       nextPageControls: getNextPageControlsHtml(nextPageControlsData),
       search: searchHtml,
       codeAuditDialog: getCodeAuditDialog(),
@@ -413,6 +455,51 @@ function writePreviewFile(
       ? config.plugins.ogImage(secondLevelSection)
       : undefined,
   })
+}
+
+/**
+ * Write the mixin pages: the explorer, and a standalone page per mixin with a playground. Unchanged
+ * pages are left untouched on disk.
+ */
+async function writeMixinPages(config: ResolvedStyleguideConfiguration, context: StyleguideContext): Promise<void> {
+  const { mixins, baseDirectory, menuSectionMapping, headerHtml, searchHtml } = context
+  if (mixins.mixins.length === 0)
+    return
+
+  await Promise.all([
+    generatePreviewFile({
+      filePath: path.join(baseDirectory, MIXIN_OVERVIEW_FILE),
+      page: { title: 'Mixins', lang: config.html.lang },
+      css: config.html.assets.css,
+      js: config.html.assets.js,
+      html: {
+        header: headerHtml,
+        sidebarMenu: getSidebarMenuHtml(menuSectionMapping, MIXIN_OVERVIEW_FILE),
+        mainContent: getMixinExplorerHtml(mixins, config),
+        // the explorer fills the viewport; previous/next would sit below the fold
+        nextPageControls: '',
+        search: searchHtml,
+        codeAuditDialog: getCodeAuditDialog(),
+        alerts: getAlerts(),
+        preloadIframes: [],
+      },
+      brandColor: config.brandColor,
+      deactivateDarkMode: config.deactivateDarkMode,
+      allowSearchEngineIndexing: config.allowSearchEngineIndexing,
+      reloadPreviewsOnThemeChange: config.reloadPreviewsOnThemeChange,
+    }),
+    ...mixins.mixins.filter(entry => entry.hasSchema).map(entry =>
+      generateMixinStandaloneFile({ filePath: path.join(baseDirectory, getMixinStandaloneFileName(entry.id)), entry, config }),
+    ),
+  ])
+}
+
+/** Recompute the navigation after the set of mixins changed. */
+function refreshNavigation(config: ResolvedStyleguideConfiguration, context: StyleguideContext): void {
+  const { searchSectionMapping, menuSectionMapping, pageSequence } = buildNavigationMappings(context.parsedContent, context.mixins)
+  context.menuSectionMapping = menuSectionMapping
+  context.pageSequence = pageSequence
+  context.searchHtml = getSearchHtml(config.projectTitle, searchSectionMapping)
 }
 
 /** Record that `consumerId`'s compiled markup embeds <insert-markup>refId</insert-markup>. */
@@ -458,7 +545,7 @@ async function assignMarkup(nodeById: Map<string, in2Section>, resolved: Map<str
  * Parse the styleguide and compile all pug markup, producing the reusable context. Section nodes
  * are mutated to hold their final (compiled + insert-markup-resolved) markup, ready for writing.
  */
-async function buildContext(config: ResolvedStyleguideConfiguration): Promise<StyleguideContext> {
+async function buildContext(config: ResolvedStyleguideConfiguration, mixinsPromise: Promise<MixinManifest>): Promise<StyleguideContext> {
   const { content: parsedContent, overwrittenSectionsIds } = await parseStyleguide(config.contentDir)
   const baseDirectory = path.relative(process.cwd(), config.outDir)
 
@@ -503,7 +590,9 @@ async function buildContext(config: ResolvedStyleguideConfiguration): Promise<St
   const resolved = resolveInsertMarkupForSections(compiledRepository, sectionsById, compiledRepository.keys())
   await assignMarkup(nodeById, resolved)
 
-  const { searchSectionMapping, menuSectionMapping } = buildNavigationMappings(parsedContent)
+  // the mixins were built alongside the sections; the navigation is the first thing that needs them
+  const mixins = await mixinsPromise
+  const { searchSectionMapping, menuSectionMapping, pageSequence } = buildNavigationMappings(parsedContent, mixins)
   const headerHtml = getHeaderHtml(config)
   const searchHtml = getSearchHtml(config.projectTitle, searchSectionMapping)
 
@@ -520,6 +609,8 @@ async function buildContext(config: ResolvedStyleguideConfiguration): Promise<St
     menuSectionMapping,
     nodeById,
     ownerLocationById,
+    pageSequence,
+    mixins,
   }
 }
 
@@ -593,8 +684,23 @@ async function copyStyleguideAssets(config: ResolvedStyleguideConfiguration): Pr
  * Full build: parse, compile every section, and write all fullpage + preview files. Returns the
  * reusable context so the watcher can perform targeted incremental rebuilds afterwards.
  */
-export async function buildAll(input: StyleguideConfiguration | ResolvedStyleguideConfiguration): Promise<{ errors: StyleguideBuildOutput['errors'], context: StyleguideContext }> {
+export interface BuildAllOptions {
+  /** The mixin pipeline to reuse; watch mode keeps one for its lifetime. */
+  mixinPipeline?: MixinPipeline
+  /**
+   * The markup files changed since the pipeline's last build. Only these are rediscovered, and an
+   * empty list reuses the last mixin result as is, so a CSS or Markdown edit costs the mixins nothing.
+   * Without it every mixin is checked.
+   */
+  changedMarkupFiles?: string[]
+}
+
+export async function buildAll(
+  input: StyleguideConfiguration | ResolvedStyleguideConfiguration,
+  options: BuildAllOptions = {},
+): Promise<{ errors: StyleguideBuildOutput['errors'], context: StyleguideContext }> {
   const config = resolveConfiguration(input)
+  const mixinPipeline = options.mixinPipeline ?? createMixinPipeline(config)
 
   // ensure clean output directory and delete all html files
   if (config.mode === 'production' && await fs.exists(config.outDir)) {
@@ -602,7 +708,12 @@ export async function buildAll(input: StyleguideConfiguration | ResolvedStylegui
     await Promise.all(files.map(file => fs.remove(file)))
   }
 
-  const context = await buildContext(config)
+  // The mixins build alongside the sections, they are independent until the navigation is rendered
+  const mixinsPromise = mixinPipeline.build(mixinPipeline.current() ? options.changedMarkupFiles : undefined)
+    .then(result => result.manifest)
+  // a section error may end the build before the mixins are awaited; don't let theirs go unhandled
+  mixinsPromise.catch(() => {})
+  const context = await buildContext(config, mixinsPromise)
 
   const fileWriteTasks: Promise<void>[] = []
   context.parsedContent.forEach((firstLevelSection, firstLevelIndex) => {
@@ -625,6 +736,7 @@ export async function buildAll(input: StyleguideConfiguration | ResolvedStylegui
   await Promise.all([
     copyStyleguideAssets(config),
     writeRobotsFile(config.outDir, config.allowSearchEngineIndexing ?? false),
+    writeMixinPages(config, context),
     ...fileWriteTasks,
   ])
 
@@ -687,7 +799,7 @@ export async function rebuildSections(
 
   const recompiled = await compilePugMarkupIncremental(config.mode, config.contentDir, subset, subset.keys())
   for (const [id, entry] of recompiled) {
-    context.compiledRepository.set(id, { markup: entry.markup })
+    context.compiledRepository.set(id, entry)
     reindexInsertMarkupConsumer(context, id)
   }
 
@@ -737,8 +849,9 @@ export async function watchStyleguide(
   onError?: (errorData: StyleguideBuildOutput['errors']) => void,
 ) {
   const config = resolveConfiguration(input)
+  const mixinPipeline = createMixinPipeline(config)
 
-  const initialBuild = await buildAll(config)
+  const initialBuild = await buildAll(config, { mixinPipeline })
   if (onError && initialBuild.errors) {
     onError(initialBuild.errors)
   }
@@ -753,8 +866,8 @@ export async function watchStyleguide(
   // as a spurious ENOENT.
   const queue = createRebuildQueue({
     // css/scss/md/yaml edits can change section structure -> full rebuild + fresh context
-    onStructural: async () => {
-      const localBuild = await buildAll(config)
+    onStructural: async (changedMarkupFiles) => {
+      const localBuild = await buildAll(config, { mixinPipeline, changedMarkupFiles })
       context = localBuild.context
       if (onChange)
         onChange({ type: 'structural' })
@@ -767,14 +880,29 @@ export async function watchStyleguide(
       const dependencyGraph = getPugDependencyGraph()
       const affected = [...new Set(
         changedFiles.flatMap(changedFile => dependencyGraph.getAffectedSections(changedFile)),
-      )]
+      )].filter(id => !id.startsWith(MIXIN_GRAPH_PREFIX))
 
-      if (affected.length === 0)
+      // the sections and the mixins rebuild side by side; only the navigation needs both
+      const previousMixins = JSON.stringify(context.mixins)
+      const [mixinResult] = await Promise.all([
+        mixinPipeline.build(changedFiles),
+        affected.length > 0 ? rebuildSections(config, context, affected) : undefined,
+      ])
+      context.mixins = mixinResult.manifest
+      if (mixinResult.isNavigationChanged) {
+        // a mixin appeared, vanished or gained a schema: every page's navigation is stale
+        refreshNavigation(config, context)
+        await Promise.all(context.parsedContent.flatMap((firstLevelSection, firstLevelIndex) =>
+          firstLevelSection.sections.map((_, secondLevelIndex) => writePreviewFile(config, context, firstLevelIndex, secondLevelIndex)),
+        ))
+      }
+      await writeMixinPages(config, context)
+
+      const haveMixinsChanged = JSON.stringify(context.mixins) !== previousMixins
+      if (!onChange || (affected.length === 0 && !haveMixinsChanged))
         return
 
-      await rebuildSections(config, context, affected)
-      if (onChange)
-        onChange({ type: 'markup', files: changedFiles, sections: affected })
+      onChange({ type: 'markup', files: changedFiles, sections: affected })
     },
     onError: (error) => {
       logger.error('Error during rebuild:', error)

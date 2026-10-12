@@ -1,0 +1,421 @@
+/*
+ * Styles of the playground props panel. They live in the panel's shadow root: the project's CSS
+ * cannot reach the controls, and these rules cannot reach the component. Nothing here relies on a
+ * reset or on Tailwind preflight, every element the panel uses is styled from scratch.
+ *
+ * Inside the styleguide the panel takes the styleguide's colour tokens through inheritance. The
+ * standalone page sets its own values on the host, so a project's custom properties never apply.
+ */
+
+@layer settings, generic, components, utilities;
+
+@layer settings {
+  :host {
+    --color-surface-primary: var(--styleguide-color-background-highlight, light-dark(hsl(0 0% 100%), hsl(0 0% 4%)));
+    --color-surface-sunken: var(--styleguide-color-background, light-dark(hsl(0 0% 98%), hsl(0 0% 2%)));
+    --color-text-primary: var(--styleguide-color-highlight, light-dark(hsl(221 40% 11%), hsl(0 0% 98%)));
+    --color-text-secondary: var(--styleguide-color-regular, light-dark(hsl(0 0% 40%), hsl(0 0% 64%)));
+    --color-border-default: var(--styleguide-color-border, light-dark(hsl(0 0% 92%), hsl(0 0% 12%)));
+    --color-border-focus: var(--styleguide-color-theme-highlight, light-dark(hsl(221 83% 53%), hsl(213 94% 78%)));
+    --color-status-error: light-dark(hsl(0 74% 42%), hsl(0 91% 71%));
+    --font-mono: ui-monospace, 'Geist Mono', sfmono-regular, menlo, monospace;
+    --radius-default: 0.75em;
+    --radius-small: 0.5em;
+    --duration-fast: 150ms;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  :host([data-standalone]) {
+    --color-surface-primary: light-dark(hsl(0 0% 100%), hsl(0 0% 4%));
+    --color-surface-sunken: light-dark(hsl(0 0% 98%), hsl(0 0% 2%));
+    --color-text-primary: light-dark(hsl(221 40% 11%), hsl(0 0% 98%));
+    --color-text-secondary: light-dark(hsl(0 0% 32%), hsl(0 0% 64%));
+    --color-border-default: light-dark(hsl(0 0% 90%), hsl(0 0% 15%));
+    --color-border-focus: light-dark(hsl(221 83% 53%), hsl(213 94% 78%));
+
+    color-scheme: light dark;
+  }
+
+  :host([data-scheme="light"]) {
+    color-scheme: light;
+  }
+
+  :host([data-scheme="dark"]) {
+    color-scheme: dark;
+  }
+}
+
+@layer generic {
+  :host {
+    display: block;
+  }
+
+  /*
+   * Type is set on the panel's own elements, not on the host: on the standalone page the host is
+   * reset with an inline `all: initial`, and every size below is in em, so neither the project's
+   * root font size nor its body font reaches the controls.
+   */
+  .c-panel,
+  .c-launcher {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+  }
+
+  :host([data-standalone]) :is(.c-panel, .c-launcher) {
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 13px;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .c-panel {
+    display: flex;
+    flex-direction: column;
+    max-block-size: 100%;
+    min-block-size: 0;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-default);
+    background: var(--color-surface-primary);
+    overflow: hidden;
+  }
+
+  :host([data-standalone]) .c-panel {
+    block-size: 100%;
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: 0 0 0 1px var(--color-border-default), 0 0.5em 2em hsl(0 0% 0% / 12%);
+  }
+
+  /* inside the explorer's tab panel: no frame of its own */
+  :host([data-flush]) .c-panel {
+    border-width: 0;
+    border-radius: 0;
+  }
+
+  /* the explorer's tab already says what this is */
+  :host([data-flush]) .c-panel__header {
+    display: none;
+  }
+
+  .c-panel__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding-block: 0.5em;
+    padding-inline: 1em 0.5em;
+    border-block-end: 1px solid var(--color-border-default);
+  }
+
+  .c-panel__title {
+    flex: 1;
+    min-inline-size: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 1em;
+    font-weight: 600;
+    line-height: 2em;
+    color: var(--color-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .c-panel__body {
+    display: grid;
+    gap: 1em;
+    min-block-size: 0;
+    padding: 1em;
+    overflow-y: auto;
+  }
+
+  .c-panel__message {
+    margin: 0;
+    padding-block: 0.5em;
+    padding-inline: 0.75em;
+    border: 1px solid currentcolor;
+    border-radius: var(--radius-small);
+    color: var(--color-status-error);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .c-panel__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em;
+    padding-block: 0.5em;
+    padding-inline: 1em;
+    border-block-start: 1px solid var(--color-border-default);
+    background: var(--color-surface-sunken);
+  }
+
+  .c-panel__call {
+    min-inline-size: 0;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+    color: var(--color-text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .c-field {
+    display: grid;
+    gap: 0.25em;
+  }
+
+
+  .c-field__label {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+
+  .c-field__type {
+    font-family: var(--font-mono);
+  }
+
+
+  .c-field__help,
+  .c-field__error {
+    margin: 0;
+    font-size: 0.75em;
+  }
+
+  .c-field__error {
+    color: var(--color-status-error);
+  }
+
+  .c-control {
+    display: block;
+    inline-size: 100%;
+    margin: 0;
+    padding-block: 0.375em;
+    padding-inline: 0.625em;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-small);
+    background: var(--color-surface-sunken);
+    color: var(--color-text-primary);
+    font: inherit;
+    /* 16px keeps iOS from zooming into a focused field */
+    font-size: max(16px, 1em);
+    line-height: 1.4;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .c-control {
+      font-size: inherit;
+    }
+  }
+
+  .c-control--select {
+    appearance: none;
+    padding-inline-end: 2em;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentcolor 50%),
+      linear-gradient(135deg, currentcolor 50%, transparent 50%);
+    background-position: calc(100% - 0.9375em) 50%, calc(100% - 0.625em) 50%;
+    background-size: 0.3125em 0.3125em;
+    background-repeat: no-repeat;
+    cursor: pointer;
+  }
+
+  .c-control--textarea {
+    min-block-size: 5.5em;
+    resize: vertical;
+    font-family: var(--font-mono);
+    font-size: 0.75em;
+  }
+
+  .c-control[aria-invalid="true"] {
+    border-color: var(--color-status-error);
+  }
+
+  .c-control:disabled,
+  .c-checkbox:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .c-checkbox-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    cursor: pointer;
+  }
+
+  .c-checkbox {
+    inline-size: 1em;
+    block-size: 1em;
+    margin: 0;
+    accent-color: var(--color-border-focus);
+    cursor: pointer;
+  }
+
+  .c-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25em;
+    min-block-size: 2em;
+    min-inline-size: 2em;
+    margin: 0;
+    padding-block: 0.25em;
+    padding-inline: 0.625em;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-small);
+    background: var(--color-surface-primary);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 0.875em;
+    white-space: nowrap;
+    cursor: pointer;
+    transition-property: border-color, scale;
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out);
+  }
+
+  .c-button:active {
+    scale: 0.96;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .c-button:hover {
+      border-color: var(--color-border-focus);
+    }
+  }
+
+  .c-button svg {
+    inline-size: 1em;
+    block-size: 1em;
+  }
+
+  .c-button--icon {
+    min-inline-size: 2em;
+    padding-inline: 0;
+  }
+
+  .c-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .c-list-editor {
+    display: grid;
+    gap: 0.5em;
+    justify-items: start;
+  }
+
+  .c-list {
+    display: grid;
+    gap: 0.375em;
+    inline-size: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .c-list__item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+    align-items: center;
+    gap: 0.25em;
+  }
+
+  /* standalone page: resize handle along the docked edge */
+  .c-resize-handle {
+    position: absolute;
+    z-index: 1;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    touch-action: none;
+  }
+
+  .c-resize-handle::after {
+    content: '';
+    position: absolute;
+    border-radius: 999px;
+    background: var(--color-text-secondary);
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .c-resize-handle:hover::after {
+      opacity: 0.4;
+    }
+  }
+
+  .c-resize-handle:focus-visible::after {
+    opacity: 0.6;
+  }
+
+  :host([data-dock="right"]) .c-resize-handle {
+    inset-block: 0;
+    inset-inline-start: -0.25em;
+    inline-size: 0.5em;
+    cursor: col-resize;
+  }
+
+  :host([data-dock="right"]) .c-resize-handle::after {
+    inset-block: 40%;
+    inset-inline-start: 0.1875em;
+    inline-size: 2px;
+  }
+
+  :host([data-dock="bottom"]) .c-resize-handle {
+    inset-inline: 0;
+    inset-block-start: -0.25em;
+    block-size: 0.5em;
+    cursor: row-resize;
+  }
+
+  :host([data-dock="bottom"]) .c-resize-handle::after {
+    inset-inline: 40%;
+    inset-block-start: 0.1875em;
+    block-size: 2px;
+  }
+
+  .c-launcher {
+    box-shadow: 0 0.25em 1em hsl(0 0% 0% / 16%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .c-button,
+    .c-resize-handle::after {
+      transition: none;
+    }
+  }
+}
+
+@layer utilities {
+  .u-sr-only {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+}

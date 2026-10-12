@@ -1,12 +1,15 @@
 import type { Biome } from '@biomejs/js-api'
 import type { StyleguideConfiguration } from '../index'
+import type { MixinUsageNode } from './mixin-trace.ts'
 import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import pug from 'pug'
-import { sectionSanitizeId } from '../../client/utils.ts'
 import { logger } from '../logger.ts'
 import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
+import { createUseId } from '../use-id.ts'
+import { requireZod } from '../zod.ts'
+import { createMixinTrace, mergeMixinUsage, MIXIN_TRACE_LOCAL, mixinTracePlugin } from './mixin-trace.ts'
 import { installPugParseCache } from './parse-cache.ts'
 
 export type Mode = StyleguideConfiguration['mode']
@@ -17,11 +20,15 @@ export type Mode = StyleguideConfiguration['mode']
 // shared include tree is otherwise re-parsed once per dependent section. See ./parse-cache.ts.
 installPugParseCache()
 
+export { createUseId }
+
 export interface CompileResult {
   /** Final HTML: pug-compiled and accessibility-fixed. Never formatted, see `formatSourceCode`. */
   html: string
   /** Absolute paths of every file this section's markup depends on (entry pug/html + includes/extends). */
   dependencies: string[]
+  /** The mixins the markup called while rendering, as a call tree. */
+  mixinUsage: MixinUsageNode[]
 }
 
 // Memoised Biome instance + project key, created on first use and reused for the process lifetime.
@@ -87,38 +94,6 @@ export async function formatSourceCode(content: string, sectionId: string): Prom
   }
 }
 
-/**
- * Creates the `useId` helper exposed to Pug templates for a single render.
- *
- * Ids carry an `id-` prefix so they always start with a letter: a section id is numeric
- * (e.g. `80.90`), and a leading digit is a valid HTML id but NOT a valid CSS/querySelector token
- * (`document.querySelector('#80-90-x')` throws), so the prefix keeps generated ids safe to select.
- *
- * With a key, the id is derived purely from the section id and that key, e.g.
- * `useId('email')` inside section `2.30` returns `id-2-30-email`. It never depends on call
- * order, so the same key returns the same id on every re-render — a label and its input
- * can share one: `label(for=id)` / `input(id=id)`.
- *
- * Without a key, `useId()` hands out a fresh sequential id per call (`id-2-30-0`, `id-2-30-1`, …)
- * for "just give me a unique one" cases. The counter resets each render, so an unchanged
- * template stays stable across re-renders; it only shifts if no-arg calls are added/reordered.
- */
-export function createUseId(sectionId: string) {
-  const namespace = `id-${sectionSanitizeId(sectionId)}`
-  let autoCounter = 0
-  return (key?: string) => {
-    if (key === undefined) {
-      return `${namespace}-${autoCounter++}`
-    }
-
-    const suffix = String(key)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-    return suffix ? `${namespace}-${suffix}` : namespace
-  }
-}
-
 /** The `.pug` file path a pug error points at, if it carries one (raw, unresolved). */
 export function pugErrorFile(error: unknown): string | undefined {
   const candidate = error as { path?: string, filename?: string } | null
@@ -134,7 +109,7 @@ function compilePugFile(
   mode: Mode,
   sectionId: string,
   extraLocals: Record<string, unknown> = {},
-): { html: string, dependencies: string[] } {
+): CompileResult {
   const source = readFileSync(pugFilePath, 'utf8')
   const pugFn = pug.compile(source, {
     filename: pugFilePath,
@@ -147,6 +122,8 @@ function compilePugFile(
     // line-mapping — measurably bloating codegen and `new Function`. We surface compile errors via
     // our own overlay, so the precise pug line in a runtime stack isn't worth the cost.
     compileDebug: false,
+    // records which mixins the section calls, see ./mixin-trace.ts
+    plugins: [mixinTracePlugin],
   })
 
   const dependencies = [path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep))]
@@ -154,9 +131,15 @@ function compilePugFile(
   // section's modifier with `.c-tabs(class=modifierClass)` instead of writing the literal token; the
   // placeholder survives compilation and is swapped per modifier at runtime (see ModifierReplacer).
   // `extraLocals` wins, so `<insert-vite-pug modifierClass="…">` still bakes its fixed class instead.
-  const html = pugFn({ modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId) })
+  const locals: Record<string, unknown> = { modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId) }
+  // `z` is zod (when installed), so markup can call mixins that declare a `mixinSchema`, see
+  // lib/mixins. A getter, so zod only loads for a template that actually uses it.
+  Object.defineProperty(locals, 'z', { enumerable: true, get: requireZod })
+  const trace = createMixinTrace()
+  locals[MIXIN_TRACE_LOCAL] = trace
+  const html = pugFn(locals)
 
-  return { html, dependencies }
+  return { html, dependencies, mixinUsage: trace.read() }
 }
 
 /**
@@ -172,11 +155,12 @@ async function expandVitePugTags(
 ): Promise<CompileResult> {
   const vitePugTags = html.match(INSERT_VITE_PUG_TAG_RE)
   if (!vitePugTags) {
-    return { html, dependencies: [] }
+    return { html, dependencies: [], mixinUsage: [] }
   }
 
   let markupOutput = html
   const dependencies: string[] = []
+  const mixinUsage: MixinUsageNode[] = []
 
   await Promise.all(vitePugTags.map(async (vitePugTag) => {
     const pugSourcePath = vitePugTag.match(PUG_SRC_RE)?.[1]
@@ -195,12 +179,13 @@ async function expandVitePugTags(
       : {}
 
     const pugFilePath = path.join(contentDir, pugSourcePath)
-    const { html: pugOutput, dependencies: pugDependencies } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
+    const { html: pugOutput, dependencies: pugDependencies, mixinUsage: pugMixinUsage } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
     dependencies.push(...pugDependencies)
+    mixinUsage.push(...pugMixinUsage)
     markupOutput = markupOutput.replaceAll(vitePugTag, pugOutput)
   }))
 
-  return { html: markupOutput, dependencies }
+  return { html: markupOutput, dependencies, mixinUsage }
 }
 
 /**
@@ -221,6 +206,7 @@ export async function compileMarkup(
 ): Promise<CompileResult> {
   let result = html
   const dependencies: string[] = []
+  const mixinUsage: MixinUsageNode[] = []
 
   const trimmed = html.trim()
   const isBarePath = !trimmed.includes('<') && !trimmed.includes('\n')
@@ -235,13 +221,15 @@ export async function compileMarkup(
     const compiled = compilePugFile(pugFilePath, mode, sectionId)
     result = compiled.html
     dependencies.push(...compiled.dependencies)
+    mixinUsage.push(...compiled.mixinUsage)
   }
 
   const expanded = await expandVitePugTags(contentDir, mode, result, sectionId)
   result = expanded.html
   dependencies.push(...expanded.dependencies)
+  mixinUsage.push(...expanded.mixinUsage)
 
   result = fixAccessibilityIssues(result)
 
-  return { html: result, dependencies: [...new Set(dependencies)] }
+  return { html: result, dependencies: [...new Set(dependencies)], mixinUsage: mergeMixinUsage(mixinUsage) }
 }

@@ -240,7 +240,13 @@ if (window.frameElement) {
       }
 
       // drop the dev-only pug compile-error overlay so it isn't reported as a section a11y issue
-      const html = stripPugErrorOverlay(await response.text())
+      let html = stripPugErrorOverlay(await response.text())
+
+      // A mixin playground renders its component in the browser, so the served page holds an empty
+      // root: validate the markup currently on screen in its place.
+      const playgroundRoot = document.querySelector('[data-kss-mixin-root]')
+      if (playgroundRoot)
+        html = html.replace('<div data-kss-mixin-root></div>', () => stripPugErrorOverlay(playgroundRoot.outerHTML))
       const { results } = await validator.validateString(html, {
         rules: {
           'no-trailing-whitespace': 'off',

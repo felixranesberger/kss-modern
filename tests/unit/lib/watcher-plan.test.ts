@@ -25,15 +25,15 @@ describe('planRebuilds', () => {
     expect(plan.markupFiles).toEqual(['/a.pug', '/b.pug'])
   })
 
-  /** A full rebuild reparses and rewrites everything, so markup work alongside it is redundant. */
-  it('drops markup work when the batch also needs a full rebuild', () => {
+  /** The full rebuild covers the sections, but the mixin pipeline still needs the markup files. */
+  it('keeps the markup files when the batch also needs a full rebuild', () => {
     const plan = planRebuilds([
       { category: 'markup', path: '/a.pug' },
       { category: 'structural' },
       { category: 'markup', path: '/b.pug' },
     ])
 
-    expect(plan).toEqual({ structural: true, markupFiles: [] })
+    expect(plan).toEqual({ structural: true, markupFiles: ['/a.pug', '/b.pug'] })
   })
 
   it('asks for a single full rebuild however many structural changes arrived', () => {

@@ -1,3 +1,4 @@
+import type { MixinUsageNode } from './mixin-trace.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
@@ -10,6 +11,8 @@ export interface PugCacheEntry {
   dependencies: string[]
   /** depPath -> signature; used to detect on-disk changes. */
   depSignatures: Map<string, string>
+  /** The mixins the markup called, so a cache hit still knows them. */
+  mixinUsage: MixinUsageNode[]
 }
 
 /**

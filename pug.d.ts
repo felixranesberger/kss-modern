@@ -16,6 +16,10 @@ declare module 'pug' {
   }
 
   interface PugPlugin {
+    /** Rewrite the AST after includes and extends were linked into it. */
+    postLink?: (ast: any, options?: Options) => any
+    /** Rewrite the final AST right before the template function is generated. */
+    preCodeGen?: (ast: any, options?: Options) => any
     /** Override how an include/extends file is read (e.g. to cache reads). Receives an absolute path. */
     read?: (filename: string, options?: Options) => string
     /** Override how an include/extends path is resolved to an absolute path. */
@@ -31,6 +35,8 @@ declare module 'pug' {
   const pug: {
     compileFile: (source: string, options?: Options) => CompiledTemplate
     compile: (source: string, options?: Options) => CompiledTemplate
+    /** Compile to the source of a standalone render function, plus the files it was built from. */
+    compileClientWithDependenciesTracked: (source: string, options?: Options) => { body: string, dependencies: string[] }
   }
   export = pug
 }
@@ -56,4 +62,25 @@ declare module 'pug-load' {
 
   const load: PugLoad
   export = load
+}
+
+declare module 'pug-lexer' {
+  function lex(src: string, options?: { filename?: string }): any[]
+  export = lex
+}
+
+declare module 'pug-parser' {
+  function parse(tokens: any[], options?: { filename?: string, src?: string }): any
+  export = parse
+}
+
+declare module 'pug-walk' {
+  /** Walk a pug AST. Returning `false` from `before` skips the node's children. */
+  function walk(
+    ast: any,
+    before?: (node: any, replace: (replacement: any) => void) => boolean | void,
+    after?: (node: any, replace: (replacement: any) => void) => void,
+    options?: { includeDependencies?: boolean },
+  ): any
+  export = walk
 }

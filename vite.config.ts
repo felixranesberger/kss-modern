@@ -13,6 +13,7 @@ export default defineConfig({
         'preview': resolve(__dirname, 'client/preview.ts'),
         'preview-inline': resolve(__dirname, 'client/preview-inline.ts'),
         'fullpage': resolve(__dirname, 'client/fullpage.ts'),
+        'playground': resolve(__dirname, 'client/playground.ts'),
       },
       formats: ['es'],
       name: 'Styleguide',
@@ -21,6 +22,9 @@ export default defineConfig({
       output: {
         entryFileNames: '[name]-[hash].js',
         assetFileNames: '[name]-[hash][extname]',
+        // zod gets a chunk of its own: only the mixin playground pages load it, and its hashed name
+        // stays stable across releases that do not touch it
+        manualChunks: (id: string) => id.includes('/node_modules/zod/') ? 'zod' : undefined,
       },
     },
     manifest: true,

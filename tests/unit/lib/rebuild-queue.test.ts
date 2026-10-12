@@ -72,14 +72,16 @@ describe('createRebuildQueue', () => {
     expect(batches).toEqual([['a.pug'], ['b.pug', 'c.pug']])
   })
 
-  /** A full rebuild rewrites everything, so queued markup work would be redundant. */
+  /** A full rebuild rewrites every section; it receives the markup files for the mixin pipeline. */
   it('lets a pending full rebuild absorb pending markup work', async () => {
     const markupBatches: string[][] = []
+    const structuralFiles: string[][] = []
     let structuralRuns = 0
 
     const queue = createRebuildQueue({
-      onStructural: async () => {
+      onStructural: async (files) => {
         structuralRuns += 1
+        structuralFiles.push(files)
       },
       onMarkup: async (files) => {
         markupBatches.push(files)
@@ -94,6 +96,7 @@ describe('createRebuildQueue', () => {
 
     expect(markupBatches).toEqual([['a.pug']])
     expect(structuralRuns).toBe(1)
+    expect(structuralFiles).toEqual([['b.pug']])
   })
 
   it('reports a failed rebuild and stays usable afterwards', async () => {

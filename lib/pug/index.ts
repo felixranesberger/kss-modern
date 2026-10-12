@@ -1,5 +1,7 @@
+import type { MixinSchemaResult } from '../mixins/schema.ts'
 import type { Mode } from './compile-core.ts'
-import type { PugWorkerInput, PugWorkerOutput } from './worker.ts'
+import type { MixinUsageNode } from './mixin-trace.ts'
+import type { PugMixinJob, PugMixinWorkerOutput, PugSchemaWorkerOutput, PugWorkerInput, PugWorkerOutput } from './worker.ts'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,11 +9,20 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
 import { logger } from '../logger.ts'
+import { compileMixinModule } from '../mixins/compile.ts'
+import { evaluateMixinSchema } from '../mixins/schema.ts'
+import { requireZod } from '../zod.ts'
 import { computeDepSignatures, PugCompileCache } from './cache.ts'
 import { compileMarkup, pugErrorFile } from './compile-core.ts'
 import { PugDependencyGraph } from './dependency-graph.ts'
 import { renderPugErrorOverlay } from './error-overlay.ts'
 import { clearPugParseCache } from './parse-cache.ts'
+
+/** A section's markup, compiled, with the mixins it called while rendering. */
+export interface CompiledSection {
+  markup: string
+  mixinUsage?: MixinUsageNode[]
+}
 
 export interface PugCompileError {
   /** Section id whose markup failed to compile. */
@@ -117,13 +128,13 @@ function spawnWorker(index: number): Worker {
 }
 
 /** Run a single compile job on a worker, settling when it replies or rejecting if the thread dies. */
-function runOnWorker(worker: Worker, input: PugWorkerInput): Promise<PugWorkerOutput> {
-  return new Promise<PugWorkerOutput>((resolve, reject) => {
+function runOnWorker<T = PugWorkerOutput>(worker: Worker, input: PugWorkerInput): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
     function cleanup(): void {
       worker.off('message', onMessage)
       worker.off('error', onError)
     }
-    function onMessage(result: PugWorkerOutput): void {
+    function onMessage(result: T): void {
       cleanup()
       resolve(result)
     }
@@ -142,7 +153,7 @@ function runOnWorker(worker: Worker, input: PugWorkerInput): Promise<PugWorkerOu
  * running on that slot. Rejects if the worker thread dies (the slot drops it so the next task spawns
  * a fresh one); the caller records the failure.
  */
-function runPinned(id: string, input: PugWorkerInput): Promise<PugWorkerOutput> {
+function runPinned<T = PugWorkerOutput>(id: string, input: PugWorkerInput): Promise<T> {
   const slot = slots[slotIndexFor(id)]
   slot.active++
   const run = slot.tail.then(async () => {
@@ -151,7 +162,7 @@ function runPinned(id: string, input: PugWorkerInput): Promise<PugWorkerOutput> 
     const worker = slot.worker
     worker.ref()
     try {
-      return await runOnWorker(worker, input)
+      return await runOnWorker<T>(worker, input)
     }
     catch (error) {
       // thread-level crash: drop the dead worker so the slot respawns (cold) on its next task
@@ -190,10 +201,10 @@ signals.forEach(signal => process.on(signal, () => {
   void terminatePugWorkers()
 }))
 
-async function storeResult(id: string, markupSource: string, html: string, dependencies: string[]): Promise<void> {
+async function storeResult(id: string, markupSource: string, html: string, dependencies: string[], mixinUsage: MixinUsageNode[]): Promise<void> {
   graph.setDependencies(id, dependencies)
   const depSignatures = await computeDepSignatures(dependencies)
-  cache.set(id, { markupSource, compiledHtml: html, dependencies, depSignatures })
+  cache.set(id, { markupSource, compiledHtml: html, dependencies, depSignatures, mixinUsage })
 }
 
 /**
@@ -207,7 +218,7 @@ async function storeResult(id: string, markupSource: string, html: string, depen
  */
 function recordFailure(
   mode: Mode,
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, CompiledSection>,
   errors: PugCompileError[],
   pugError: PugCompileError,
 ): void {
@@ -222,15 +233,15 @@ function recordFailure(
 async function compileInline(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, CompiledSection>,
   id: string,
   errors: PugCompileError[],
 ): Promise<void> {
   const markupSource = repository.get(id)!.markup
   try {
-    const { html, dependencies } = await compileMarkup(contentDir, mode, markupSource, id)
-    repository.set(id, { markup: html })
-    await storeResult(id, markupSource, html, dependencies)
+    const { html, dependencies, mixinUsage } = await compileMarkup(contentDir, mode, markupSource, id)
+    repository.set(id, { markup: html, mixinUsage })
+    await storeResult(id, markupSource, html, dependencies, mixinUsage)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -242,7 +253,7 @@ async function compileInline(
 async function compileViaWorkerPool(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, CompiledSection>,
   ids: string[],
   errors: PugCompileError[],
 ): Promise<void> {
@@ -270,8 +281,8 @@ async function compileViaWorkerPool(
       return
     }
 
-    repository.set(id, { markup: result.html })
-    await storeResult(id, markupSource, result.html, result.dependencies)
+    repository.set(id, { markup: result.html, mixinUsage: result.mixinUsage })
+    await storeResult(id, markupSource, result.html, result.dependencies, result.mixinUsage)
   })
 
   await Promise.all(tasks)
@@ -285,9 +296,9 @@ async function compileViaWorkerPool(
 async function compileIds(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, CompiledSection>,
   ids: string[],
-): Promise<Map<string, { markup: string }>> {
+): Promise<Map<string, CompiledSection>> {
   // Shallow copy: compileIds only ever replaces whole `{ markup }` value objects via `.set`, never
   // mutates the existing ones, so the caller's map stays untouched without a deep clone.
   const clonedRepository = new Map(repository)
@@ -302,7 +313,7 @@ async function compileIds(
 
     if (await cache.isFresh(id, entry.markup)) {
       const cached = cache.get(id)!
-      clonedRepository.set(id, { markup: cached.compiledHtml })
+      clonedRepository.set(id, { markup: cached.compiledHtml, mixinUsage: cached.mixinUsage })
       graph.setDependencies(id, cached.dependencies)
       return
     }
@@ -347,8 +358,8 @@ async function compileIds(
 export async function compilePugMarkup(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, { markup: string }>,
-): Promise<Map<string, { markup: string }>> {
+  repository: Map<string, CompiledSection>,
+): Promise<Map<string, CompiledSection>> {
   return compileIds(mode, contentDir, repository, Array.from(repository.keys()))
 }
 
@@ -359,9 +370,74 @@ export async function compilePugMarkup(
 export async function compilePugMarkupIncremental(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, CompiledSection>,
   ids: Iterable<string>,
-): Promise<Map<string, { markup: string }>> {
+): Promise<Map<string, CompiledSection>> {
   const wanted = Array.from(ids).filter(id => repository.has(id))
   return compileIds(mode, contentDir, repository, wanted)
+}
+
+/**
+ * Precompile mixin playground modules on the worker pool, like section compiles, so the main thread
+ * stays free for the sections' code formatting. `inline` (a small incremental rebuild, or no
+ * worker file) compiles on the main thread instead. Never throws: each job settles to its module
+ * or to the pug error it hit.
+ */
+export async function compileMixinJobs(
+  jobs: Omit<PugMixinJob, 'kind'>[],
+  { inline }: { inline: boolean },
+): Promise<Map<string, PugMixinWorkerOutput>> {
+  const results = new Map<string, PugMixinWorkerOutput>()
+  const useInline = inline || !workerFilePathResolved
+
+  await Promise.all(jobs.map(async (job) => {
+    if (useInline) {
+      try {
+        const { code, dependencies } = compileMixinModule(job.file, job.name)
+        results.set(job.id, { id: job.id, code, dependencies })
+      }
+      catch (error) {
+        const file = pugErrorFile(error)
+        results.set(job.id, { id: job.id, error: error instanceof Error ? error.message : String(error), file: file ? path.resolve(file) : undefined })
+      }
+      return
+    }
+
+    try {
+      const result = await runPinned<PugMixinWorkerOutput>(`mixin:${job.id}`, { kind: 'mixin', ...job })
+      results.set(job.id, 'error' in result && result.file ? { ...result, file: path.resolve(result.file) } : result)
+    }
+    catch (error) {
+      results.set(job.id, { id: job.id, error: error instanceof Error ? error.message : String(error) })
+    }
+  }))
+
+  return results
+}
+
+/**
+ * Evaluate `mixinSchema` blocks on the worker pool. Loading zod and running a schema costs a few
+ * dozen milliseconds the first time; on a worker that happens beside the section compiles instead
+ * of blocking the main thread. Without a worker file the schemas are evaluated here.
+ */
+export async function evaluateSchemaJobs(jobs: { id: string, source: string }[]): Promise<Map<string, MixinSchemaResult>> {
+  const results = new Map<string, MixinSchemaResult>()
+
+  await Promise.all(jobs.map(async (job) => {
+    if (!workerFilePathResolved) {
+      const z = requireZod()
+      results.set(job.id, z ? evaluateMixinSchema(z, job.source) : { error: 'zod 4 is not installed' })
+      return
+    }
+
+    try {
+      const { schema } = await runPinned<PugSchemaWorkerOutput>(`schema:${job.id}`, { kind: 'schema', ...job })
+      results.set(job.id, schema)
+    }
+    catch (error) {
+      results.set(job.id, { error: error instanceof Error ? error.message : String(error) })
+    }
+  }))
+
+  return results
 }

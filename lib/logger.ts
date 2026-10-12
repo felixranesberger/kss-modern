@@ -25,6 +25,8 @@ export interface Logger {
   warn: (message: unknown, ...args: unknown[]) => void
   /** Error — a message, an Error/unknown value, or a message followed by one. */
   error: (message: unknown, ...args: unknown[]) => void
+  /** Diagnostic detail, only shown at consola's debug level (`CONSOLA_LEVEL=4`). */
+  debug: (message: unknown, ...args: unknown[]) => void
   /** Boxed, highlighted message used for grouped summaries. */
   box: (box: LogBox) => void
 }
@@ -50,6 +52,7 @@ export function createLogger(tag = 'STYLEGUIDE'): Logger {
     success: (message, ...args) => consola.success(badge, message, ...args),
     warn: (message, ...args) => consola.warn(badge, message, ...args),
     error: (message, ...args) => consola.error(badge, message, ...args),
+    debug: (message, ...args) => consola.debug(badge, message, ...args),
     box: ({ title, message }) => consola.box({ title, message }),
   }
 }

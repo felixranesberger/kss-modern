@@ -1,0 +1,7 @@
+/* Deliberately hostile project CSS: none of it may reach the playground controls. */
+html { font-size: 5px; }
+body { font-family: serif; font-size: 40px; color: rgb(255, 0, 0); }
+body *:not(script, style) { all: unset; }
+button { background: rgb(255, 0, 0) !important; font-size: 40px !important; }
+input, select, textarea { display: none; }
+div { position: static !important; }

@@ -337,7 +337,13 @@ function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
   )
 }
 
-export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: ResolvedStyleguideConfiguration) {
+/**
+ * Renders the "Show mixins" disclosure of a section (`lib/templates/mixin-usage.ts`); returns an
+ * empty string for a section without public mixins.
+ */
+export type MixinUsageRenderer = (section: in2Section) => string
+
+export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: ResolvedStyleguideConfiguration, renderMixinUsage: MixinUsageRenderer = () => '') {
   let output = ''
 
   function renderSection(section: in2Section) {
@@ -348,7 +354,7 @@ export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, co
       output += getMainContentSectionWrapper(section, getMainContentIcons(section))
     }
     else {
-      const content = section.markup || (!section.markup && section.figma) ? getMainContentRegular(section, config) : undefined
+      const content = section.markup || (!section.markup && section.figma) ? getMainContentRegular(section, config, renderMixinUsage(section)) : undefined
       output += getMainContentSectionWrapper(section, content)
     }
   }
@@ -448,52 +454,34 @@ ${html ?? ''}
   `
 }
 
-function getMainContentRegular(section: in2Section, config: ResolvedStyleguideConfiguration): string {
-  // the section's source for the code views — without the dev-only pug compile-error overlay
-  const sourceCode = section.sourceCode ?? stripPugErrorOverlay(section.markup)
+export interface EditorLinks { vscode: string, phpstorm: string }
 
-  const openInEditorPaths: {
-    css?: { vscode: string, phpstorm: string }
-    html?: { vscode: string, phpstorm: string }
-  } = {}
+/**
+ * Deep links that open `file` (relative to the working directory) in an editor. Only in development
+ * with `launchInEditor` set; undefined otherwise.
+ */
+export function getOpenInEditorLinks(config: ResolvedStyleguideConfiguration, file: string, line?: number): EditorLinks | undefined {
+  if (config.mode !== 'development' || !config.launchInEditor)
+    return undefined
 
-  if (config.mode === 'development' && config.launchInEditor) {
-    const computedRootPath = config.launchInEditor && typeof config.launchInEditor === 'object' && 'rootDir' in config.launchInEditor
-      ? config.launchInEditor.rootDir
-      : process.cwd()
+  const computedRootPath = typeof config.launchInEditor === 'object' && 'rootDir' in config.launchInEditor
+    ? config.launchInEditor.rootDir
+    : process.cwd()
 
-    const cssFilePath = ensureStartingSlash(path.join(computedRootPath, section.source.css.file))
-    const cssLineNumber = getSectionTitleLine(section)
-    openInEditorPaths.css = {
-      vscode: `vscode://file//${cssFilePath}:${cssLineNumber}`,
-      phpstorm: `phpstorm://open?file=${cssFilePath}&line=${cssLineNumber}`,
-    }
-
-    if (section.source.markup && section.source.markup.file) {
-      const htmlFilePath = ensureStartingSlash(path.join(computedRootPath, section.source.markup.file))
-      openInEditorPaths.html = {
-        vscode: `vscode://file//${htmlFilePath}`,
-        phpstorm: `phpstorm://open?file=${htmlFilePath}`,
-      }
-    }
+  const filePath = ensureStartingSlash(path.join(computedRootPath, file))
+  return {
+    vscode: `vscode://file//${filePath}${line !== undefined ? `:${line}` : ''}`,
+    phpstorm: `phpstorm://open?file=${filePath}${line !== undefined ? `&line=${line}` : ''}`,
   }
+}
 
-  const computeFigmaExternalLink = (url?: string) => {
-    if (!url)
-      return ''
-
-    const urlObj = new URL(url)
-    urlObj.hostname = 'www.figma.com'
-
-    return urlObj.toString()
-  }
-
-  // Preserve classes in tailwind
-  // group/phpstorm
-  // group/vscode
-  // group-hover/phpstorm:saturate-100
-  // group-hover/vscode:saturate-100
-  const renderOpenInEditorLink = (editorType: 'phpstorm' | 'vscode', contentType: 'CSS' | 'HTML' | 'Pug', link: string) => `
+// Preserve classes in tailwind
+// group/phpstorm
+// group/vscode
+// group-hover/phpstorm:saturate-100
+// group-hover/vscode:saturate-100
+export function renderOpenInEditorLink(editorType: 'phpstorm' | 'vscode', contentType: 'CSS' | 'HTML' | 'Pug', link: string) {
+  return `
     <a
         class="pointer-events-auto hidden editor-${editorType}-only @md:inline-flex items-center group/${editorType} gap-1.5 p-4 desktop-device-only cursor-pointer active:scale-90 transition hover:text-styleguide-highlight duration-200"
         href="${link}"
@@ -510,6 +498,29 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
         >
     </a>
   `
+}
+
+function getMainContentRegular(section: in2Section, config: ResolvedStyleguideConfiguration, mixinUsageHtml = ''): string {
+  // the section's source for the code views — without the dev-only pug compile-error overlay
+  const sourceCode = section.sourceCode ?? stripPugErrorOverlay(section.markup)
+
+  const openInEditorPaths: {
+    css?: EditorLinks
+    html?: EditorLinks
+  } = {
+    css: getOpenInEditorLinks(config, section.source.css.file, getSectionTitleLine(section)),
+    html: section.source.markup?.file ? getOpenInEditorLinks(config, section.source.markup.file) : undefined,
+  }
+
+  const computeFigmaExternalLink = (url?: string) => {
+    if (!url)
+      return ''
+
+    const urlObj = new URL(url)
+    urlObj.hostname = 'www.figma.com'
+
+    return urlObj.toString()
+  }
 
   // A theme dropdown only makes sense for a section with a live preview to re-theme.
   const themeSelectMarkup = section.markup && section.themes && section.themes.length > 0
@@ -634,6 +645,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
                       : ''}
                 </span>
         </div>
+        ${mixinUsageHtml}
     </div>
     
     ${section.modifiers?.length > 0

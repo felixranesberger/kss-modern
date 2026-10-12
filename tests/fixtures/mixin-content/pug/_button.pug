@@ -1,0 +1,15 @@
+include _icon
+mixin button(props)
+  - var mixinName = 'atoms/Button'
+  -
+    var mixinSchema = z.object({
+      label: z.string().describe('Button text'),
+      variant: z.enum(['primary', 'ghost']).default('primary'),
+      icon: z.string().optional(),
+    })
+  - const p = mixinSchema.parse(props)
+  button(class=['btn', 'btn--' + p.variant] id=useId('btn'))
+    if p.icon
+      +icon(p.icon)
+    = p.label
+h1 Top-level demo markup of the button partial

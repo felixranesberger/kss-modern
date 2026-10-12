@@ -11,8 +11,9 @@ export interface StyleguideWatchHandlers {
   /**
    * A `.css/.scss/.sass/.less` file whose KSS section comment changed, or any `.md`
    * change. These can alter section structure, so the whole styleguide is rebuilt.
+   * Receives the markup files that changed in the same batch (often none).
    */
-  onStructuralChange: () => void
+  onStructuralChange: (changedMarkupFiles: string[]) => void
   /**
    * One or more `.pug` (or source `.html`) markup files changed. Only the sections
    * depending on them are recompiled and rewritten. Receives absolute paths.
@@ -98,15 +99,13 @@ function tryReadFileSync(filePath: string): string | undefined {
 /**
  * Reduce a batch to the rebuilds it actually needs.
  *
- * A structural change reparses and rewrites everything, so it makes any markup
- * work in the same batch redundant. Markup paths are deduplicated because a
- * single save can surface as several events.
+ * A structural change reparses and rewrites every section, but the markup files
+ * of the same batch are still reported: the mixin pipeline only looks at those,
+ * so a CSS or Markdown edit on its own never touches it. Markup paths are
+ * deduplicated because a single save can surface as several events.
  */
 export function planRebuilds(changes: PendingChange[]): { structural: boolean, markupFiles: string[] } {
   const structural = changes.some(change => change.category === 'structural')
-  if (structural) {
-    return { structural: true, markupFiles: [] }
-  }
 
   const markupFiles = [...new Set(
     changes
@@ -114,7 +113,7 @@ export function planRebuilds(changes: PendingChange[]): { structural: boolean, m
       .map(change => change.path),
   )]
 
-  return { structural: false, markupFiles }
+  return { structural, markupFiles }
 }
 
 /**
@@ -140,7 +139,7 @@ export function watchStyleguideForChanges(
     const { structural, markupFiles } = planRebuilds(changes)
 
     if (structural) {
-      handlers.onStructuralChange()
+      handlers.onStructuralChange(markupFiles)
       return
     }
 
