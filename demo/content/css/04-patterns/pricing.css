@@ -1,0 +1,143 @@
+/*
+Pricing
+
+Markdown: A pricing section with a billing toggle and three plans. The
+featured plan uses the brand gradient. Try it in the **Ocean** theme from the
+header.
+
+Markup: templates/source/04-patterns/pricing.pug
+
+Styleguide 4.2
+*/
+
+.pricing {
+  display: grid;
+  gap: var(--space-10);
+  padding: var(--space-8) 0;
+}
+
+.pricing__header {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.pricing__title {
+  margin: 0;
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.pricing__lead {
+  margin: 0;
+  max-width: 48ch;
+  color: var(--text-muted);
+}
+
+.pricing__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+  align-items: stretch;
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xs);
+}
+
+.plan--featured {
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-300) 45%, transparent), transparent 50%),
+    linear-gradient(160deg, var(--brand-700), var(--brand-950));
+  border-color: transparent;
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-8px);
+}
+
+.plan__name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.plan--featured .badge {
+  color: #ffffff;
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 25%);
+}
+
+.plan__price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.plan__amount {
+  font-size: var(--text-4xl);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.plan__period {
+  font-size: var(--text-sm);
+  opacity: 0.7;
+}
+
+.plan__desc {
+  margin: 0;
+  font-size: var(--text-sm);
+  opacity: 0.75;
+}
+
+.plan__features {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-5) 0 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  border-top: 1px solid var(--border);
+}
+
+.plan--featured .plan__features {
+  border-color: rgb(255 255 255 / 15%);
+}
+
+.plan__features li {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.plan__features .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--brand);
+}
+
+.plan--featured .plan__features .icon {
+  color: var(--brand-300);
+}
+
+.plan--featured .btn {
+  --btn-bg: #ffffff;
+  --btn-bg-hover: var(--brand-50);
+  --btn-text: var(--brand-800);
+}

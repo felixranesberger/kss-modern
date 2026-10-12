@@ -1,0 +1,94 @@
+/*
+Toast
+
+Short confirmation that disappears on its own. Stack at most three.
+
+Markup: <div class="toast-stack">
+  <div class="toast" role="status"><span class="toast__icon toast__icon--success"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><div><p class="toast__title">Changes saved</p><p class="toast__text">Your workspace settings are up to date.</p></div><button class="toast__close" type="button" aria-label="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="toast" role="status"><span class="toast__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg></span><div><p class="toast__title">Invite sent to kai@acme.io</p><p class="toast__text"><a class="toast__link" href="#">Undo</a></p></div><button class="toast__close" type="button" aria-label="Close"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+</div>
+
+Styleguide 3.8
+*/
+
+.toast-stack {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 380px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+}
+
+.toast > div {
+  flex: 1;
+}
+
+.toast__icon {
+  display: grid;
+  place-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  background: var(--surface-sunken);
+  border-radius: 50%;
+}
+
+.toast__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.toast__icon--success {
+  color: var(--brand-contrast);
+  background: var(--brand);
+}
+
+.toast__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.toast__text {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.toast__link {
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.toast__close {
+  display: grid;
+  place-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  background: var(--surface-sunken);
+}
+
+.toast__close svg {
+  width: 14px;
+  height: 14px;
+}

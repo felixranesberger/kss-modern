@@ -1,7 +1,13 @@
 /*
-Settings
+Introduction
 
-Design tokens: colors, typography, and the icon set.
+Styleguide 0
+*/
+
+/*
+Foundations
+
+Design tokens every component is built from: color, type, space, elevation and icons.
 
 Styleguide 1
 */
@@ -9,7 +15,7 @@ Styleguide 1
 /*
 Elements
 
-Bare HTML elements — headings, buttons, form controls, links.
+The smallest building blocks. Buttons, form controls, badges and avatars.
 
 Styleguide 2
 */
@@ -17,7 +23,7 @@ Styleguide 2
 /*
 Components
 
-Composed UI components, several driven by JavaScript.
+Composed interface parts, several of them interactive.
 
 Styleguide 3
 */
@@ -25,66 +31,44 @@ Styleguide 3
 /*
 Patterns
 
-Reuse the markup of one section inside another with <insert-markup>.
+Whole screens assembled from the components above with `<insert-markup>`.
 
 Styleguide 4
 */
 
 /*
-Objects
-
-Layout primitives with no cosmetic styling.
-
-Styleguide 5
-*/
-
-/*
-Utilities
-
-Single-purpose helper classes.
-
-Styleguide 6
-*/
-
-/*
- * --- Bundle entry (plain CSS, ITCSS ordering) ---
- * Loaded into every preview iframe (served as /content-assets/styles.css).
- * The KSS docs above declare the six top-level categories; per-section docs
- * live in the imported partials.
+ * Verdant, the demo design system shipped with kss-modern.
+ * Plain CSS with native @import, loaded into every preview iframe.
  */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* Generic */
-@import './css/00-generic/reset.css';
+@import './css/01-foundations/colors.css';
+@import './css/01-foundations/typography.css';
+@import './css/01-foundations/spacing.css';
+@import './css/01-foundations/elevation.css';
+@import './css/01-foundations/icons.css';
+@import './css/base.css';
 
-/* Settings */
-@import './css/01-settings/colors.css';
-@import './css/01-settings/typography.css';
-@import './css/01-settings/icons.css';
+@import './css/00-introduction/welcome.css';
 
-/* Elements */
-@import './css/02-elements/headings.css';
 @import './css/02-elements/buttons.css';
-@import './css/02-elements/forms.css';
-@import './css/02-elements/links.css';
+@import './css/02-elements/inputs.css';
+@import './css/02-elements/choices.css';
+@import './css/02-elements/badges.css';
+@import './css/02-elements/avatars.css';
 
-/* Components */
 @import './css/03-components/card.css';
+@import './css/03-components/stat.css';
 @import './css/03-components/alert.css';
-@import './css/03-components/badge.css';
-@import './css/03-components/modal.css';
-@import './css/03-components/accordion.css';
 @import './css/03-components/tabs.css';
-@import './css/03-components/hero.css';
-@import './css/03-components/navigation.css';
-@import './css/03-components/lifecycle.css';
-@import './css/03-components/masonry.css';
+@import './css/03-components/accordion.css';
+@import './css/03-components/dialog.css';
+@import './css/03-components/table.css';
+@import './css/03-components/toast.css';
+@import './css/03-components/topbar.css';
+@import './css/03-components/progress.css';
+@import './css/03-components/notice.css';
 
-/* Patterns */
-@import './css/04-patterns/insert-markup.css';
-
-/* Objects */
-@import './css/05-objects/container.css';
-
-/* Utilities */
-@import './css/06-utilities/spacing.css';
-@import './css/06-utilities/visibility.css';
+@import './css/04-patterns/sign-in.css';
+@import './css/04-patterns/pricing.css';
+@import './css/04-patterns/dashboard.css';

@@ -1,3 +1,0 @@
-- [Colors](preview-1.1.html): color palette with copy to clipboard
-- [Typography](preview-1.2.html): inline Markdown and `Weight` sorting
-- [Icons](preview-1.3.html): searchable icon gallery

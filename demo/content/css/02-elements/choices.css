@@ -1,0 +1,143 @@
+/*
+Choices
+
+Checkboxes, radios and switches. Native inputs keep keyboard and screen reader
+support, the styling only replaces how they look.
+
+Status: In Progress
+
+Markup: <div class="choice-columns">
+  <fieldset class="choice-group">
+    <legend>Notifications</legend>
+    <label class="choice"><input type="checkbox" class="choice__box" checked> Product updates</label>
+    <label class="choice"><input type="checkbox" class="choice__box" checked> Weekly report</label>
+    <label class="choice"><input type="checkbox" class="choice__box"> Marketing emails</label>
+  </fieldset>
+  <fieldset class="choice-group">
+    <legend>Billing cycle</legend>
+    <label class="choice"><input type="radio" name="cycle" class="choice__box choice__box--radio"> Monthly</label>
+    <label class="choice"><input type="radio" name="cycle" class="choice__box choice__box--radio" checked> Yearly <span class="badge badge--brand">Save 20%</span></label>
+  </fieldset>
+  <fieldset class="choice-group">
+    <legend>Workspace</legend>
+    <label class="switch"><input type="checkbox" role="switch" checked><span class="switch__track"></span> Dark mode sync</label>
+    <label class="switch"><input type="checkbox" role="switch"><span class="switch__track"></span> Beta features</label>
+  </fieldset>
+</div>
+
+Styleguide 2.3
+*/
+
+.choice-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-8);
+}
+
+.choice-group {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choice-group legend {
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.choice,
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.choice__box {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.choice__box::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: var(--brand-contrast);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+  transition: transform 150ms ease-out;
+}
+
+.choice__box:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.choice__box:checked::after {
+  transform: scale(1);
+}
+
+.choice__box--radio {
+  border-radius: 50%;
+}
+
+.choice__box--radio::after {
+  width: 8px;
+  height: 8px;
+  clip-path: circle(50%);
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.switch__track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+  transition: background-color 200ms ease-out;
+}
+
+.switch__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.switch input:checked + .switch__track {
+  background: var(--brand);
+}
+
+.switch input:checked + .switch__track::after {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + .switch__track {
+  box-shadow: var(--focus-ring);
+}

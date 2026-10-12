@@ -1,91 +1,106 @@
 # kss-modern
 
-A modern, KSS-compatible styleguide generator. Parses KSS comment blocks from CSS/SCSS files and generates a static, accessible styleguide with live component previews.
+A modern, KSS-compatible styleguide generator. Write KSS comments in your CSS or SCSS, and kss-modern turns them into a fast, accessible styleguide with live component previews, dark mode, themes and a built-in accessibility audit.
 
-**[Live demo](https://felixranesberger.github.io/kss-modern/)** showing every feature, built from [`demo/content/`](demo/content/).
+**[Open the live demo →](https://felixranesberger.github.io/kss-modern/)**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/welcome-dark.png">
+  <img src="docs/screenshots/welcome.png" alt="A kss-modern styleguide showing the welcome page of the Verdant demo design system">
+</picture>
+
+The demo documents Verdant, a small fictional design system. Its source in [`demo/content/`](demo/content/) is plain CSS, Pug and Markdown, so it doubles as a reference for writing your own styleguide.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="A dashboard screen assembled from other sections with insert-markup"></td>
+    <td width="50%"><img src="docs/screenshots/components-dark.png" alt="The project card component in dark mode with a section theme dropdown"></td>
+  </tr>
+  <tr>
+    <td><b>Whole screens from reusable parts.</b> Pull other sections into a page with <code>&lt;insert-markup&gt;</code> and Pug <code>extends</code>.</td>
+    <td><b>Dark mode everywhere.</b> Previews follow the System, Light and Dark toggle through <code>light-dark()</code> tokens.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/theme-ocean.png" alt="The pricing pattern rendered in the Ocean preview theme"></td>
+    <td><img src="docs/screenshots/search.png" alt="The global search dialog with fuzzy matches"></td>
+  </tr>
+  <tr>
+    <td><b>Preview themes.</b> Restyle every preview from the header, with an optional stylesheet per theme.</td>
+    <td><b>Instant search.</b> <kbd>Cmd</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd> searches titles and descriptions across the whole styleguide.</td>
+  </tr>
+</table>
 
 ## Features
 
 - KSS-compatible comment parsing from CSS/SCSS files
 - Live component previews with modifier variants
-- Theme dropdowns — a global one in the header (`previewThemes` option) and per-section ones (`Themes:`) — switch previews between the default and themed views, optionally loading a stylesheet per theme
-- Pug template support via worker thread pool
-- Color palette and icon gallery documentation
-- Figma embed integration with light/dark theme sync
-- Accessibility auditing (axe-core) and HTML validation, per component or page-wide via `window.kssAudit()` for CI and AI agents
-- Markdown descriptions with custom components (alerts, accordions)
-- Dark mode with three-way toggle (System/Light/Dark)
-- Global search, keyboard navigation, and "Open in Editor" links
-- Watch mode with smart rebuild (only on KSS comment changes)
+- Markup from inline HTML, static `.html` files or Pug templates (compiled in a worker thread pool)
+- Reuse markup across sections with `<insert-markup>`
+- Theme dropdowns in the header (`previewThemes` option) and per section (`Themes:`), optionally loading a stylesheet per theme
+- Color palette and searchable icon gallery
+- Markdown descriptions with alerts, accordions, tables and highlighted code
+- Status indicators in the sidebar
+- Figma embeds with light/dark sync
+- Accessibility audit (axe-core) and HTML validation per component, or page-wide via `window.kssAudit()` for CI and AI agents
+- Dark mode with a System/Light/Dark toggle
+- Global search, keyboard navigation and "Open in Editor" links
+- Watch mode that rebuilds only when KSS comments change
 
-## Installation
+## Quick start
 
 ```bash
-npm install kss-modern
+npm install --save-dev kss-modern
 ```
 
-## Quick Start
+Document a component next to its CSS:
 
-```ts
+```css
+/*
+Button
+
+The main call to action.
+
+.btn--secondary - Secondary action
+.btn--danger - Destructive action
+
+Markup: <button class="btn {{modifier_class}}">Save changes</button>
+
+Styleguide 2.1
+*/
+```
+
+Build the styleguide from a small script:
+
+```js
 import { buildStyleguide } from 'kss-modern'
 
 await buildStyleguide({
   mode: 'production',
   outDir: './styleguide',
-  contentDir: './src/sass/',
+  contentDir: './src/css/',
   projectTitle: 'My Design System',
-  theme: '#005075',
+  brandColor: '#005075',
   html: {
     lang: 'en',
     assets: {
-      css: [{ src: '/css/styles.css' }],
+      css: [{ src: 'css/styles.css' }],
       js: [],
     },
   },
 })
 ```
 
-This scans all `.css` and `.scss` files in `contentDir` for KSS comment blocks and generates a complete static styleguide in `outDir`.
+kss-modern scans every `.css` and `.scss` file in `contentDir` and writes a static styleguide to `outDir`.
 
 ## Documentation
 
-- **[Setup Guide](docs/setup.md)** — Installation, configuration reference, watch mode, project structure, and API reference
-- **[Usage Guide](docs/usage.md)** — Writing KSS comments, all available properties (markup, modifiers, colors, icons, Markdown, Figma, status, wrapper, html/body classes, themes, etc.), and styleguide UI features
-- **[Changelog](CHANGELOG.md)** — Version history and release notes
-
-## Basic KSS Example
-
-```scss
-/*
-Button
-
-A basic button component.
-
-.btn--primary - Primary action button
-.btn--outline - Outlined variant
-
-Markup: <button class="btn {{modifier_class}}">Click me</button>
-
-Styleguide 2.1
-*/
-
-.btn { /* styles */ }
-```
-
-## Markup Includes
-
-The `Markup:` field accepts three formats. File paths are resolved relative to `contentDir`.
-
-```scss
-/* Inline HTML */
-Markup: <button class="btn {{modifier_class}}">Click me</button>
-
-/* Static .html file — contents are inlined as-is */
-Markup: templates/components/badge.html
-
-/* Static .pug file — compiled to HTML at build time */
-Markup: templates/components/card.pug
-```
+- **[Getting started](docs/getting-started.md)** covers installation, watch mode and deployment.
+- **[Writing sections](docs/writing-sections.md)** explains the KSS format and every property.
+- **[Markup and templates](docs/markup.md)** covers inline HTML, Pug templates and `<insert-markup>`.
+- **[Configuration](docs/configuration.md)** lists every option and the JavaScript API.
+- **[The styleguide UI](docs/styleguide-ui.md)** describes search, themes, dark mode and the other visitor features.
+- **[Accessibility audit](docs/accessibility-audit.md)** covers the Audit button and `window.kssAudit()`.
+- **[Changelog](CHANGELOG.md)** lists every release.
 
 ## Development
 
@@ -93,7 +108,8 @@ Markup: templates/components/card.pug
 bun install
 bun run build          # Build: Vite (client assets) then Unbuild (Node.js library)
 bun run dev            # Build + run dev server with Deno (watches test-styleguide/ content)
-bun run demo           # Build the public demo into demo-dist/ (DEMO_BASE_PATH sets the served path)
+bun run demo           # Build the public demo into demo-dist/
+bun run demo:screenshots # Rebuild the demo and refresh the README screenshots in docs/screenshots/
 bun run lint           # ESLint
 bun run test           # Vitest unit + integration tests
 bun run release        # Lint + version bump via bumpp

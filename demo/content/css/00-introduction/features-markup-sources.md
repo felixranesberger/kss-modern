@@ -1,6 +1,0 @@
-- [Headings](preview-2.1.html), [Links](preview-2.40.html): inline HTML markup
-- [Form Elements](preview-2.30.html): Pug template with `useId()`
-- [Card](preview-3.10.html): Pug `include` chain
-- [Navigation](preview-3.80.html): Pug `extends` with blocks
-- [Badge](preview-3.30.html): static `.html` file
-- [Insert Markup](preview-4.20.html): reuse another section's markup with `<insert-markup>`

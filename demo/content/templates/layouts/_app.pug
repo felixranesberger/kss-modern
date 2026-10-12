@@ -1,0 +1,13 @@
+include ../mixins/_icon
+include ../mixins/_topbar
+
+.app
+  block header
+    +topbar('Overview')
+  main.app__main
+    .app__heading
+      div
+        block title
+      .stack
+        block actions
+    block content

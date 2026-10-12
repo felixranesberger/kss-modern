@@ -1,0 +1,18 @@
+include _icon
+
+mixin topbar(active)
+  header.topbar
+    .topbar__brand
+      span.topbar__logo
+        +icon('leaf')
+      | Acme
+    nav.topbar__nav(aria-label="Main")
+      each item in ['Overview', 'Projects', 'Reports', 'Team']
+        a.topbar__link(href="#" aria-current=item === active ? 'page' : false)= item
+    .topbar__end
+      .field__control.topbar__search
+        +icon('search')
+        input.input(type="search" placeholder="Search" aria-label="Search")
+      button.btn.btn--ghost.btn--icon.topbar__bell(type="button" aria-label="Notifications")
+        +icon('bell')
+      span.avatar.avatar--sm(style="--avatar-hue: 150") AL

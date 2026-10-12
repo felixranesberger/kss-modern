@@ -1,0 +1,6 @@
+mixin progress(value, label)
+  .progress
+    .progress__meta
+      span= label
+      span.progress__value #{value}%
+    progress.progress__track(value=value max="100" aria-label=label)= `${value}%`

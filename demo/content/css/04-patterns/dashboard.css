@@ -1,0 +1,73 @@
+/*
+Dashboard
+
+Markdown: A full screen assembled from other sections. The Pug template
+`extends` an app layout with the top bar and fills its blocks. The stat tiles,
+the members table, the alert and the FAQ are pulled in with `<insert-markup>`, so
+they always match their own documentation pages.
+
+bodyclass: is-app
+
+Markup: templates/source/04-patterns/dashboard.pug
+
+Styleguide 4.3
+*/
+
+body.is-app {
+  padding: var(--space-4);
+}
+
+.app {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.app__main {
+  display: grid;
+  gap: var(--space-6);
+  padding: 0 var(--space-2);
+}
+
+.app__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.app__eyebrow {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.app__title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.app__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.app__side {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.app__side .alert,
+.app__side .accordion {
+  max-width: none;
+}
+
+@media (width < 900px) {
+  .app__columns {
+    grid-template-columns: 1fr;
+  }
+}

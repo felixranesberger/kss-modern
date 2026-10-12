@@ -1,42 +1,101 @@
 /*
 Tabs
 
-A tabbed panel switcher with roving `aria-selected` state. Direct `.pug` markup;
-keyboard and click behaviour from the `tabs.js` ES module.
+Switch between views of the same object. Arrow keys move between tabs, the
+behaviour comes from the `tabs.js` module that every preview loads.
 
-Status: Complete
+.tabs--pills - Pill style, for filters inside cards
 
 Markup: templates/source/03-components/tabs.pug
 
-Styleguide 3.60
+Styleguide 3.4
 */
 
-.c-tabs__list {
+.tabs {
+  max-width: 560px;
+}
+
+.tabs__list {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-neutral-200);
+  border-bottom: 1px solid var(--border);
 }
 
-.c-tabs__tab {
-  padding: var(--space-2) var(--space-4);
-  font: inherit;
-  font-weight: var(--font-weight-medium);
-  color: var(--color-neutral-600);
+.tabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
   background: none;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   cursor: pointer;
+  transition: color 150ms ease-out;
 }
 
-.c-tabs__tab[aria-selected="true"] {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+.tabs__tab:hover {
+  color: var(--text);
 }
 
-.c-tabs__panel {
-  padding: var(--space-4) 0;
+.tabs__tab[aria-selected='true'] {
+  color: var(--text);
 }
 
-.c-tabs__panel[hidden] {
+.tabs__tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: var(--space-2);
+  bottom: -1px;
+  left: var(--space-2);
+  height: 2px;
+  background: var(--brand);
+  border-radius: 2px;
+}
+
+.tabs__tab .badge {
+  height: 18px;
+  padding: 0 6px;
+}
+
+.tabs__panel {
+  padding: var(--space-5) 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.tabs__panel h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+  color: var(--text);
+}
+
+.tabs__panel p {
+  margin: 0;
+}
+
+.tabs--pills .tabs__list {
+  display: inline-flex;
+  padding: 4px;
+  background: var(--surface-sunken);
+  border: 0;
+  border-radius: var(--radius-md);
+}
+
+.tabs--pills .tabs__tab {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.tabs--pills .tabs__tab[aria-selected='true'] {
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.tabs--pills .tabs__tab[aria-selected='true']::after {
   display: none;
 }

@@ -1,16 +1,13 @@
-// Toggles accordion panels and keeps aria-expanded / [hidden] in sync.
+// Opening one <details> panel closes its siblings.
 export function initAccordions() {
-  const triggers = document.querySelectorAll('.c-accordion__trigger')
-  triggers.forEach((trigger) => {
-    trigger.addEventListener('click', () => {
-      const isExpanded = trigger.getAttribute('aria-expanded') === 'true'
-      const panelId = trigger.getAttribute('aria-controls')
-      const panel = panelId ? document.getElementById(panelId) : null
-
-      trigger.setAttribute('aria-expanded', String(!isExpanded))
-      if (panel) {
-        panel.hidden = isExpanded
-      }
+  document.querySelectorAll('[data-accordion]').forEach((accordion) => {
+    const items = Array.from(accordion.querySelectorAll('details'))
+    items.forEach((item) => {
+      item.addEventListener('toggle', () => {
+        if (!item.open)
+          return
+        items.filter(other => other !== item).forEach(other => (other.open = false))
+      })
     })
   })
 }

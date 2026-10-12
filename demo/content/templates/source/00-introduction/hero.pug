@@ -1,0 +1,25 @@
+include ../../mixins/_icon
+
+section.hero
+  span.badge.badge--brand.badge--dot Verdant 2.4 · Design system
+  h1.hero__title Build calm interfaces, <em>faster</em>
+  p.hero__lead Tokens, components and full screens, documented in one place. Every preview on this site is live HTML and CSS.
+  .stack
+    button.btn.btn--lg(type="button")
+      | Browse components
+      +icon('arrow-right')
+    button.btn.btn--secondary.btn--lg(type="button")
+      +icon('download')
+      | Download tokens
+  .hero__preview
+    .hero__chip
+      span.avatar.avatar--sm(style="--avatar-hue: 150") AL
+      div
+        strong Ada approved the redesign
+        span 2 minutes ago
+    .hero__chip
+      span.toast__icon.toast__icon--success
+        +icon('check')
+      div
+        strong 42 components
+        span all with dark mode

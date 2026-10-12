@@ -108,6 +108,32 @@ describe('runColorContrastAcrossSchemes', () => {
     ])
   })
 
+  it('keeps a background the root paints itself instead of forcing Canvas', async () => {
+    const style = document.createElement('style')
+    style.textContent = 'html { background-color: rgb(1, 2, 3); }'
+    document.head.append(style)
+
+    const { axe, seen } = makeAxe()
+    await runColorContrastAcrossSchemes(axe, ['light'])
+    style.remove()
+
+    expect(seen).toEqual([{ colorScheme: 'only light', background: '' }])
+  })
+
+  it('freezes transitions while axe runs and releases them afterwards', async () => {
+    const frozen: boolean[] = []
+    const axe = {
+      run: vi.fn(async () => {
+        frozen.push(Array.from(document.head.querySelectorAll('style')).some(el => el.textContent?.includes('transition: none')))
+        return { violations: [], incomplete: [], passes: [], inapplicable: [] }
+      }),
+    }
+    await runColorContrastAcrossSchemes(axe, ['light', 'dark'])
+
+    expect(frozen).toEqual([true, true])
+    expect(Array.from(document.head.querySelectorAll('style')).some(el => el.textContent?.includes('transition: none'))).toBe(false)
+  })
+
   it('always passes the audit context and restricts to the color-contrast rule', async () => {
     const { axe } = makeAxe()
     await runColorContrastAcrossSchemes(axe, ['light'])

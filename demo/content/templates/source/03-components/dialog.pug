@@ -1,0 +1,19 @@
+include ../../mixins/_icon
+
+mixin deleteDialog(key, inline)
+  dialog.dialog(id=useId(key) class=inline ? 'dialog--inline' : '' open=inline aria-labelledby=useId(`${key}-title`))
+    .dialog__body
+      .dialog__icon
+        +icon('alert')
+      h2.dialog__title(id=useId(`${key}-title`)) Delete “Onboarding revamp”?
+      p.dialog__text The project, its 14 reports and all comments will be removed for everyone in the workspace. This cannot be undone.
+    .dialog__footer
+      button.btn.btn--secondary(type="button" data-dialog-close) Cancel
+      button.btn.btn--danger(type="button" data-dialog-close) Delete project
+
+.dialog-stage
+  +deleteDialog('dialog-inline', true)
+  button.btn.btn--secondary(type="button" data-dialog-open=useId('dialog-modal'))
+    | Open as modal
+    +icon('arrow-right')
+  +deleteDialog('dialog-modal', false)

@@ -1,0 +1,92 @@
+/*
+Typography
+
+Markdown: Inter for interface text, JetBrains Mono for code and numbers that
+need to line up. The scale steps by roughly 1.25.
+
+| Token | Size | Use |
+|---|---|---|
+| `--text-xs` | 12px | Labels, table headers |
+| `--text-sm` | 14px | Secondary copy, controls |
+| `--text-md` | 16px | Body copy |
+| `--text-lg` | 20px | Lead paragraphs |
+| `--text-2xl` | 30px | Section headings |
+| `--text-4xl` | 48px | Page titles |
+
+Markup: <div class="type-specimen">
+  <p class="type-specimen__meta">Display · 48 / 56 · Semibold</p>
+  <p class="u-display">Grow something good</p>
+  <p class="type-specimen__meta">Heading · 30 / 38 · Semibold</p>
+  <h2 class="u-heading">Plant-based analytics for every team</h2>
+  <p class="type-specimen__meta">Body · 16 / 26 · Regular</p>
+  <p class="u-body">Verdant turns scattered numbers into calm, readable dashboards. Every component ships with dark mode, focus states and documented tokens.</p>
+  <p class="type-specimen__meta">Mono · 14 / 20 · Medium</p>
+  <p class="u-mono">--brand: light-dark(#039855, #12b76a);</p>
+</div>
+
+Weight: 10
+
+Styleguide 1.2
+*/
+
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-4xl: 3rem;
+}
+
+.u-display {
+  margin: 0;
+  font-size: var(--text-4xl);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.u-heading {
+  margin: 0;
+  font-size: var(--text-2xl);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.u-body {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.u-mono {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--brand-soft-text);
+}
+
+.type-specimen {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.type-specimen__meta {
+  margin: 1.25rem 0 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.type-specimen__meta:first-child {
+  margin-top: 0;
+}

@@ -1,4 +1,0 @@
-- [Buttons](preview-2.20.html), [Alert](preview-3.20.html): modifiers with one preview per variant
-- [Card](preview-3.10.html): `Wrapper`, `bodyclass`, `htmlclass` and a section `Themes` dropdown
-- [Modal](preview-3.40.html), [Accordion](preview-3.50.html), [Tabs](preview-3.60.html): components driven by JavaScript
-- [Hero](preview-3.70.html): Figma embed with Preview and Design tabs

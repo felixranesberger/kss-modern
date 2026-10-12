@@ -1,0 +1,10 @@
+mixin field(label, opts = {})
+  - const id = useId(label.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+  .field(class=opts.invalid ? 'is-invalid' : '')
+    label.field__label(for=id)= label
+    .field__control
+      if opts.icon
+        +icon(opts.icon)
+      input.input(id=id type=opts.type || 'text' placeholder=opts.placeholder value=opts.value autocomplete=opts.autocomplete aria-invalid=opts.invalid ? 'true' : false)
+    if opts.hint
+      span.field__hint= opts.hint
