@@ -40,7 +40,7 @@ Compilation runs in a pool of worker threads. In `development` mode a compile er
 
 ### Template globals
 
-Every template receives two locals.
+Every template receives three locals.
 
 **`modifierClass`** holds the `{{modifier_class}}` placeholder. Put it on the element that should carry the section's modifier:
 
@@ -59,6 +59,8 @@ input(id=id type="email")
 ```
 
 With a key, the id is `id-<section>-<key>`, so `useId('email')` in section `2.2` returns `id-2-2-email` every time you call it. Without a key, each call returns the next number in a sequence. Keys end up in the `id` attribute, so use letters, numbers and dashes.
+
+**`z`** is [zod](https://zod.dev), when it is installed. Mixins use it to declare and check their props with a `mixinSchema`, which also gives them a [playground](mixin-playground.md).
 
 ## Reusing markup with `<insert-markup>`
 
