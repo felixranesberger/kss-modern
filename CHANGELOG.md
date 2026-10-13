@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.1](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.0...v1.7.0-beta.1) (2026-10-13)
+
+### Features
+
+* support arrays of flat objects in the mixin playground. A prop like `z.array(z.strictObject({ question: z.string(), answer: z.string() }))` gets a list editor with one group of fields per entry: add, remove and reorder entries, every field checked while typing. A fresh entry starts with the field defaults and empty required fields, errors name the entry and the field (`Entry 2: text: Must not be empty`), and the Pug call leaves out entry fields equal to their default. The fields of an entry stay flat: lists or objects inside an entry, records and loose objects still fail the build ([717fa0b](https://github.com/felixranesberger/kss-modern/commit/717fa0b))
+
 ## [1.7.0-beta.0](https://github.com/felixranesberger/kss-modern/compare/v1.6.2...v1.7.0-beta.0) (2026-10-12)
 
 ### Features
