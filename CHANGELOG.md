@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.2](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.1...v1.7.0-beta.2) (2026-10-13)
+
+### Features
+
+* mark the output of public mixins with START and END comments. Every mixin with a `mixinSchema` is wrapped in `<!-- START CARD-->` and `<!-- END CARD-->` in section previews, fullpages and the playground, so the delivered markup shows where each component begins and ends. The name is the last segment of `mixinName` in upper-case words (`organisms/form/FileUpload` becomes `FILE UPLOAD`), else the mixin's own name. A mixin that writes its own `// START …` comment keeps it and gets no second pair ([82ed697](https://github.com/felixranesberger/kss-modern/commit/82ed697))
+
 ## [1.7.0-beta.1](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.0...v1.7.0-beta.1) (2026-10-13)
 
 ### Features
