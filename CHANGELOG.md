@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.5](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.4...v1.7.0-beta.5) (2026-10-13)
+
+### Features
+
+* declare public mixins with `defineComponent`. `const p = defineComponent({ name: 'atoms/Button', schema: z.strictObject({ … }) }, props)` replaces the `mixinName` variable, the `mixinSchema` variable and `mixinSchema.parse(props)`. It parses the props and throws one line per issue with the component name, the Pug mixin, the prop and the reason (`atoms/Button (+atomButton): label: Invalid input`), and the playground still shows the issues next to the controls. `name` places the mixin in the explorer and names its START and END markers. The `mixinSchema` form keeps working ([8d51ddf](https://github.com/felixranesberger/kss-modern/commit/8d51ddf))
+
 ## [1.7.0-beta.4](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.3...v1.7.0-beta.4) (2026-10-13)
 
 ### Bug Fixes
