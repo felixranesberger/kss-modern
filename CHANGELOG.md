@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.4](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.3...v1.7.0-beta.4) (2026-10-13)
+
+### Bug Fixes
+
+* refuse props from a link whose nested object keys could become event handlers. Record props turn their keys into attribute names, so a key like `onmouseover` or one with characters outside a plain attribute name now stops the props from the URL, like markup and script URLs already did. Values typed into the controls are unaffected ([44518f9](https://github.com/felixranesberger/kss-modern/commit/44518f9))
+
 ## [1.7.0-beta.3](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.2...v1.7.0-beta.3) (2026-10-13)
 
 ### Features
