@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.3](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.2...v1.7.0-beta.3) (2026-10-13)
+
+### Features
+
+* support records with scalar values in the mixin playground. A prop like `z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()]))` gets a key-value editor: every key is checked against the key schema, every value against the allowed types, and with several value types a select picks `true`, `false` or a typed value. A new entry of a map that allows booleans starts as `true`. Records of objects or lists stay unsupported ([9efa5ab](https://github.com/felixranesberger/kss-modern/commit/9efa5ab))
+
 ## [1.7.0-beta.2](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.1...v1.7.0-beta.2) (2026-10-13)
 
 ### Features
