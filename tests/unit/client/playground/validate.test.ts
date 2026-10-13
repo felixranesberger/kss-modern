@@ -41,6 +41,16 @@ describe('validateField', () => {
     expect(errorsFor(z.array(z.string().min(1)).max(2), ['a', '', 'c'])).toEqual(['Allows at most 2 entries', 'Entry 2: Must not be empty'])
   })
 
+  it('checks every field of an entry of an array of objects', () => {
+    const entries = z.array(z.strictObject({ text: z.string().min(1), count: z.int().optional() }))
+    expect(errorsFor(entries, [{ text: 'a' }, { text: '', count: 1.5 }, 'x'])).toEqual([
+      'Entry 2: text: Must not be empty',
+      'Entry 2: count: Must be a whole number',
+      'Entry 3: Must be an object',
+    ])
+    expect(errorsFor(entries, [{}])).toEqual(['Entry 1: text: Required'])
+  })
+
   it('accepts an optional prop that is not passed', () => {
     const [field] = fieldsOf({ value: z.number().min(5).optional() })
     expect(validateField(field, undefined)).toEqual([])

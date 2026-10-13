@@ -21,6 +21,13 @@ describe('checkSchemaSupport', () => {
       fixed: z.literal(3).optional(),
       tags: z.array(z.string().min(1)).max(3).default([]),
       levels: z.array(z.enum(['x', 'y'])).optional(),
+      links: z.array(z.strictObject({
+        text: z.string().min(1),
+        href: z.string(),
+        isExternal: z.boolean().default(false),
+        target: z.enum(['_self', '_blank']).optional(),
+      })).min(1).meta({ examples: [[{ text: 'Home', href: '/' }]] }),
+      looseEntries: z.array(z.object({ title: z.string() })).optional(),
       refined: z.string().refine(value => value.length > 2).optional(),
     }).describe('A component'))).toEqual([])
   })
@@ -31,15 +38,33 @@ describe('checkSchemaSupport', () => {
       record: z.record(z.string(), z.string()),
       nullable: z.string().nullable(),
       mixed: z.union([z.string(), z.number()]),
-      table: z.array(z.object({ a: z.string() })),
       anything: z.any(),
     }))).toEqual([
-      'prop "nested" is an object (or record), nested objects are not supported',
-      'prop "record" is an object (or record), nested objects are not supported',
+      'prop "nested" is an object (or record), nested objects are not supported; use an array of objects for a list of entries',
+      'prop "record" is an object (or record), nested objects are not supported; use an array of objects for a list of entries',
       'prop "nullable" can be string or null; nullable props and unions of types are not supported',
       'prop "mixed" can be string or number; nullable props and unions of types are not supported',
-      'prop "table" items is an array of objects, only arrays of strings, numbers, booleans and enums are supported',
       'prop "anything" has a type the playground cannot edit (e.g. z.any() or z.unknown())',
+    ])
+  })
+
+  it('keeps the entries of an array of objects flat', () => {
+    expect(check(z.object({
+      rows: z.array(z.object({
+        tags: z.array(z.string()),
+        meta: z.object({ a: z.string() }),
+        nullable: z.string().nullable(),
+      })),
+      records: z.array(z.record(z.string(), z.string())),
+      looseRows: z.array(z.looseObject({ a: z.string() })),
+      grid: z.array(z.array(z.string())),
+    }))).toEqual([
+      'prop "rows" items field "tags" is an array, the fields of a list entry must be scalars',
+      'prop "rows" items field "meta" is an object, the fields of a list entry must be scalars',
+      'prop "rows" items field "nullable" can be string or null; nullable props and unions of types are not supported',
+      'prop "records" items is an object without fields, which is not supported',
+      'prop "looseRows" items allows unknown keys (z.looseObject or .catchall()), which is not supported',
+      'prop "grid" items is an array of arrays, only arrays of scalars or of flat objects are supported',
     ])
   })
 

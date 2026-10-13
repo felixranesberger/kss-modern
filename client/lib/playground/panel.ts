@@ -3,9 +3,9 @@
  * issues and the matching Pug call. Mounted in a shadow root by both hosts, the mixin explorer
  * (`./explorer.ts`) and the standalone page (`../../playground.ts`).
  */
-import type { Field, FieldValues, ValueRules } from './fields.ts'
+import type { EntryRules, Field, FieldValues, ValueRules } from './fields.ts'
 import type { PropIssue } from './runtime.ts'
-import { getEmptyValue } from './fields.ts'
+import { getEmptyItem } from './fields.ts'
 import panelStyles from './panel.css?inline'
 
 export interface PropsPanelOptions {
@@ -140,6 +140,59 @@ function createValueControl(
   }
 }
 
+/** A checkbox sits in a row of its own, every other control stands alone. */
+function wrapControl(control: HTMLElement): HTMLElement {
+  return control instanceof HTMLInputElement && control.type === 'checkbox'
+    ? createElement('span', { class: 'c-checkbox-row' }, [control])
+    : control
+}
+
+/**
+ * The fields of one entry of an array of objects, a labelled control per field. An optional field
+ * left empty is dropped from the entry, like an optional prop.
+ */
+function createEntryControls(
+  rules: EntryRules,
+  entry: unknown,
+  idPrefix: string,
+  entryLabel: string,
+  onEntry: (entry: Record<string, unknown>) => void,
+  signal: AbortSignal,
+): { element: HTMLElement, controls: HTMLElement[] } {
+  let current = typeof entry === 'object' && entry !== null && !Array.isArray(entry) ? { ...entry as Record<string, unknown> } : {}
+  const controls: HTMLElement[] = []
+
+  const rows = rules.fields.map((field) => {
+    const id = `${idPrefix}-${field.key}`
+    const control = createValueControl(
+      field as ValueRules,
+      current[field.key],
+      field.isOptional,
+      { id, 'aria-required': String(!field.isOptional) },
+      (value) => {
+        const next = { ...current }
+        if (value === undefined)
+          delete next[field.key]
+        else
+          next[field.key] = value
+        current = next
+        onEntry(next)
+      },
+      signal,
+    )
+    controls.push(control)
+    return createElement('div', { class: 'c-entry__field' }, [
+      createElement('label', { class: 'c-entry__label', for: id }, [field.key]),
+      wrapControl(control),
+    ])
+  })
+
+  return {
+    element: createElement('div', { 'class': 'c-entry', 'role': 'group', 'aria-label': entryLabel }, rows),
+    controls,
+  }
+}
+
 export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
   const { host, name, isStandalone = false } = options
   const abortController = new AbortController()
@@ -182,8 +235,8 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
     elements.controls().forEach(control => control.setAttribute('aria-invalid', String(Boolean(text))))
   }
 
-  /** The list editor of an array prop: one control per entry, add, remove and reorder. */
-  const renderList = (field: Field, labelId: string, describedBy: string) => {
+  /** The list editor of an array prop: one control (or one group of fields) per entry, add, remove and reorder. */
+  const renderList = (field: Field, id: string, labelId: string, describedBy: string) => {
     const list = createElement('ol', { class: 'c-list' })
     const addButton = createElement('button', { class: 'c-button', type: 'button' }, ['Add entry'])
     const group = createElement('div', { 'class': 'c-list-editor', 'role': 'group', 'aria-labelledby': labelId, 'aria-describedby': describedBy }, [list, addButton])
@@ -206,20 +259,29 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
       const entries = getEntries()
 
       entryControls = []
+      const firstControls: HTMLElement[] = []
       list.replaceChildren(...entries.map((entry, index) => {
-        const control = createValueControl(
-          field.items!,
-          entry,
-          false,
-          { 'aria-label': `${field.key} entry ${index + 1}` },
-          (value) => {
-            const next = [...getEntries()]
-            next[index] = value
-            setEntries(next)
-          },
-          listController.signal,
-        )
-        entryControls.push(control)
+        const items = field.items!
+        const entryLabel = `${field.key} entry ${index + 1}`
+        const setEntry = (value: unknown) => {
+          const next = [...getEntries()]
+          next[index] = value
+          setEntries(next)
+        }
+
+        let entryCell: HTMLElement
+        if (items.kind === 'object') {
+          const entryControlSet = createEntryControls(items, entry, `${id}-${index}`, entryLabel, setEntry, listController.signal)
+          entryCell = entryControlSet.element
+          entryControls.push(...entryControlSet.controls)
+          firstControls.push(entryControlSet.controls[0] ?? entryCell)
+        }
+        else {
+          const control = createValueControl(items, entry, false, { 'aria-label': entryLabel }, setEntry, listController.signal)
+          entryCell = wrapControl(control)
+          entryControls.push(control)
+          firstControls.push(control)
+        }
 
         const move = (offset: number) => {
           const next = [...getEntries()]
@@ -237,18 +299,17 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
           replaceEntries(next, Math.min(index, next.length - 1))
         }, { signal: listController.signal })
 
-        const controlCell = field.items!.kind === 'boolean' ? createElement('span', { class: 'c-checkbox-row' }, [control]) : control
-        return createElement('li', { class: 'c-list__item' }, [controlCell, upButton, downButton, removeButton])
+        return createElement('li', { class: items.kind === 'object' ? 'c-list__item c-list__item--entry' : 'c-list__item' }, [entryCell, upButton, downButton, removeButton])
       }))
 
       addButton.disabled = field.maxItems !== undefined && entries.length >= field.maxItems
       if (focusIndex !== undefined)
-        (entryControls[focusIndex] ?? addButton).focus()
+        (firstControls[focusIndex] ?? addButton).focus()
     }
 
     addButton.addEventListener('click', () => {
       const entries = getEntries()
-      setEntries([...entries, getEmptyValue(field.items!)])
+      setEntries([...entries, getEmptyItem(field.items!)])
       renderEntries(entries.length)
     }, { signal })
 
@@ -266,7 +327,7 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
     let controlRow: HTMLElement
     let controls: () => HTMLElement[]
     if (field.kind === 'array') {
-      const listEditor = renderList(field, labelId, describedBy)
+      const listEditor = renderList(field, id, labelId, describedBy)
       controlRow = listEditor.group
       controls = listEditor.controls
     }
@@ -279,9 +340,7 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
         value => setValue(field.key, value),
         signal,
       )
-      controlRow = control instanceof HTMLInputElement && control.type === 'checkbox'
-        ? createElement('span', { class: 'c-checkbox-row' }, [control])
-        : control
+      controlRow = wrapControl(control)
       controls = () => [control]
     }
 
@@ -327,8 +386,9 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
           general.push(issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message)
           continue
         }
-        const nestedPath = issue.path.slice(1)
-        const text = nestedPath.length > 0 ? `Entry ${Number(nestedPath[0]) + 1}: ${issue.message}` : issue.message
+        const [index, entryKey] = issue.path.slice(1)
+        const entryPrefix = index === undefined ? '' : `Entry ${Number(index) + 1}: ${entryKey === undefined ? '' : `${String(entryKey)}: `}`
+        const text = `${entryPrefix}${issue.message}`
         byKey.set(issue.key, [...byKey.get(issue.key) ?? [], text])
       }
 

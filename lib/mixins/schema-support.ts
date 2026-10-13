@@ -12,6 +12,8 @@
  * - `z.boolean()`
  * - `z.enum([...])`, `z.literal()` and unions of literals
  * - `z.array()` of any of the above, with `.min()`, `.max()`, `.length()`
+ * - `z.array()` of `z.strictObject()` / `z.object()` whose fields are any of the scalars above, for
+ *   lists of entries like FAQ items or links. The fields stay flat: no lists or objects inside them.
  * - `.optional()`, `.default()`, `.describe()`, `.meta({ examples })`
  *
  * Checks JSON Schema cannot express (`.refine()`, `.transform()`) pass through: the mixin's own
@@ -27,6 +29,7 @@ const BOOLEAN_KEYS = ['type', 'enum', 'const', ...ANNOTATION_KEYS]
 const ARRAY_KEYS = ['type', 'items', 'minItems', 'maxItems', ...ANNOTATION_KEYS]
 const LITERAL_UNION_KEYS = ['anyOf', ...ANNOTATION_KEYS]
 const ROOT_KEYS = ['$schema', 'type', 'properties', 'required', 'additionalProperties', ...ANNOTATION_KEYS]
+const ENTRY_KEYS = ['type', 'properties', 'required', 'additionalProperties', ...ANNOTATION_KEYS]
 /** String formats the playground checks itself; any other format must come with a pattern. */
 const CHECKED_FORMATS = ['email', 'uri']
 
@@ -44,7 +47,25 @@ function checkKeys(schema: JsonSchema, allowed: string[]): string[] {
     .map(key => `uses "${key}", which comes from a zod feature the playground does not support`)
 }
 
-function checkValue(schema: JsonSchema, isArrayItem: boolean): string[] {
+/** Where a value sits: a prop, the entry type of an array prop, or a field of such an entry. */
+type ValuePosition = 'prop' | 'array-item' | 'entry-field'
+
+function checkEntry(schema: JsonSchema): string[] {
+  if (!isObject(schema.properties))
+    return ['is an object without fields, which is not supported']
+
+  const errors = checkKeys(schema, ENTRY_KEYS)
+  if (schema.additionalProperties !== undefined && schema.additionalProperties !== false)
+    errors.push('allows unknown keys (z.looseObject or .catchall()), which is not supported')
+
+  for (const [key, field] of Object.entries(schema.properties)) {
+    const fieldErrors = isObject(field) ? checkValue(field, 'entry-field') : ['is not a schema']
+    errors.push(...fieldErrors.map(error => `field "${key}" ${error}`))
+  }
+  return errors
+}
+
+function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
   if (Array.isArray(schema.anyOf)) {
     if (!schema.anyOf.every(isLiteral))
       return ['is a union, only unions of z.literal() values are supported']
@@ -67,19 +88,23 @@ function checkValue(schema: JsonSchema, isArrayItem: boolean): string[] {
     case 'boolean':
       return checkKeys(schema, BOOLEAN_KEYS)
     case 'array': {
-      if (isArrayItem)
-        return ['is an array of arrays, only arrays of strings, numbers, booleans and enums are supported']
+      if (position === 'array-item')
+        return ['is an array of arrays, only arrays of scalars or of flat objects are supported']
+      if (position === 'entry-field')
+        return ['is an array, the fields of a list entry must be scalars']
       if (!isObject(schema.items))
         return ['is an array without an item type (a tuple), which is not supported']
       return [
         ...checkKeys(schema, ARRAY_KEYS),
-        ...checkValue(schema.items, true).map(error => `items ${error}`),
+        ...checkValue(schema.items, 'array-item').map(error => `items ${error}`),
       ]
     }
     case 'object':
-      return [isArrayItem
-        ? 'is an array of objects, only arrays of strings, numbers, booleans and enums are supported'
-        : 'is an object (or record), nested objects are not supported']
+      if (position === 'array-item')
+        return checkEntry(schema)
+      if (position === 'entry-field')
+        return ['is an object, the fields of a list entry must be scalars']
+      return ['is an object (or record), nested objects are not supported; use an array of objects for a list of entries']
     default:
       return ['has a type the playground cannot edit (e.g. z.any() or z.unknown())']
   }
@@ -95,7 +120,7 @@ export function checkSchemaSupport(schema: JsonSchema): string[] {
     errors.push('the schema allows unknown keys (z.looseObject or .catchall()), which is not supported')
 
   for (const [key, property] of Object.entries(schema.properties)) {
-    const propertyErrors = isObject(property) ? checkValue(property, false) : ['is not a schema']
+    const propertyErrors = isObject(property) ? checkValue(property, 'prop') : ['is not a schema']
     errors.push(...propertyErrors.map(error => `prop "${key}" ${error}`))
   }
 

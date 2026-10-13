@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { getFields, getInitialValue, getInitialValues, getProps } from '../../../../client/lib/playground/fields.ts'
+import { getEmptyItem, getFields, getInitialValue, getInitialValues, getProps } from '../../../../client/lib/playground/fields.ts'
 
 const schema = z.toJSONSchema(z.object({
   label: z.string().min(1).max(20).describe('Button text'),
@@ -42,6 +42,34 @@ describe('getFields', () => {
     const [field] = getFields(z.toJSONSchema(z.object({ n: z.int() })) as Record<string, unknown>)
     expect(field.minimum).toBeUndefined()
     expect(field.maximum).toBeUndefined()
+  })
+})
+
+describe('arrays of objects', () => {
+  const [field] = getFields(z.toJSONSchema(z.object({
+    links: z.array(z.strictObject({
+      text: z.string().min(1).describe('Link text'),
+      href: z.string(),
+      isExternal: z.boolean().default(false),
+      target: z.enum(['_self', '_blank']).optional(),
+    })),
+  }), { io: 'input' }) as Record<string, unknown>)
+
+  it('describes every field of an entry', () => {
+    expect(field.kind).toBe('array')
+    expect(field.items?.kind).toBe('object')
+    const entryFields = field.items?.kind === 'object' ? field.items.fields : []
+    expect(entryFields.map(entryField => [entryField.key, entryField.kind, entryField.isOptional])).toEqual([
+      ['text', 'string', false],
+      ['href', 'string', false],
+      ['isExternal', 'boolean', true],
+      ['target', 'enum', true],
+    ])
+    expect(entryFields[0]).toMatchObject({ minLength: 1, description: 'Link text' })
+  })
+
+  it('starts a fresh entry with defaults and empty required fields', () => {
+    expect(getEmptyItem(field.items!)).toEqual({ text: '', href: '', isExternal: false })
   })
 })
 

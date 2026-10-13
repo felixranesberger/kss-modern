@@ -4,7 +4,7 @@
  * error appears at the field before anything renders. The mixin's own `mixinSchema.parse(props)`
  * still runs on every render and catches what JSON Schema cannot state, like `.refine()`.
  */
-import type { Field, FieldValues, Literal, ValueRules } from './fields.ts'
+import type { EntryRules, Field, FieldValues, Literal, ValueRules } from './fields.ts'
 
 // the shape zod's `.email()` checks; the render-time parse is the final word
 const EMAIL_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
@@ -78,6 +78,15 @@ export function validateValue(rules: ValueRules, value: unknown): string | undef
   }
 }
 
+/** Every problem with one entry of an array of objects, each prefixed with its field. */
+function validateEntry(rules: EntryRules, entry: unknown): string[] {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
+    return ['Must be an object']
+  return rules.fields.flatMap(field =>
+    validateField(field, (entry as Record<string, unknown>)[field.key]).map(error => `${field.key}: ${error}`),
+  )
+}
+
 /** Every problem with one prop's value, empty when it is valid or (optional and) not passed. */
 export function validateField(field: Field, value: unknown): string[] {
   if (value === undefined)
@@ -96,10 +105,12 @@ export function validateField(field: Field, value: unknown): string[] {
     errors.push(`Needs at least ${plural(field.minItems, 'entry').replace('entrys', 'entries')}`)
   if (field.maxItems !== undefined && value.length > field.maxItems)
     errors.push(`Allows at most ${plural(field.maxItems, 'entry').replace('entrys', 'entries')}`)
+  const { items } = field
   value.forEach((item, index) => {
-    const error = field.items ? validateValue(field.items, item) : undefined
-    if (error)
-      errors.push(`Entry ${index + 1}: ${error}`)
+    if (!items)
+      return
+    const itemErrors = items.kind === 'object' ? validateEntry(items, item) : [validateValue(items, item)].filter(error => error !== undefined)
+    errors.push(...itemErrors.map(error => `Entry ${index + 1}: ${error}`))
   })
   return errors
 }

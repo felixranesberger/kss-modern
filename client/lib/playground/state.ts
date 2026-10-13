@@ -95,12 +95,26 @@ function formatValue(value: unknown): string {
   return JSON.stringify(value) ?? 'undefined'
 }
 
+/** `values` without the keys whose value equals the field's schema default. */
+function omitDefaults(values: Record<string, unknown>, fields: Field[]): Record<string, unknown> {
+  const defaults = new Map(fields.filter(field => field.hasDefault).map(field => [field.key, JSON.stringify(field.default)]))
+  return Object.fromEntries(Object.entries(values).filter(([key, value]) => defaults.get(key) !== JSON.stringify(value)))
+}
+
 /**
  * The Pug call that renders the current props, ready to paste into a template:
- * `+button({ label: 'Save' })`. Props equal to their schema default are left out.
+ * `+button({ label: 'Save' })`. Props and fields of list entries equal to their schema default are
+ * left out.
  */
 export function formatPugCall(name: string, props: Record<string, unknown>, fields: Field[] = []): string {
-  const defaults = new Map(fields.filter(field => field.hasDefault).map(field => [field.key, JSON.stringify(field.default)]))
-  const shown = Object.fromEntries(Object.entries(props).filter(([key, value]) => defaults.get(key) !== JSON.stringify(value)))
+  const shown = omitDefaults(props, fields)
+  for (const field of fields) {
+    const { items } = field
+    if (items?.kind === 'object' && Array.isArray(shown[field.key])) {
+      shown[field.key] = (shown[field.key] as unknown[]).map(entry =>
+        typeof entry === 'object' && entry !== null ? omitDefaults(entry as Record<string, unknown>, items.fields) : entry,
+      )
+    }
+  }
   return `+${name}(${formatValue(shown)})`
 }

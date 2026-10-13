@@ -170,6 +170,38 @@ test.describe('Mixin explorer', () => {
     await expect(addEntry).toBeEnabled()
   })
 
+  test('edits an array of objects with one group of fields per entry', async ({ page }) => {
+    await page.goto(`${EXPLORER}#mixin=card`)
+    const links = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] .card__links a')
+    await expect(links).toHaveCount(0)
+
+    const addEntry = page.locator('[data-field="links"]').getByRole('button', { name: 'Add entry' })
+    await addEntry.click()
+    const firstEntry = page.getByRole('group', { name: 'links entry 1' })
+    await expect(firstEntry.getByRole('textbox', { name: 'text' })).toBeFocused()
+    // a fresh entry has an empty text, which `.min(1)` forbids
+    await expect(page.locator('[data-field="links"] .c-field__error')).toHaveText('Entry 1: text: Must not be empty')
+
+    await firstEntry.getByRole('textbox', { name: 'text' }).fill('Docs')
+    await firstEntry.getByRole('textbox', { name: 'href' }).fill('/docs')
+    await expect(links).toHaveText(['Docs'])
+    await expect(links).toHaveAttribute('href', '/docs')
+
+    await addEntry.click()
+    const secondEntry = page.getByRole('group', { name: 'links entry 2' })
+    await secondEntry.getByRole('textbox', { name: 'text' }).fill('Blog')
+    await secondEntry.getByRole('textbox', { name: 'href' }).fill('https://example.test')
+    await secondEntry.getByRole('combobox', { name: 'isExternal' }).selectOption({ label: 'true' })
+    await expect(links).toHaveText(['Docs', 'Blog'])
+    await expect(links.nth(1)).toHaveAttribute('target', '_blank')
+
+    await page.getByRole('button', { name: 'Move entry 2 up' }).click()
+    await expect(links).toHaveText(['Blog', 'Docs'])
+
+    await page.getByRole('tab', { name: 'Pug call' }).click()
+    await expect(page.locator('[data-playground-pug-call]')).toHaveText('+card({ title: \'Card title\', links: [{ text: \'Blog\', href: \'https://example.test\', isExternal: true }, { text: \'Docs\', href: \'/docs\' }] })')
+  })
+
   test('restores mixin and props from the URL hash', async ({ page }) => {
     await page.goto(EXPLORER)
     await page.getByRole('textbox', { name: 'label' }).fill('Shared')

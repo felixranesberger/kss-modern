@@ -339,6 +339,29 @@
     gap: 0.25em;
   }
 
+  .c-list__item--entry {
+    align-items: start;
+  }
+
+  .c-entry {
+    display: grid;
+    gap: 0.375em;
+    padding: 0.5em;
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--radius-small);
+  }
+
+  .c-entry__field {
+    display: grid;
+    gap: 0.125em;
+  }
+
+  .c-entry__label {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    color: var(--color-text-primary);
+  }
+
   /* standalone page: resize handle along the docked edge */
   .c-resize-handle {
     position: absolute;

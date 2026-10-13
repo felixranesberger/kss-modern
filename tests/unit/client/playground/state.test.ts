@@ -38,4 +38,18 @@ describe('formatPugCall', () => {
     expect(formatPugCall('button', { label: 'Save', variant: 'a' }, fields)).toBe('+button({ label: \'Save\' })')
     expect(formatPugCall('button', {}, fields)).toBe('+button({})')
   })
+
+  it('leaves out fields of list entries equal to their default', () => {
+    const fields = getFields({
+      type: 'object',
+      properties: {
+        links: {
+          type: 'array',
+          items: { type: 'object', properties: { text: { type: 'string' }, isExternal: { type: 'boolean', default: false } }, required: ['text'] },
+        },
+      },
+    })
+    expect(formatPugCall('linkList', { links: [{ text: 'Home', isExternal: false }, { text: 'Docs', isExternal: true }] }, fields))
+      .toBe('+linkList({ links: [{ text: \'Home\' }, { text: \'Docs\', isExternal: true }] })')
+  })
 })

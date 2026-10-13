@@ -30,6 +30,15 @@ export interface ValueRules {
   multipleOf?: number
 }
 
+/** The entry type of an array of objects: one flat field per key. */
+export interface EntryRules {
+  kind: 'object'
+  fields: Field[]
+}
+
+/** What each entry of an `array` field must satisfy. */
+export type ItemRules = ValueRules | EntryRules
+
 export interface Field extends Omit<ValueRules, 'kind'> {
   key: string
   kind: FieldKind
@@ -42,7 +51,7 @@ export interface Field extends Omit<ValueRules, 'kind'> {
   hasDefault: boolean
   hasExample: boolean
   /** The rules for each entry of an `array` field. */
-  items?: ValueRules
+  items?: ItemRules
   minItems?: number
   maxItems?: number
 }
@@ -117,10 +126,11 @@ export function getFields(schema: JsonSchema | undefined): Field[] {
     }
 
     if (property.type === 'array') {
+      const items = isObject(property.items) ? property.items : {}
       return {
         ...common,
         kind: 'array' as const,
-        items: getValueRules(isObject(property.items) ? property.items : {}),
+        items: items.type === 'object' ? { kind: 'object' as const, fields: getFields(items) } : getValueRules(items),
         minItems: getNumber(property.minItems),
         maxItems: getNumber(property.maxItems),
       }
@@ -143,6 +153,24 @@ export function getEmptyValue(rules: Pick<ValueRules, 'kind' | 'options' | 'mini
     case 'integer':
       return undefined
   }
+}
+
+/**
+ * A fresh entry of an array prop. An entry of objects starts with the default of every field that
+ * has one and the empty value of every other required field; optional fields stay out.
+ */
+export function getEmptyItem(rules: ItemRules): unknown {
+  if (rules.kind !== 'object')
+    return getEmptyValue(rules)
+
+  const entry: Record<string, unknown> = {}
+  for (const field of rules.fields) {
+    if (field.hasDefault)
+      entry[field.key] = field.default
+    else if (!field.isOptional)
+      entry[field.key] = getEmptyValue(field as ValueRules)
+  }
+  return entry
 }
 
 /**

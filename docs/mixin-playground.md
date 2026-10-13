@@ -48,10 +48,23 @@ The playground creates a control for every prop and checks the schema's constrai
 | `z.boolean()` | checkbox | |
 | `z.enum([...])`, `z.literal()`, unions of literals | select | allowed value |
 | `z.array()` of any of the above, with `.min()`, `.max()`, `.length()` | list editor (add, remove, reorder) | number of entries, every entry |
+| `z.array(z.strictObject({ … }))` whose fields are any of the scalars above | list editor with one group of fields per entry | number of entries, every field of every entry |
 | `.optional()`, `.default()` | an empty control leaves the prop out: empty text or number field, or the empty choice **—** of a select (an optional boolean becomes a select with **—**, true, false) | |
 | `.describe()`, `.meta({ examples })` | help text, starting value | |
 
-Not supported are nested objects and records, nullable props, unions of different types, arrays of objects or arrays, dates and other types JSON Schema cannot describe, and loose objects.
+Not supported are nested objects and records, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
+
+A list of entries, like the questions of an FAQ or the links of a footer column, is an array of flat objects. A fresh entry starts with the default of every field that has one and an empty value for every other required field. The Pug call leaves out entry fields equal to their default:
+
+```js
+var mixinSchema = z.object({
+  items: z.array(z.strictObject({
+    question: z.string().min(1),
+    answer: z.string().min(1),
+    isOpen: z.boolean().default(false),
+  })).min(1).meta({ examples: [[{ question: 'How do I apply?', answer: 'Online, until 15 March.' }]] }),
+})
+```
 
 `.refine()`, `.superRefine()` and `.transform()` are allowed. JSON Schema cannot express them, so the form does not check them while you type. The mixin's own `mixinSchema.parse(props)` still runs them on every render, and their errors appear next to the control as well.
 
