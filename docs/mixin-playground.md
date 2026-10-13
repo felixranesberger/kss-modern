@@ -49,10 +49,11 @@ The playground creates a control for every prop and checks the schema's constrai
 | `z.enum([...])`, `z.literal()`, unions of literals | select | allowed value |
 | `z.array()` of any of the above, with `.min()`, `.max()`, `.length()` | list editor (add, remove, reorder) | number of entries, every entry |
 | `z.array(z.strictObject({ … }))` whose fields are any of the scalars above | list editor with one group of fields per entry | number of entries, every field of every entry |
+| `z.record(z.string(), …)` with scalar values or a union of `z.string()`, `z.number()`, `z.boolean()`; keys may use `.regex()`, `.min()`, `.max()` | key-value editor; with several value types a select picks `true`, `false` or a typed value | every key, every value |
 | `.optional()`, `.default()` | an empty control leaves the prop out: empty text or number field, or the empty choice **—** of a select (an optional boolean becomes a select with **—**, true, false) | |
 | `.describe()`, `.meta({ examples })` | help text, starting value | |
 
-Not supported are nested objects and records, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
+Not supported are nested objects, records of objects or lists, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
 
 A list of entries, like the questions of an FAQ or the links of a footer column, is an array of flat objects. A fresh entry starts with the default of every field that has one and an empty value for every other required field. The Pug call leaves out entry fields equal to their default:
 
@@ -98,6 +99,17 @@ kss-modern wraps the output of every mixin with a `mixinSchema` in two HTML comm
 ```
 
 The name is the last segment of `mixinName`, split into words and upper-cased (`organisms/form/FileUpload` becomes `FILE UPLOAD`). Without a `mixinName` the mixin's own name is used. The markers appear in section previews, fullpages and the playground alike. A mixin that writes its own `// START …` comment at the top level of its body keeps it and gets no second pair. Mixins without a schema are left alone.
+
+A map whose keys are not known in advance, like additional HTML attributes on the root element, is a record. A new entry of a record that allows booleans starts as `true`:
+
+```js
+var mixinSchema = z.object({
+  additionalAttributes: z.record(
+    z.string().regex(/^(data-[a-z][a-z0-9-]*|aria-[a-z]+|hidden)$/),
+    z.union([z.string(), z.boolean()]),
+  ).optional(),
+})
+```
 
 ## Mixin explorer
 

@@ -189,7 +189,7 @@ describe('mixin pipeline', () => {
 
   it('fails a production build on a schema outside the supported zod features', async () => {
     await fs.remove(path.join(tmpContent, 'pug/_broken-schema.pug'))
-    await editFile('pug/_badge.pug', source => source.replace('text: z.string(),', 'text: z.string(), meta: z.record(z.string(), z.string()),'))
+    await editFile('pug/_badge.pug', source => source.replace('text: z.string(),', 'text: z.string(), meta: z.object({ a: z.string() }),'))
 
     await expect(createMixinPipeline(createConfig({ mode: 'production' })).build())
       .rejects

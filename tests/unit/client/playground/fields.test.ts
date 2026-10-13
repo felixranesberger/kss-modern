@@ -73,6 +73,17 @@ describe('arrays of objects', () => {
   })
 })
 
+describe('records', () => {
+  const [field] = getFields(z.toJSONSchema(z.object({
+    attributes: z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()])).optional(),
+  }), { io: 'input' }) as Record<string, unknown>)
+
+  it('describes keys and every allowed value type', () => {
+    expect(field.kind).toBe('record')
+    expect(field.record).toMatchObject({ keyPattern: '^data-[a-z-]+$', values: [{ kind: 'string' }, { kind: 'boolean' }] })
+  })
+})
+
 describe('initial values', () => {
   const fields = getFields(schema)
   const byKey = Object.fromEntries(fields.map(field => [field.key, field]))

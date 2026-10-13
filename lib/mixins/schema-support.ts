@@ -14,6 +14,8 @@
  * - `z.array()` of any of the above, with `.min()`, `.max()`, `.length()`
  * - `z.array()` of `z.strictObject()` / `z.object()` whose fields are any of the scalars above, for
  *   lists of entries like FAQ items or links. The fields stay flat: no lists or objects inside them.
+ * - `z.record()` with string keys (optionally `.regex()`) and scalar values, also a union of
+ *   `z.string()`, `z.number()` and `z.boolean()`, for maps like additional HTML attributes
  * - `.optional()`, `.default()`, `.describe()`, `.meta({ examples })`
  *
  * Checks JSON Schema cannot express (`.refine()`, `.transform()`) pass through: the mixin's own
@@ -30,6 +32,9 @@ const ARRAY_KEYS = ['type', 'items', 'minItems', 'maxItems', ...ANNOTATION_KEYS]
 const LITERAL_UNION_KEYS = ['anyOf', ...ANNOTATION_KEYS]
 const ROOT_KEYS = ['$schema', 'type', 'properties', 'required', 'additionalProperties', ...ANNOTATION_KEYS]
 const ENTRY_KEYS = ['type', 'properties', 'required', 'additionalProperties', ...ANNOTATION_KEYS]
+const RECORD_KEYS = ['type', 'propertyNames', 'additionalProperties', ...ANNOTATION_KEYS]
+const RECORD_KEY_KEYS = ['type', 'pattern', 'minLength', 'maxLength']
+const RECORD_VALUE_TYPES = ['string', 'number', 'integer', 'boolean']
 /** String formats the playground checks itself; any other format must come with a pattern. */
 const CHECKED_FORMATS = ['email', 'uri']
 
@@ -65,6 +70,27 @@ function checkEntry(schema: JsonSchema): string[] {
   return errors
 }
 
+function isRecord(schema: JsonSchema): boolean {
+  return !isObject(schema.properties) && isObject(schema.additionalProperties)
+}
+
+function checkRecord(schema: JsonSchema): string[] {
+  const errors = checkKeys(schema, RECORD_KEYS)
+  const keys = schema.propertyNames
+  if (keys !== undefined && (!isObject(keys) || keys.type !== 'string'))
+    errors.push('has keys that are no strings, only z.record(z.string(), …) is supported')
+  else if (isObject(keys))
+    errors.push(...checkKeys(keys, RECORD_KEY_KEYS).map(error => `keys ${error}`))
+
+  const values = schema.additionalProperties as JsonSchema
+  const types = Array.isArray(values.type) ? values.type : [values.type]
+  if (Array.isArray(values.anyOf) || !types.every(type => RECORD_VALUE_TYPES.includes(String(type))))
+    errors.push('has values that are no strings, numbers or booleans, which is not supported')
+  else if (!Array.isArray(values.type))
+    errors.push(...checkValue(values, 'entry-field').map(error => `values ${error}`))
+  return errors
+}
+
 function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
   if (Array.isArray(schema.anyOf)) {
     if (!schema.anyOf.every(isLiteral))
@@ -73,7 +99,7 @@ function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
   }
 
   if (Array.isArray(schema.type))
-    return [`can be ${schema.type.join(' or ')}; nullable props and unions of types are not supported`]
+    return [`can be ${schema.type.join(' or ')}; nullable props and unions of types are not supported (except as record values)`]
 
   switch (schema.type) {
     case 'string': {
@@ -104,7 +130,9 @@ function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
         return checkEntry(schema)
       if (position === 'entry-field')
         return ['is an object, the fields of a list entry must be scalars']
-      return ['is an object (or record), nested objects are not supported; use an array of objects for a list of entries']
+      if (isRecord(schema))
+        return checkRecord(schema)
+      return ['is an object, nested objects are not supported; use an array of objects for a list of entries or z.record() for a map']
     default:
       return ['has a type the playground cannot edit (e.g. z.any() or z.unknown())']
   }

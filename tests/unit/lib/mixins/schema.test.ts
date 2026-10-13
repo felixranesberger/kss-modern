@@ -35,7 +35,7 @@ describe('evaluateMixinSchema', () => {
   })
 
   it('reports zod features outside the supported set', () => {
-    const result = evaluateMixinSchema(z, 'var mixinSchema = z.object({ meta: z.record(z.string(), z.string()) })')
+    const result = evaluateMixinSchema(z, 'var mixinSchema = z.object({ meta: z.object({ a: z.string() }) })')
     expect(result).toEqual({ error: expect.stringContaining('prop "meta" is an object') })
   })
 

@@ -3,7 +3,7 @@
  * issues and the matching Pug call. Mounted in a shadow root by both hosts, the mixin explorer
  * (`./explorer.ts`) and the standalone page (`../../playground.ts`).
  */
-import type { EntryRules, Field, FieldValues, ValueRules } from './fields.ts'
+import type { EntryRules, Field, FieldValues, RecordRules, ValueRules } from './fields.ts'
 import type { PropIssue } from './runtime.ts'
 import { getEmptyItem } from './fields.ts'
 import panelStyles from './panel.css?inline'
@@ -193,6 +193,59 @@ function createEntryControls(
   }
 }
 
+/**
+ * The value control of a record entry. With one allowed type it is that type's control; with
+ * several (`z.union([z.string(), z.boolean()])`) a select picks `true`, `false` or a typed value,
+ * whose text or number field follows it.
+ */
+function createRecordValueControl(
+  rules: RecordRules,
+  value: unknown,
+  label: string,
+  onValue: (value: unknown) => void,
+  signal: AbortSignal,
+): { element: HTMLElement, controls: HTMLElement[] } {
+  if (rules.values.length === 1) {
+    const control = createValueControl(rules.values[0], value, false, { 'aria-label': label }, onValue, signal)
+    return { element: wrapControl(control), controls: [control] }
+  }
+
+  const typed = rules.values.filter(valueRules => valueRules.kind !== 'boolean')
+  const hasBoolean = typed.length < rules.values.length
+  const choices = [...hasBoolean ? ['true', 'false'] : [], ...typed.map(valueRules => valueRules.kind)]
+  const valueType = typeof value
+  const currentChoice = valueType === 'boolean'
+    ? String(value)
+    : (typed.find(valueRules => (valueRules.kind === 'string' ? valueType === 'string' : valueType === 'number'))?.kind ?? choices[0])
+
+  const select = createElement('select', { 'class': 'c-control c-control--select', 'aria-label': `${label} type` })
+  for (const choice of choices)
+    select.append(createElement('option', { value: choice }, [choice]))
+  select.value = currentChoice
+
+  const inputs = new Map(typed.map(valueRules => [valueRules.kind, createValueControl(
+    valueRules,
+    currentChoice === valueRules.kind ? value : undefined,
+    false,
+    { 'aria-label': label },
+    onValue,
+    signal,
+  )]))
+  const showInput = () => inputs.forEach((input, kind) => input.hidden = select.value !== kind)
+  showInput()
+
+  select.addEventListener('change', () => {
+    showInput()
+    const input = inputs.get(select.value as ValueRules['kind'])
+    if (input)
+      input.dispatchEvent(new Event('input'))
+    else
+      onValue(select.value === 'true')
+  }, { signal })
+
+  return { element: createElement('span', { class: 'c-record-value' }, [select, ...inputs.values()]), controls: [select, ...inputs.values()] }
+}
+
 export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
   const { host, name, isStandalone = false } = options
   const abortController = new AbortController()
@@ -317,6 +370,71 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
     return { group, controls: () => [...entryControls, addButton] }
   }
 
+  /**
+   * The key-value editor of a record prop. Rows keep their own state, so a key can be empty or
+   * repeated while it is typed; the prop holds every row with a key, the last one winning.
+   */
+  const renderRecord = (field: Field, labelId: string, describedBy: string) => {
+    const rules = field.record!
+    const list = createElement('ol', { class: 'c-list' })
+    const addButton = createElement('button', { class: 'c-button', type: 'button' }, ['Add entry'])
+    const group = createElement('div', { 'class': 'c-list-editor', 'role': 'group', 'aria-labelledby': labelId, 'aria-describedby': describedBy }, [list, addButton])
+    const current = values[field.key]
+    let rows = Object.entries(typeof current === 'object' && current !== null ? current as Record<string, unknown> : {}).map(([key, value]) => ({ key, value }))
+    let rowControls: HTMLElement[] = []
+    let rowController = new AbortController()
+
+    const emit = () => {
+      const map = Object.fromEntries(rows.filter(row => row.key !== '').map(row => [row.key, row.value]))
+      setValue(field.key, field.isOptional && Object.keys(map).length === 0 ? undefined : map)
+    }
+
+    const renderRows = (focusIndex?: number) => {
+      rowController.abort()
+      rowController = new AbortController()
+      rowControls = []
+      const firstControls: HTMLElement[] = []
+
+      list.replaceChildren(...rows.map((row, index) => {
+        const keyInput = createElement('input', { 'class': 'c-control', 'type': 'text', 'autocomplete': 'off', 'spellcheck': 'false', 'aria-label': `${field.key} key ${index + 1}`, 'pattern': rules.keyPattern })
+        keyInput.value = row.key
+        keyInput.addEventListener('input', () => {
+          rows[index] = { ...rows[index], key: keyInput.value }
+          emit()
+        }, { signal: rowController.signal })
+
+        const valueControl = createRecordValueControl(rules, row.value, `${field.key} value ${index + 1}`, (value) => {
+          rows[index] = { ...rows[index], value }
+          emit()
+        }, rowController.signal)
+
+        const removeButton = createElement('button', { 'class': 'c-button c-button--icon', 'type': 'button', 'aria-label': `Remove entry ${index + 1}` }, ['✕'])
+        removeButton.addEventListener('click', () => {
+          rows = rows.filter((_, rowIndex) => rowIndex !== index)
+          emit()
+          renderRows(Math.min(index, rows.length - 1))
+        }, { signal: rowController.signal })
+
+        rowControls.push(keyInput, ...valueControl.controls)
+        firstControls.push(keyInput)
+        return createElement('li', { class: 'c-list__item c-list__item--record' }, [keyInput, valueControl.element, removeButton])
+      }))
+
+      if (focusIndex !== undefined)
+        (firstControls[focusIndex] ?? addButton).focus()
+    }
+
+    addButton.addEventListener('click', () => {
+      // a map that allows booleans, like HTML attributes, mostly holds flags
+      const isFlagMap = rules.values.some(valueRules => valueRules.kind === 'boolean')
+      rows = [...rows, { key: '', value: isFlagMap ? true : getEmptyItem(rules.values[0]) }]
+      renderRows(rows.length - 1)
+    }, { signal })
+
+    renderRows()
+    return { group, controls: () => [...rowControls, addButton] }
+  }
+
   const renderField = (field: Field, index: number): HTMLElement => {
     const id = `field-${index}`
     const labelId = `${id}-label`
@@ -326,7 +444,12 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
 
     let controlRow: HTMLElement
     let controls: () => HTMLElement[]
-    if (field.kind === 'array') {
+    if (field.kind === 'record') {
+      const recordEditor = renderRecord(field, labelId, describedBy)
+      controlRow = recordEditor.group
+      controls = recordEditor.controls
+    }
+    else if (field.kind === 'array') {
       const listEditor = renderList(field, id, labelId, describedBy)
       controlRow = listEditor.group
       controls = listEditor.controls
@@ -344,7 +467,7 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
       controls = () => [control]
     }
 
-    const label = field.kind === 'array'
+    const label = field.kind === 'array' || field.kind === 'record'
       ? createElement('span', { class: 'c-field__label', id: labelId }, [field.key])
       : createElement('label', { class: 'c-field__label', id: labelId, for: id }, [field.key])
     const help = createElement('p', { class: 'c-field__help', id: helpId, hidden: !field.description }, [field.description ?? ''])

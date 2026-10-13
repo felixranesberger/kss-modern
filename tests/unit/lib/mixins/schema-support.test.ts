@@ -28,6 +28,8 @@ describe('checkSchemaSupport', () => {
         target: z.enum(['_self', '_blank']).optional(),
       })).min(1).meta({ examples: [[{ text: 'Home', href: '/' }]] }),
       looseEntries: z.array(z.object({ title: z.string() })).optional(),
+      attributes: z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()])).optional(),
+      counts: z.record(z.string(), z.int()).optional(),
       refined: z.string().refine(value => value.length > 2).optional(),
     }).describe('A component'))).toEqual([])
   })
@@ -35,15 +37,15 @@ describe('checkSchemaSupport', () => {
   it('names the prop and the problem of unsupported features', () => {
     expect(check(z.object({
       nested: z.object({ a: z.string() }),
-      record: z.record(z.string(), z.string()),
+      record: z.record(z.string(), z.object({ a: z.string() })),
       nullable: z.string().nullable(),
       mixed: z.union([z.string(), z.number()]),
       anything: z.any(),
     }))).toEqual([
-      'prop "nested" is an object (or record), nested objects are not supported; use an array of objects for a list of entries',
-      'prop "record" is an object (or record), nested objects are not supported; use an array of objects for a list of entries',
-      'prop "nullable" can be string or null; nullable props and unions of types are not supported',
-      'prop "mixed" can be string or number; nullable props and unions of types are not supported',
+      'prop "nested" is an object, nested objects are not supported; use an array of objects for a list of entries or z.record() for a map',
+      'prop "record" has values that are no strings, numbers or booleans, which is not supported',
+      'prop "nullable" can be string or null; nullable props and unions of types are not supported (except as record values)',
+      'prop "mixed" can be string or number; nullable props and unions of types are not supported (except as record values)',
       'prop "anything" has a type the playground cannot edit (e.g. z.any() or z.unknown())',
     ])
   })
@@ -61,7 +63,7 @@ describe('checkSchemaSupport', () => {
     }))).toEqual([
       'prop "rows" items field "tags" is an array, the fields of a list entry must be scalars',
       'prop "rows" items field "meta" is an object, the fields of a list entry must be scalars',
-      'prop "rows" items field "nullable" can be string or null; nullable props and unions of types are not supported',
+      'prop "rows" items field "nullable" can be string or null; nullable props and unions of types are not supported (except as record values)',
       'prop "records" items is an object without fields, which is not supported',
       'prop "looseRows" items allows unknown keys (z.looseObject or .catchall()), which is not supported',
       'prop "grid" items is an array of arrays, only arrays of scalars or of flat objects are supported',

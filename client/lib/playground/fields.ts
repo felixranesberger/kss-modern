@@ -8,7 +8,7 @@
 type JsonSchema = Record<string, unknown>
 
 export type ValueKind = 'string' | 'number' | 'integer' | 'boolean' | 'enum'
-export type FieldKind = ValueKind | 'array'
+export type FieldKind = ValueKind | 'array' | 'record'
 
 export type Literal = string | number | boolean | null
 
@@ -36,6 +36,16 @@ export interface EntryRules {
   fields: Field[]
 }
 
+/** The keys and values of a `record` field, a map like additional HTML attributes. */
+export interface RecordRules {
+  /** `.regex()` on the key schema. */
+  keyPattern?: string
+  keyMinLength?: number
+  keyMaxLength?: number
+  /** One rule set per allowed value type, e.g. a string and a boolean for `z.union([z.string(), z.boolean()])`. */
+  values: ValueRules[]
+}
+
 /** What each entry of an `array` field must satisfy. */
 export type ItemRules = ValueRules | EntryRules
 
@@ -52,6 +62,8 @@ export interface Field extends Omit<ValueRules, 'kind'> {
   hasExample: boolean
   /** The rules for each entry of an `array` field. */
   items?: ItemRules
+  /** The key and value rules of a `record` field. */
+  record?: RecordRules
   minItems?: number
   maxItems?: number
 }
@@ -125,6 +137,22 @@ export function getFields(schema: JsonSchema | undefined): Field[] {
       hasExample: examples.length > 0,
     }
 
+    if (property.type === 'object' && isObject(property.additionalProperties)) {
+      const keys = isObject(property.propertyNames) ? property.propertyNames : {}
+      const values = property.additionalProperties
+      const valueSchemas = Array.isArray(values.type) ? values.type.map(type => ({ ...values, type })) : [values]
+      return {
+        ...common,
+        kind: 'record' as const,
+        record: {
+          keyPattern: typeof keys.pattern === 'string' ? keys.pattern : undefined,
+          keyMinLength: getNumber(keys.minLength),
+          keyMaxLength: getNumber(keys.maxLength),
+          values: valueSchemas.map(getValueRules),
+        },
+      }
+    }
+
     if (property.type === 'array') {
       const items = isObject(property.items) ? property.items : {}
       return {
@@ -184,7 +212,11 @@ export function getInitialValue(field: Field): unknown {
     return field.example
   if (field.isOptional)
     return undefined
-  return field.kind === 'array' ? [] : getEmptyValue(field as ValueRules)
+  if (field.kind === 'array')
+    return []
+  if (field.kind === 'record')
+    return {}
+  return getEmptyValue(field as ValueRules)
 }
 
 /** Starting values of every control; props a URL carried replace them, absent props stay unset. */

@@ -343,6 +343,20 @@
     align-items: start;
   }
 
+  .c-list__item--record {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+
+  .c-record-value {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25em;
+  }
+
+  .c-record-value > [hidden] {
+    display: none;
+  }
+
   .c-entry {
     display: grid;
     gap: 0.375em;

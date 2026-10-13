@@ -4,7 +4,7 @@
  * error appears at the field before anything renders. The mixin's own `mixinSchema.parse(props)`
  * still runs on every render and catches what JSON Schema cannot state, like `.refine()`.
  */
-import type { EntryRules, Field, FieldValues, Literal, ValueRules } from './fields.ts'
+import type { EntryRules, Field, FieldValues, Literal, RecordRules, ValueRules } from './fields.ts'
 
 // the shape zod's `.email()` checks; the render-time parse is the final word
 const EMAIL_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
@@ -87,10 +87,34 @@ function validateEntry(rules: EntryRules, entry: unknown): string[] {
   )
 }
 
+/** Every problem with the keys and values of a record, each prefixed with its key. */
+function validateRecord(rules: RecordRules, value: unknown): string[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return ['Must be an object']
+
+  const errors: string[] = []
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (rules.keyPattern !== undefined && !new RegExp(rules.keyPattern).test(key))
+      errors.push(`Key "${key}": Must match ${rules.keyPattern}`)
+    else if (rules.keyMinLength !== undefined && key.length < rules.keyMinLength)
+      errors.push(`Key "${key}": Must be at least ${plural(rules.keyMinLength, 'character')}`)
+    else if (rules.keyMaxLength !== undefined && key.length > rules.keyMaxLength)
+      errors.push(`Key "${key}": Must be at most ${plural(rules.keyMaxLength, 'character')}`)
+
+    const valueErrors = rules.values.map(valueRules => validateValue(valueRules, entry))
+    if (valueErrors.every(error => error !== undefined))
+      errors.push(`"${key}": ${rules.values.length === 1 ? valueErrors[0] : `Must be ${rules.values.map(valueRules => valueRules.kind).join(' or ')}`}`)
+  }
+  return errors
+}
+
 /** Every problem with one prop's value, empty when it is valid or (optional and) not passed. */
 export function validateField(field: Field, value: unknown): string[] {
   if (value === undefined)
     return field.isOptional ? [] : ['Required']
+
+  if (field.kind === 'record')
+    return field.record ? validateRecord(field.record, value) : []
 
   if (field.kind !== 'array') {
     const error = validateValue(field as ValueRules, value)

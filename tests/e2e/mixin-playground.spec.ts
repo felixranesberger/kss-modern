@@ -202,6 +202,31 @@ test.describe('Mixin explorer', () => {
     await expect(page.locator('[data-playground-pug-call]')).toHaveText('+card({ title: \'Card title\', links: [{ text: \'Blog\', href: \'https://example.test\', isExternal: true }, { text: \'Docs\', href: \'/docs\' }] })')
   })
 
+  test('edits a record prop with a key-value editor', async ({ page }) => {
+    await page.goto(EXPLORER)
+    const preview = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] button')
+    const editor = page.locator('[data-field="attributes"]')
+
+    await editor.getByRole('button', { name: 'Add entry' }).click()
+    await expect(page.getByRole('textbox', { name: 'attributes key 1' })).toBeFocused()
+    await page.getByRole('textbox', { name: 'attributes key 1' }).fill('data-open')
+    await expect(page.getByRole('combobox', { name: 'attributes value 1 type' })).toHaveValue('true')
+    await expect(preview).toHaveAttribute('data-open', '')
+
+    await editor.getByRole('button', { name: 'Add entry' }).click()
+    await page.getByRole('textbox', { name: 'attributes key 2' }).fill('data-label')
+    await page.getByRole('combobox', { name: 'attributes value 2 type' }).selectOption('string')
+    await page.getByRole('textbox', { name: 'attributes value 2' }).fill('Hello')
+    await expect(preview).toHaveAttribute('data-label', 'Hello')
+
+    await page.getByRole('textbox', { name: 'attributes key 1' }).fill('class')
+    await expect(editor.locator('.c-field__error')).toHaveText('Key "class": Must match ^data-[a-z-]+$')
+
+    await page.getByRole('button', { name: 'Remove entry 1' }).click()
+    await page.getByRole('tab', { name: 'Pug call' }).click()
+    await expect(page.locator('[data-playground-pug-call]')).toHaveText('+button({ label: \'Save\', attributes: { \'data-label\': \'Hello\' } })')
+  })
+
   test('restores mixin and props from the URL hash', async ({ page }) => {
     await page.goto(EXPLORER)
     await page.getByRole('textbox', { name: 'label' }).fill('Shared')

@@ -39,6 +39,11 @@ describe('formatPugCall', () => {
     expect(formatPugCall('button', {}, fields)).toBe('+button({})')
   })
 
+  it('quotes record keys that are no identifiers', () => {
+    expect(formatPugCall('button', { attributes: { 'data-open': true, 'hidden': false } }))
+      .toBe('+button({ attributes: { \'data-open\': true, hidden: false } })')
+  })
+
   it('leaves out fields of list entries equal to their default', () => {
     const fields = getFields({
       type: 'object',

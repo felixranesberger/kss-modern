@@ -51,6 +51,16 @@ describe('validateField', () => {
     expect(errorsFor(entries, [{}])).toEqual(['Entry 1: text: Required'])
   })
 
+  it('checks the keys and values of a record', () => {
+    const attributes = z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()]))
+    expect(errorsFor(attributes, { 'data-open': true, 'data-label': 'x' })).toEqual([])
+    expect(errorsFor(attributes, { 'class': 'x', 'data-count': 3 })).toEqual([
+      'Key "class": Must match ^data-[a-z-]+$',
+      '"data-count": Must be string or boolean',
+    ])
+    expect(errorsFor(z.record(z.string(), z.int()), { a: 'x' })).toEqual(['"a": Must be a number'])
+  })
+
   it('accepts an optional prop that is not passed', () => {
     const [field] = fieldsOf({ value: z.number().min(5).optional() })
     expect(validateField(field, undefined)).toEqual([])
