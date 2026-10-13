@@ -54,7 +54,7 @@ test.describe('Standalone mixin page', () => {
     const root = page.locator('[data-kss-mixin-root]')
     await expect(root.locator('button')).toHaveText('Save')
 
-    expect(await root.innerHTML()).toBe('<button class="btn btn--primary" type="button" data-count="0">Save</button>')
+    expect(await root.innerHTML()).toBe('<!-- START BUTTON--><button class="btn btn--primary" type="button" data-count="0">Save</button><!-- END BUTTON-->')
     await expect(page.locator('[data-kss-playground-panel]')).toHaveCount(0)
     const visibleBodyChildren = await page.evaluate(() =>
       [...document.body.children].filter(element => !['SCRIPT', 'TEMPLATE'].includes(element.tagName)).length,

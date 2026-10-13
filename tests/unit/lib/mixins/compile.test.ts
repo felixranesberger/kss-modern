@@ -17,7 +17,7 @@ describe('compileMixinModule', () => {
     const { render } = await importModule(code)
 
     const html = render({ props: { label: 'Save', icon: 'disk' }, z, useId: createUseId('mixin-button') })
-    expect(html).toBe('<button class="btn btn--primary" id="id-mixin-button-btn"><svg class="icon" data-name="disk"></svg>Save</button>')
+    expect(html).toBe('<!-- START BUTTON--><button class="btn btn--primary" id="id-mixin-button-btn"><svg class="icon" data-name="disk"></svg>Save</button><!-- END BUTTON-->')
   })
 
   it('drops top-level markup of the mixin file and of included files (postLink filter)', async () => {

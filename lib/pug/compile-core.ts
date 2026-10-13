@@ -9,6 +9,7 @@ import { logger } from '../logger.ts'
 import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
 import { createUseId } from '../use-id.ts'
 import { requireZod } from '../zod.ts'
+import { mixinMarkerPlugin } from './mixin-markers.ts'
 import { createMixinTrace, mergeMixinUsage, MIXIN_TRACE_LOCAL, mixinTracePlugin } from './mixin-trace.ts'
 import { installPugParseCache } from './parse-cache.ts'
 
@@ -122,8 +123,9 @@ function compilePugFile(
     // line-mapping — measurably bloating codegen and `new Function`. We surface compile errors via
     // our own overlay, so the precise pug line in a runtime stack isn't worth the cost.
     compileDebug: false,
-    // records which mixins the section calls, see ./mixin-trace.ts
-    plugins: [mixinTracePlugin],
+    // START/END comments around public mixins, see ./mixin-markers.ts; records which mixins the
+    // section calls, see ./mixin-trace.ts
+    plugins: [mixinMarkerPlugin, mixinTracePlugin],
   })
 
   const dependencies = [path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep))]

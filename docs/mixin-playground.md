@@ -89,6 +89,16 @@ mixin button(props)
 
 `mixinName` is read from the template at build time and must be a plain string literal, a computed value is ignored. In the template it is an ordinary local variable and changes nothing. A mixin without `mixinName` is listed with its Pug name at the top level.
 
+### Start and end markers
+
+kss-modern wraps the output of every mixin with a `mixinSchema` in two HTML comments, so the delivered markup shows where each component begins and ends:
+
+```html
+<!-- START CARD--><article class="card">…</article><!-- END CARD-->
+```
+
+The name is the last segment of `mixinName`, split into words and upper-cased (`organisms/form/FileUpload` becomes `FILE UPLOAD`). Without a `mixinName` the mixin's own name is used. The markers appear in section previews, fullpages and the playground alike. A mixin that writes its own `// START …` comment at the top level of its body keeps it and gets no second pair. Mixins without a schema are left alone.
+
 ## Mixin explorer
 
 The **Mixins** entry in the sidebar, which appears once at least one mixin is found, opens the explorer at `mixins.html`. It works like Storybook:

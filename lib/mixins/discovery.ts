@@ -24,7 +24,7 @@ const MIXIN_KEYWORD_RE = /^\s*mixin\s/m
  * Find the `mixinSchema` code block and the `mixinName` line in a mixin body, without descending
  * into nested mixins. Both are read here at build time; neither is executed.
  */
-function findMixinCode(block: unknown): { schemaSource?: string, mixinName?: string } {
+export function findMixinCode(block: unknown): { schemaSource?: string, mixinName?: string } {
   const found: { schemaSource?: string, mixinName?: string } = {}
   walk(block, (node) => {
     if (node.type === 'Mixin')

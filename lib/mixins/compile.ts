@@ -1,5 +1,6 @@
 import path from 'node:path'
 import pug from 'pug'
+import { mixinMarkerPlugin } from '../pug/mixin-markers.ts'
 import { installPugParseCache } from '../pug/parse-cache.ts'
 
 installPugParseCache()
@@ -74,7 +75,7 @@ export function compileMixinModule(file: string, name: string): CompiledMixinMod
     ...MIXIN_COMPILE_OPTIONS,
     // a sibling of the mixin's file, so its relative includes resolve exactly as in the file itself
     filename: path.join(path.dirname(absoluteFile), `__kss-mixin-${name}.pug`),
-    plugins: [mixinPugPlugin],
+    plugins: [mixinPugPlugin, mixinMarkerPlugin],
   })
 
   return {
