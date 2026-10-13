@@ -1,7 +1,7 @@
 /**
  * Validates the playground's props against the constraints of the schema, as the user types. It
  * covers exactly the zod features the build lets through (`lib/mixins/schema-support.ts`), so an
- * error appears at the field before anything renders. The mixin's own `mixinSchema.parse(props)`
+ * error appears at the field before anything renders. The mixin's own `defineComponent` parse
  * still runs on every render and catches what JSON Schema cannot state, like `.refine()`.
  */
 import type { EntryRules, Field, FieldValues, Literal, RecordRules, ValueRules } from './fields.ts'

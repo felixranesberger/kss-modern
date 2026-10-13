@@ -175,6 +175,35 @@ describe('mixin pipeline', () => {
     expect((await fs.readdir(path.join(tmpOut, 'mixins'))).some(file => file.startsWith('tag.'))).toBe(false)
   })
 
+  it('publishes a mixin declared with defineComponent, in the folders of its name', async () => {
+    const pipeline = createMixinPipeline(createConfig())
+    await pipeline.build()
+
+    const addedFile = path.join(tmpContent, 'pug/_notice.pug')
+    await fs.writeFile(addedFile, [
+      'mixin moleculeNotice(props)',
+      '  -',
+      '    const p = defineComponent({',
+      '      name: \'molecules/feedback/Notice\',',
+      '      schema: z.strictObject({ text: z.string() }).describe(\'A short notice\'),',
+      '    }, props)',
+      '',
+      '  p.notice= p.text',
+      '',
+    ].join('\n'))
+    const { manifest } = await pipeline.build([addedFile])
+    const notice = byId(manifest, 'moleculenotice')
+
+    expect(notice).toMatchObject({ hasSchema: true, path: ['molecules', 'feedback', 'Notice'], description: 'A short notice' })
+    const module = await import(path.join(tmpOut, notice.module!)) as { render: (locals: Record<string, unknown>) => string }
+    const { z } = await import('zod')
+    const { defineComponent } = await import('../../lib/mixins/define-component.ts')
+    expect(module.render({ props: { text: 'Hi' }, z, defineComponent }))
+      .toBe('<!-- START NOTICE--><p class="notice">Hi</p><!-- END NOTICE-->')
+    expect(() => module.render({ props: {}, z, defineComponent }))
+      .toThrow(/^molecules\/feedback\/Notice \(\+moleculeNotice\): text: Invalid input/)
+  })
+
   it('keeps the last good module and reports the error in development', async () => {
     const pipeline = createMixinPipeline(createConfig())
     const first = await pipeline.build()
@@ -193,7 +222,7 @@ describe('mixin pipeline', () => {
 
     await expect(createMixinPipeline(createConfig({ mode: 'production' })).build())
       .rejects
-      .toThrow(/Invalid mixinSchema in 1 mixin[\s\S]*badge[\s\S]*prop "meta" is an object/)
+      .toThrow(/Invalid schema in 1 mixin[\s\S]*badge[\s\S]*prop "meta" is an object/)
   })
 
   it('lists such a schema with its error in development', async () => {

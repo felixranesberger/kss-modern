@@ -80,7 +80,7 @@ export async function createPlayground(
       return
     }
 
-    // then the mixin's own `mixinSchema.parse(props)`, which also runs `.refine()` and the like
+    // then the mixin's own `defineComponent` (or `mixinSchema.parse`), which also runs `.refine()` and the like
     const result = renderMixin(renderFunction, entry!.id, props)
     if (result.isValid) {
       panel?.setIssues([])

@@ -48,4 +48,49 @@ describe('mixinMarkerPlugin', () => {
     expect(render(`${tag}\n${card}\n+card({})\n  +tag({})\n  +tag({})`, { z: { object: () => ({}) } }))
       .toBe('<!-- START CARD--><article class="card"><!-- START TAG--><span class="tag"></span><!-- END TAG--><!-- START TAG--><span class="tag"></span><!-- END TAG--></article><!-- END CARD-->')
   })
+
+  describe('defineComponent', () => {
+    const button = [
+      'mixin atomButton(props)',
+      '  -',
+      '    const p = defineComponent({',
+      '      name: \'atoms/IconButton\',',
+      '      schema: z.object({}),',
+      '    }, props)',
+      '',
+      '  button= p.label',
+    ].join('\n')
+    const locals = { z: { object: () => ({}) }, defineComponent: (_definition: unknown, props: unknown) => props }
+
+    it('takes the marker name from the name literal', () => {
+      expect(render(`${button}\n+atomButton({ label: 'Go' })`, locals))
+        .toBe('<!-- START ICON BUTTON--><button>Go</button><!-- END ICON BUTTON-->')
+    })
+
+    it('falls back to the mixin name without a name literal', () => {
+      const source = 'mixin linkList(props)\n  - defineComponent({ schema: z.object({}) }, props || {})\n  ul'
+      expect(render(`${source}\n+linkList()`, locals)).toBe('<!-- START LINK LIST--><ul></ul><!-- END LINK LIST-->')
+    })
+
+    it('passes the Pug mixin name to defineComponent', () => {
+      const contexts: unknown[] = []
+      function defineComponent(this: unknown, _definition: unknown, props: unknown) {
+        contexts.push(this)
+        return props
+      }
+      render(`${button}\n+atomButton({ label: 'Go' })`, { ...locals, defineComponent })
+      expect(contexts).toEqual([{ mixin: 'atomButton' }])
+    })
+
+    it('passes the mixin name also when the mixin writes its own markers', () => {
+      const own = button.replace('  button= p.label', '  // START BUTTON\n  button= p.label')
+      const contexts: unknown[] = []
+      function defineComponent(this: unknown, _definition: unknown, props: unknown) {
+        contexts.push(this)
+        return props
+      }
+      expect(render(`${own}\n+atomButton({ label: 'Go' })`, { ...locals, defineComponent })).toBe('<!-- START BUTTON--><button>Go</button>')
+      expect(contexts).toEqual([{ mixin: 'atomButton' }])
+    })
+  })
 })

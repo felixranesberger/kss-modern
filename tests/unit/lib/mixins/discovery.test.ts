@@ -29,6 +29,43 @@ describe('discoverMixins', () => {
     expect(mixin.schemaSource).not.toContain('parse(props)')
   })
 
+  it('extracts a defineComponent block and its name literal', () => {
+    const source = [
+      'mixin atomButton(props)',
+      '  -',
+      '    const p = defineComponent({',
+      '      name: \'atoms/Button\',',
+      '      schema: z.strictObject({ label: z.string() }),',
+      '    }, props)',
+      '  button= p.label',
+    ].join('\n')
+
+    const [mixin] = discoverMixins(source, 'button.pug')
+    expect(mixin.isDefineComponent).toBe(true)
+    expect(mixin.schemaSource).toContain('const p = defineComponent({')
+    expect(mixin.mixinName).toBe('atoms/Button')
+  })
+
+  it('reads the name of a one-line defineComponent call, and prefers it over mixinSchema', () => {
+    const source = [
+      'mixin tag(props)',
+      '  - var mixinName = \'old/Tag\'',
+      '  -',
+      '    var mixinSchema = z.object({})',
+      '  - defineComponent({ name: "molecules/Tag", schema: z.object({}) }, props || {})',
+      '  span',
+    ].join('\n')
+
+    const [mixin] = discoverMixins(source, 'tag.pug')
+    expect(mixin).toMatchObject({ isDefineComponent: true, mixinName: 'molecules/Tag' })
+    expect(mixin.schemaSource).toContain('defineComponent(')
+  })
+
+  it('does not read a computed defineComponent name', () => {
+    const source = 'mixin tag(props)\n  -\n    defineComponent({\n      name: prefix + \'/Tag\',\n      schema: z.object({}),\n    }, props)\n  span\n'
+    expect(discoverMixins(source, 'tag.pug')[0]).toMatchObject({ isDefineComponent: true, mixinName: undefined })
+  })
+
   it('reads the explorer path from a mixinName string literal', () => {
     const source = 'mixin button(props)\n  - var mixinName = \'atoms/Button\'\n  button\nmixin computed(props)\n  - const mixinName = prefix + \'/x\'\n  span\n'
     const [button, computed] = discoverMixins(source, 'button.pug')
@@ -55,6 +92,9 @@ describe('discoverMixins', () => {
       '  mixin inner(props)',
       '    -',
       '      var mixinSchema = z.object({})',
+      '    span',
+      '  mixin innerDefined(props)',
+      '    - defineComponent({ name: \'x\', schema: z.object({}) }, props)',
       '    span',
       '  div',
       'if true',

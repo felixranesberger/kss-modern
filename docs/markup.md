@@ -60,7 +60,9 @@ input(id=id type="email")
 
 With a key, the id is `id-<section>-<key>`, so `useId('email')` in section `2.2` returns `id-2-2-email` every time you call it. Without a key, each call returns the next number in a sequence. Keys end up in the `id` attribute, so use letters, numbers and dashes.
 
-**`z`** is [zod](https://zod.dev), when it is installed. Mixins use it to declare and check their props with a `mixinSchema`, which also gives them a [playground](mixin-playground.md).
+**`z`** is [zod](https://zod.dev), when it is installed. Mixins use it to declare and check their props with **`defineComponent`**, which also gives them a [playground](mixin-playground.md).
+
+**`defineComponent({ name, schema }, props)`** parses `props` with the zod `schema` and returns the result, or throws an error naming the component, the prop and the problem. See [Mixin playground](mixin-playground.md).
 
 ## Reusing markup with `<insert-markup>`
 

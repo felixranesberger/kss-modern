@@ -1,5 +1,5 @@
 /**
- * The zod features a `mixinSchema` may use, checked on the JSON Schema zod produces for it.
+ * The zod features a mixin's schema may use, checked on the JSON Schema zod produces for it.
  *
  * The playground generates a control for every prop and validates it while you type, so it has to
  * understand every constraint the schema states. Instead of half-supporting the rest, a schema that
@@ -19,7 +19,7 @@
  * - `.optional()`, `.default()`, `.describe()`, `.meta({ examples })`
  *
  * Checks JSON Schema cannot express (`.refine()`, `.transform()`) pass through: the mixin's own
- * `mixinSchema.parse(props)` still runs them when the playground renders.
+ * `defineComponent` (or `mixinSchema.parse(props)`) still runs them when the playground renders.
  */
 
 type JsonSchema = Record<string, unknown>
@@ -141,7 +141,7 @@ function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
 /** Why the schema is outside the supported set, one line per problem; empty when it is fine. */
 export function checkSchemaSupport(schema: JsonSchema): string[] {
   if (schema.type !== 'object' || !isObject(schema.properties))
-    return ['mixinSchema must be a z.object({ … }) of props']
+    return ['the schema must be a z.object({ … }) of props']
 
   const errors = checkKeys(schema, ROOT_KEYS).map(error => `the schema ${error}`)
   if (schema.additionalProperties !== undefined && schema.additionalProperties !== false)

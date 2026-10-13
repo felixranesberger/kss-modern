@@ -10,9 +10,9 @@ test.describe('Mixin explorer', () => {
   test('lists only mixins with a schema and selects the first playground', async ({ page }) => {
     await page.goto(EXPLORER)
 
-    // icon and legacy declare no mixinSchema, so they are not public
+    // icon and legacy declare no schema, so they are not public
     const list = page.getByRole('navigation', { name: 'Mixins' })
-    await expect(list.locator('[data-explorer-item]')).toHaveText([/Button/, /Tag/, /Card/])
+    await expect(list.locator('[data-explorer-item]')).toHaveText([/Button/, /Tag/, /Notice/, /Card/])
     await expect(list.locator('[data-explorer-item="button"]')).toHaveAttribute('aria-current', 'true')
     await expect(page.locator('[data-explorer-name]')).toHaveText('Button')
     await expect(page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] button')).toHaveText('Save')
@@ -241,6 +241,35 @@ test.describe('Mixin explorer', () => {
     const preview = second.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] button')
     await expect(preview).toHaveText('Shared')
     await expect(preview).toHaveClass(/btn--danger/)
+  })
+
+  test('plays a mixin declared with defineComponent and shows its issues at the control', async ({ page }) => {
+    await page.goto(`${EXPLORER}#mixin=moleculenotice`)
+    const preview = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] .notice')
+    await expect(page.locator('[data-explorer-name]')).toHaveText('Notice')
+    await expect(page.locator('[data-explorer-path]')).toHaveText('molecules')
+    await expect(page.locator('[data-explorer-description]')).toHaveText('A short status notice')
+    await expect(preview).toHaveText('Saved')
+
+    await page.getByRole('combobox', { name: 'tone' }).selectOption({ label: 'warning' })
+    await expect(preview).toHaveClass(/notice--warning/)
+
+    // `.refine()` is not checked while typing: the error comes from defineComponent at render time
+    const text = page.getByRole('textbox', { name: 'text' })
+    await text.fill('forbidden')
+    const error = page.locator('[data-field="text"] .c-field__error')
+    await expect(error).toHaveText('Must not be "forbidden"')
+    await expect(preview).toHaveText('Saved')
+
+    await text.fill('Done')
+    await expect(error).toBeHidden()
+    await expect(preview).toHaveText('Done')
+  })
+
+  test('marks a defineComponent mixin in section markup with the markers of its name', async ({ page }) => {
+    await page.goto('/mixin-e2e/fullpage-1.2.html')
+    await expect(page.locator('.notice')).toHaveText('Section notice')
+    expect(await page.content()).toContain('<!-- START NOTICE--><p class="notice notice--warning">Section notice</p><!-- END NOTICE-->')
   })
 
   test('runs the audit on the selected mixin', async ({ page }) => {

@@ -1,7 +1,7 @@
 import type { FileSignature } from '../file-signature.ts'
 import type { ResolvedStyleguideConfiguration } from '../index.ts'
 import type { DiscoveredMixin } from './discovery.ts'
-import type { MixinSchemaResult } from './schema.ts'
+import type { MixinSchemaForm, MixinSchemaResult } from './schema.ts'
 import type { MixinManifest, MixinManifestEntry } from './types.ts'
 import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
@@ -22,7 +22,7 @@ import { getMixinPath, MIXIN_MANIFEST_PATH } from './types.ts'
 export * from './types.ts'
 
 /** Bump when the shape of the persisted cache changes; older files are then discarded. */
-const CACHE_FORMAT = 3
+const CACHE_FORMAT = 4
 const DEFAULT_CACHE_DIR = 'node_modules/.cache/kss-modern'
 /** Prefix of mixin nodes in the shared pug dependency graph, next to the section ids. */
 export const MIXIN_GRAPH_PREFIX = 'mixin:'
@@ -279,18 +279,20 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
       .flatMap(file => (data.files[file]?.mixins ?? []).map(mixin => ({ file, mixin })))
     const ids = assignIds(discovered)
 
-    // 2. schema -> JSON Schema, keyed on the schema source only; misses evaluate on the worker pool
+    // 2. schema -> JSON Schema, keyed on the schema source and its form only; misses evaluate on
+    // the worker pool
+    const getSchemaForm = (mixin: DiscoveredMixin): MixinSchemaForm => mixin.isDefineComponent ? 'defineComponent' : 'mixinSchema'
     const schemaKeys = discovered.map(({ mixin }) => mixin.schemaSource === undefined
       ? undefined
-      : hashContent(`${mixin.schemaSource}\n${zodVersion}`))
+      : hashContent(`${getSchemaForm(mixin)}\n${mixin.schemaSource}\n${zodVersion}`))
     const usedSchemaKeys = new Set(schemaKeys.filter((key): key is string => key !== undefined))
-    const schemaMisses = new Map<string, string>()
+    const schemaMisses = new Map<string, { source: string, form: MixinSchemaForm }>()
     discovered.forEach(({ mixin }, index) => {
       const schemaKey = schemaKeys[index]
       if (schemaKey !== undefined && !data.schemas[schemaKey])
-        schemaMisses.set(schemaKey, mixin.schemaSource!)
+        schemaMisses.set(schemaKey, { source: mixin.schemaSource!, form: getSchemaForm(mixin) })
     })
-    const evaluated = await evaluateSchemaJobs([...schemaMisses].map(([id, source]) => ({ id, source })))
+    const evaluated = await evaluateSchemaJobs([...schemaMisses].map(([id, job]) => ({ id, ...job })))
     for (const [schemaKey, schema] of evaluated) {
       data.schemas[schemaKey] = schema
       isCacheDirty = true
@@ -314,11 +316,14 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
       const schema = data.schemas[schemaKey]
       if ('error' in schema) {
         if (evaluated.has(schemaKey))
-          logger.warn(`The mixinSchema of "${mixin.name}" (${entry.file}:${mixin.line}) cannot be used, the mixin gets no playground:\n${schema.error}`)
+          logger.warn(`The schema of "${mixin.name}" (${entry.file}:${mixin.line}) cannot be used, the mixin gets no playground:\n${schema.error}`)
         entry.schemaError = schema.error
         return entry
       }
 
+      // the evaluated `defineComponent` name wins over the literal read from the template
+      if (schema.name !== undefined)
+        entry.path = getMixinPath(mixin.name, schema.name)
       entry.hasSchema = true
       entry.jsonSchema = schema.jsonSchema
       if (typeof schema.jsonSchema.description === 'string')
@@ -423,7 +428,7 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
         .filter(entry => entry.schemaError !== undefined)
         .map(entry => `  • ${entry.name} (${entry.file}:${entry.line})\n${entry.schemaError}`)
       const problems = [
-        ...schemaFailures.length > 0 ? [`Invalid mixinSchema in ${schemaFailures.length} mixin(s):\n\n${schemaFailures.join('\n\n')}`] : [],
+        ...schemaFailures.length > 0 ? [`Invalid schema in ${schemaFailures.length} mixin(s):\n\n${schemaFailures.join('\n\n')}`] : [],
         ...failures.length > 0 ? [`Pug compilation failed for ${failures.length} mixin(s):\n\n${failures.join('\n\n')}`] : [],
       ]
       if (problems.length > 0)
@@ -451,7 +456,7 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
       }
     }
 
-    // mixins without a mixinSchema are internal: they stay out of the manifest and the styleguide
+    // mixins without a schema are internal: they stay out of the manifest and the styleguide
     const manifest: MixinManifest = { mixins: entries.filter(entry => entry.hasSchema || entry.schemaError !== undefined) }
     await writeOutput(config.outDir, manifest, modules)
     if (isCacheDirty)

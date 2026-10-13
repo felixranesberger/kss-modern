@@ -117,4 +117,11 @@ test.describe('Standalone mixin page', () => {
     await expect(page.locator('[data-kss-mixin-root] button')).toHaveText('Save')
     await expect(panel).toBeHidden()
   })
+
+  test('renders a mixin declared with defineComponent', async ({ page }) => {
+    await page.goto(`/mixin-e2e/mixins-moleculenotice-standalone.html?controls=0&props=${encodeURIComponent(JSON.stringify({ text: 'Hello', tone: 'warning' }))}`)
+    const root = page.locator('[data-kss-mixin-root]')
+    await expect(root.locator('.notice')).toHaveText('Hello')
+    expect(await root.innerHTML()).toBe('<!-- START NOTICE--><p class="notice notice--warning">Hello</p><!-- END NOTICE-->')
+  })
 })

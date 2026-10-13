@@ -1,4 +1,4 @@
-import type { MixinSchemaResult } from '../mixins/schema.ts'
+import type { MixinSchemaForm, MixinSchemaResult } from '../mixins/schema.ts'
 import type { Mode } from './compile-core.ts'
 import type { MixinUsageNode } from './mixin-trace.ts'
 import { parentPort } from 'node:worker_threads'
@@ -23,11 +23,12 @@ export interface PugMixinJob {
   name: string
 }
 
-/** Evaluate one `mixinSchema` block and convert it to JSON Schema (see `lib/mixins/schema.ts`). */
+/** Evaluate one schema block and convert it to JSON Schema (see `lib/mixins/schema.ts`). */
 export interface PugSchemaJob {
   kind: 'schema'
   id: string
   source: string
+  form: MixinSchemaForm
 }
 
 export type PugWorkerInput = PugSectionJob | PugMixinJob | PugSchemaJob
@@ -67,7 +68,7 @@ parentPort.on('message', async (data: PugWorkerInput) => {
   try {
     if (data.kind === 'schema') {
       const z = requireZod()
-      const schema = z ? evaluateMixinSchema(z, data.source) : { error: 'zod 4 is not installed' }
+      const schema = z ? evaluateMixinSchema(z, data.source, data.form) : { error: 'zod 4 is not installed' }
       parentPort!.postMessage({ id, schema } satisfies PugSchemaWorkerOutput)
       return
     }

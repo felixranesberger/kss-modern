@@ -1,18 +1,20 @@
-//- A button with a playground: the mixinSchema below describes its props, and
-//- the icon comes from the included _icon partial.
+//- A button with a playground: the schema passed to defineComponent describes
+//- its props, and the icon comes from the included _icon partial.
 include _icon
 
 mixin button(props)
-  - var mixinName = 'atoms/Button'
   -
-    var mixinSchema = z.object({
-      label: z.string().min(1).describe('Visible button text').meta({ examples: ['Save changes'] }),
-      variant: z.enum(['primary', 'secondary', 'ghost', 'danger']).default('primary'),
-      size: z.enum(['sm', 'md', 'lg']).default('md'),
-      icon: z.enum(['plus', 'check', 'download', 'arrow-right', 'mail']).optional().describe('Icon before the label'),
-      disabled: z.boolean().default(false),
-    }).describe('The main action of a view, with an optional leading icon.')
-  - const p = mixinSchema.parse(props)
+    const p = defineComponent({
+      name: 'atoms/Button',
+      schema: z.object({
+        label: z.string().min(1).describe('Visible button text').meta({ examples: ['Save changes'] }),
+        variant: z.enum(['primary', 'secondary', 'ghost', 'danger']).default('primary'),
+        size: z.enum(['sm', 'md', 'lg']).default('md'),
+        icon: z.enum(['plus', 'check', 'download', 'arrow-right', 'mail']).optional().describe('Icon before the label'),
+        disabled: z.boolean().default(false),
+      }).describe('The main action of a view, with an optional leading icon.'),
+    }, props)
+
   button.btn(
     type="button"
     class=[p.variant !== 'primary' && `btn--${p.variant}`, p.size !== 'md' && `btn--${p.size}`]

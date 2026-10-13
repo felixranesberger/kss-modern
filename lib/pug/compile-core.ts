@@ -6,6 +6,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import pug from 'pug'
 import { logger } from '../logger.ts'
+import { defineComponent } from '../mixins/define-component.ts'
 import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
 import { createUseId } from '../use-id.ts'
 import { requireZod } from '../zod.ts'
@@ -133,9 +134,10 @@ function compilePugFile(
   // section's modifier with `.c-tabs(class=modifierClass)` instead of writing the literal token; the
   // placeholder survives compilation and is swapped per modifier at runtime (see ModifierReplacer).
   // `extraLocals` wins, so `<insert-vite-pug modifierClass="…">` still bakes its fixed class instead.
-  const locals: Record<string, unknown> = { modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId) }
-  // `z` is zod (when installed), so markup can call mixins that declare a `mixinSchema`, see
-  // lib/mixins. A getter, so zod only loads for a template that actually uses it.
+  const locals: Record<string, unknown> = { modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId), defineComponent }
+  // `z` is zod (when installed), so markup can call mixins that declare their schema with
+  // `defineComponent` or `mixinSchema`, see lib/mixins. A getter, so zod only loads for a template
+  // that actually uses it.
   Object.defineProperty(locals, 'z', { enumerable: true, get: requireZod })
   const trace = createMixinTrace()
   locals[MIXIN_TRACE_LOCAL] = trace

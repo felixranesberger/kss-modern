@@ -66,8 +66,8 @@ export const mixinPugPlugin = {
 
 /**
  * Precompile one mixin into a standalone ES module. The browser only ever changes prop values,
- * never the template, so the module carries no pug compiler: `render({ props, z, useId,
- * modifierClass })` returns HTML. Throws on a pug error.
+ * never the template, so the module carries no pug compiler: `render({ props, z,
+ * defineComponent, useId, modifierClass })` returns HTML. Throws on a pug error.
  */
 export function compileMixinModule(file: string, name: string): CompiledMixinModule {
   const absoluteFile = path.resolve(file)

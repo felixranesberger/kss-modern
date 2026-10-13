@@ -12,30 +12,53 @@ npm install --save-dev zod
 
 Without zod the mixin explorer is left out, the build logs one line saying so, and everything else works as before.
 
-## Declaring a schema
+## Declaring a component
 
-Give the mixin a single `props` argument and declare its schema as `mixinSchema` in an unbuffered code block of its own, ideally the first statement of the mixin:
+Give the mixin a single `props` argument and call `defineComponent` in an unbuffered code block of its own, as the first statement of the mixin. It takes the component's `name` and its zod `schema`, parses `props` and returns the result:
 
 ```pug
 include _icon
 
-mixin button(props)
+mixin atomButton(props)
   -
-    var mixinSchema = z.object({
-      label: z.string().describe('Button text'),
-      variant: z.enum(['primary', 'ghost']).default('primary'),
-      icon: z.string().optional(),
-    })
-  - const p = mixinSchema.parse(props)
+    const p = defineComponent({
+      name: 'atoms/Button',
+      schema: z.strictObject({
+        label: z.string().describe('Button text'),
+        variant: z.enum(['primary', 'ghost']).default('primary'),
+        icon: z.string().optional(),
+      }).describe('The main action of a view'),
+    }, props)
+
   button(class=['btn', 'btn--' + p.variant] id=useId('btn'))
     if p.icon
       +icon(p.icon)
     = p.label
 ```
 
-`z` is available in every template, in the playground and in regular section markup, so sections can keep calling `+button({ label: 'Save' })`. `mixinSchema.parse(props)` applies the defaults and throws on invalid props. In the playground those errors appear next to the matching control. In a section they fail the compile like any other Pug error.
+`z` and `defineComponent` are available in every template, in the playground and in regular section markup, so sections can keep calling `+atomButton({ label: 'Save' })`. `defineComponent` applies the defaults and throws on invalid props, one line per problem with the component name, the Pug mixin, the prop and the reason:
 
-The build evaluates the schema block on its own to build the form. The block may therefore only use `z`. It must not read `props` or any other template variable. When the block throws, or uses a feature outside the supported set below, a production build fails. In development the build logs a warning and the explorer shows the error in place of the playground.
+```text
+atoms/Button (+atomButton): label: Invalid input: expected string, received undefined
+```
+
+In the playground those errors appear next to the matching control. In a section they fail the compile like any other Pug error. A mixin that does not need the parsed props can call `- defineComponent({ … }, props || {})` without assigning the result.
+
+The build evaluates the `defineComponent` block on its own to build the form. It runs the block with a `defineComponent` that only records the definition and returns an empty object, and without any props. The block may therefore only use `z`. It must not read `props` beyond passing them, or any other template variable. Keep computations on the parsed props in a code block after it. When the block throws, does not call `defineComponent` with a zod `schema`, or uses a feature outside the supported set below, a production build fails. In development the build logs a warning and the explorer shows the error in place of the playground.
+
+### The older form: `mixinSchema` and `mixinName`
+
+Mixins written before `defineComponent` declare the schema as a `mixinSchema` variable and the explorer name as a `mixinName` variable. This form still works and is treated exactly like `defineComponent`:
+
+```pug
+mixin atomButton(props)
+  - var mixinName = 'atoms/Button'
+  -
+    var mixinSchema = z.strictObject({ /* … */ })
+  - const p = mixinSchema.parse(props)
+```
+
+`mixinName` must be a plain string literal. When a mixin body contains both forms, `defineComponent` wins. New mixins should use `defineComponent`.
 
 ### Supported zod features
 
@@ -58,64 +81,57 @@ Not supported are nested objects, records of objects or lists, nullable props, u
 A list of entries, like the questions of an FAQ or the links of a footer column, is an array of flat objects. A fresh entry starts with the default of every field that has one and an empty value for every other required field. The Pug call leaves out entry fields equal to their default:
 
 ```js
-var mixinSchema = z.object({
+schema: z.object({
   items: z.array(z.strictObject({
     question: z.string().min(1),
     answer: z.string().min(1),
     isOpen: z.boolean().default(false),
   })).min(1).meta({ examples: [[{ question: 'How do I apply?', answer: 'Online, until 15 March.' }]] }),
-})
+}),
 ```
 
-`.refine()`, `.superRefine()` and `.transform()` are allowed. JSON Schema cannot express them, so the form does not check them while you type. The mixin's own `mixinSchema.parse(props)` still runs them on every render, and their errors appear next to the control as well.
+`.refine()`, `.superRefine()` and `.transform()` are allowed. JSON Schema cannot express them, so the form does not check them while you type. `defineComponent` still runs them on every render, and their errors appear next to the control as well.
 
 `.describe('…')` on a prop becomes the help text under its control. `.describe('…')` on the schema object itself is the mixin's description, shown under its name in the explorer:
 
 ```js
-var mixinSchema = z.object({ /* … */ }).describe('The main action of a view')
+schema: z.object({ /* … */ }).describe('The main action of a view'),
 ```
 
 A control starts with the schema default, else with the first example from `.meta({ examples: [...] })`, else empty.
 
 ### Folders in the explorer
 
-Give a mixin a `mixinName` to place it in the explorer. Every `/` opens a folder, the last segment is the label, so atoms, molecules and organisms each get a folder of their own:
+The `name` passed to `defineComponent` places the mixin in the explorer. Every `/` opens a folder, the last segment is the label, so atoms, molecules and organisms each get a folder of their own: `name: 'atoms/Button'` lists the mixin as **Button** in the folder **atoms**.
 
-```pug
-mixin button(props)
-  - var mixinName = 'atoms/Button'
-  -
-    var mixinSchema = z.object({ /* … */ })
-```
-
-`mixinName` is read from the template at build time and must be a plain string literal, a computed value is ignored. In the template it is an ordinary local variable and changes nothing. A mixin without `mixinName` is listed with its Pug name at the top level.
+Write `name` as a plain string literal. The explorer takes the evaluated value, but the start and end markers below are added at compile time without running any code and read the literal. A mixin without `name` (or `mixinName` in the older form) is listed with its Pug name at the top level.
 
 ### Start and end markers
 
-kss-modern wraps the output of every mixin with a `mixinSchema` in two HTML comments, so the delivered markup shows where each component begins and ends:
+kss-modern wraps the output of every mixin with a schema in two HTML comments, so the delivered markup shows where each component begins and ends:
 
 ```html
 <!-- START CARD--><article class="card">…</article><!-- END CARD-->
 ```
 
-The name is the last segment of `mixinName`, split into words and upper-cased (`organisms/form/FileUpload` becomes `FILE UPLOAD`). Without a `mixinName` the mixin's own name is used. The markers appear in section previews, fullpages and the playground alike. A mixin that writes its own `// START …` comment at the top level of its body keeps it and gets no second pair. Mixins without a schema are left alone.
+The name is the last segment of the `defineComponent` `name` (or of `mixinName`), split into words and upper-cased (`organisms/form/FileUpload` becomes `FILE UPLOAD`). Without one the mixin's own name is used. The markers appear in section previews, fullpages and the playground alike. A mixin that writes its own `// START …` comment at the top level of its body keeps it and gets no second pair. Mixins without a schema are left alone.
 
 A map whose keys are not known in advance, like additional HTML attributes on the root element, is a record. A new entry of a record that allows booleans starts as `true`:
 
 ```js
-var mixinSchema = z.object({
+schema: z.object({
   additionalAttributes: z.record(
     z.string().regex(/^(data-[a-z][a-z0-9-]*|aria-[a-z]+|hidden)$/),
     z.union([z.string(), z.boolean()]),
   ).optional(),
-})
+}),
 ```
 
 ## Mixin explorer
 
 The **Mixins** entry in the sidebar, which appears once at least one mixin is found, opens the explorer at `mixins.html`. It works like Storybook:
 
-- **List** on the left: every mixin with a schema, in the folders of its `mixinName`, with a filter field that also searches folder names. Folders can be collapsed. Red marks a compile error, amber a schema that could not be evaluated. Arrow keys move through the list.
+- **List** on the left: every mixin with a schema, in the folders of its `name`, with a filter field that also searches folder names. Folders can be collapsed. Red marks a compile error, amber a schema that could not be evaluated. Arrow keys move through the list.
 - **Canvas** in the middle: the selected mixin, rendered with your `html.assets`. It follows the theme dropdown and the color scheme like every other preview.
 - **Tabs** below: **Controls** with the form generated from the schema, **Code** with the rendered HTML and **Pug call** with the call for the current props (props equal to their default are left out). The copy buttons next to the tabs copy the Pug call or the HTML.
 

@@ -1,4 +1,4 @@
-import type { MixinSchemaResult } from '../mixins/schema.ts'
+import type { MixinSchemaForm, MixinSchemaResult } from '../mixins/schema.ts'
 import type { Mode } from './compile-core.ts'
 import type { MixinUsageNode } from './mixin-trace.ts'
 import type { PugMixinJob, PugMixinWorkerOutput, PugSchemaWorkerOutput, PugWorkerInput, PugWorkerOutput } from './worker.ts'
@@ -416,17 +416,17 @@ export async function compileMixinJobs(
 }
 
 /**
- * Evaluate `mixinSchema` blocks on the worker pool. Loading zod and running a schema costs a few
- * dozen milliseconds the first time; on a worker that happens beside the section compiles instead
- * of blocking the main thread. Without a worker file the schemas are evaluated here.
+ * Evaluate schema blocks (`defineComponent` or `mixinSchema`) on the worker pool. Loading zod and
+ * running a schema costs a few dozen milliseconds the first time; on a worker that happens beside
+ * the section compiles instead of blocking the main thread. Without a worker file the schemas are evaluated here.
  */
-export async function evaluateSchemaJobs(jobs: { id: string, source: string }[]): Promise<Map<string, MixinSchemaResult>> {
+export async function evaluateSchemaJobs(jobs: { id: string, source: string, form: MixinSchemaForm }[]): Promise<Map<string, MixinSchemaResult>> {
   const results = new Map<string, MixinSchemaResult>()
 
   await Promise.all(jobs.map(async (job) => {
     if (!workerFilePathResolved) {
       const z = requireZod()
-      results.set(job.id, z ? evaluateMixinSchema(z, job.source) : { error: 'zod 4 is not installed' })
+      results.set(job.id, z ? evaluateMixinSchema(z, job.source, job.form) : { error: 'zod 4 is not installed' })
       return
     }
 

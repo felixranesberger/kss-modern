@@ -8,7 +8,7 @@ export interface MixinManifestEntry {
   id: string
   name: string
   /**
-   * Where the mixin sits in the explorer: the segments of its `mixinName` (`'atoms/button'` ->
+   * Where the mixin sits in the explorer: the segments of its `defineComponent` `name` or `mixinName` (`'atoms/button'` ->
    * `['atoms', 'button']`), or just its Pug name without one. The last segment is its label.
    */
   path: string[]
@@ -18,13 +18,13 @@ export interface MixinManifestEntry {
   file: string
   /** 1-based line of the `mixin` keyword. */
   line: number
-  /** The mixin declares a usable `mixinSchema`, so it gets a playground. */
+  /** The mixin declares a usable schema (`defineComponent` or `mixinSchema`), so it gets a playground. */
   hasSchema: boolean
   /** `.describe()` of the schema itself, shown under the mixin's name. */
   description?: string
   /** The schema as JSON Schema (`io: 'input'`), present when `hasSchema`. */
   jsonSchema?: Record<string, unknown>
-  /** Why a declared `mixinSchema` could not be used. The mixin is then treated as schema-less. */
+  /** Why a declared schema could not be used. The mixin is then treated as schema-less. */
   schemaError?: string
   /** Render module, relative to the output directory. Content-hashed, so a URL never goes stale. */
   module?: string
@@ -33,7 +33,7 @@ export interface MixinManifestEntry {
 }
 
 /**
- * Only mixins that declare a `mixinSchema` are public. All others are internal building blocks and
+ * Only mixins that declare a schema, with `defineComponent` or `mixinSchema`, are public. All others are internal building blocks and
  * stay out of the manifest and the styleguide. A schema that fails to evaluate still counts, so the
  * broken schema shows up instead of the mixin silently vanishing.
  */
@@ -50,7 +50,7 @@ export function getMixinExplorerHref(id: string): string {
   return `${MIXIN_OVERVIEW_FILE}#mixin=${id}`
 }
 
-/** Split a `mixinName` into explorer path segments; without one, the mixin's Pug name is the path. */
+/** Split an explorer name (`defineComponent` `name` or `mixinName`) into path segments; without one, the mixin's Pug name is the path. */
 export function getMixinPath(name: string, mixinName: string | undefined): string[] {
   const segments = (mixinName ?? '').split('/').map(segment => segment.trim()).filter(Boolean)
   return segments.length > 0 ? segments : [name]

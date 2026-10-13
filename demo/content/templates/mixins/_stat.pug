@@ -1,22 +1,24 @@
-//- A stat tile whose mixinSchema uses every kind of playground control:
+//- A stat tile whose schema uses every kind of playground control:
 //- text, number, integer, checkbox, select, optional props and raw JSON.
 include _icon
 
 mixin stat(props)
-  - var mixinName = 'molecules/Stat tile'
   -
-    var mixinSchema = z.object({
-      label: z.string().describe('What the number measures').meta({ examples: ['Monthly revenue'] }),
-      value: z.number().describe('The current value').meta({ examples: [48.2] }),
-      unit: z.string().optional().describe('Printed after the value').meta({ examples: ['k€'] }),
-      decimals: z.number().int().min(0).max(3).default(1).describe('Decimal places of the value'),
-      icon: z.enum(['chart', 'user', 'trending-up', 'leaf']).default('chart'),
-      trend: z.number().optional().describe('Change against last month, in percent'),
-      isDown: z.boolean().default(false).describe('Show the trend as a decline'),
-      points: z.array(z.number()).min(2).default([12, 14, 13, 17, 16, 19, 22, 21, 25, 27]).describe('Sparkline values, oldest first'),
-    }).describe('A key number with its trend against last month and a sparkline.')
+    const p = defineComponent({
+      name: 'molecules/Stat tile',
+      schema: z.object({
+        label: z.string().describe('What the number measures').meta({ examples: ['Monthly revenue'] }),
+        value: z.number().describe('The current value').meta({ examples: [48.2] }),
+        unit: z.string().optional().describe('Printed after the value').meta({ examples: ['k€'] }),
+        decimals: z.number().int().min(0).max(3).default(1).describe('Decimal places of the value'),
+        icon: z.enum(['chart', 'user', 'trending-up', 'leaf']).default('chart'),
+        trend: z.number().optional().describe('Change against last month, in percent'),
+        isDown: z.boolean().default(false).describe('Show the trend as a decline'),
+        points: z.array(z.number()).min(2).default([12, 14, 13, 17, 16, 19, 22, 21, 25, 27]).describe('Sparkline values, oldest first'),
+      }).describe('A key number with its trend against last month and a sparkline.'),
+    }, props)
+
   -
-    const p = mixinSchema.parse(props)
     const max = Math.max(...p.points)
     const min = Math.min(...p.points)
     const range = max - min || 1

@@ -71,7 +71,7 @@ describe('checkSchemaSupport', () => {
   })
 
   it('rejects a schema that is no object of props', () => {
-    expect(check(z.string())).toEqual(['mixinSchema must be a z.object({ … }) of props'])
+    expect(check(z.string())).toEqual(['the schema must be a z.object({ … }) of props'])
   })
 
   it('rejects loose objects', () => {

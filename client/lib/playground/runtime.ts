@@ -4,6 +4,7 @@
  */
 import type { MixinManifest, MixinManifestEntry } from '../../../lib/mixins/types.ts'
 import { z } from 'zod'
+import { defineComponent } from '../../../lib/mixins/define-component.ts'
 import { createUseId } from '../../../lib/use-id.ts'
 
 export type RenderFunction = (locals: Record<string, unknown>) => string
@@ -53,12 +54,13 @@ function isZodError(error: unknown): error is { issues: { path: PropertyKey[], m
 }
 
 /**
- * Render the mixin with `props`, the way the build renders a section: same `z`, same `useId`. A
- * `ZodError` from the mixin's `mixinSchema.parse(props)` comes back as issues per prop.
+ * Render the mixin with `props`, the way the build renders a section: same `z`, same `useId`, same
+ * `defineComponent`. The zod issues of invalid props, a `ZodError` from `mixinSchema.parse(props)`
+ * or the error `defineComponent` throws, come back as issues per prop.
  */
 export function renderMixin(render: RenderFunction, id: string, props: Record<string, unknown>): RenderResult {
   try {
-    const html = render({ props, z, useId: createUseId(`mixin-${id}`), modifierClass: '' })
+    const html = render({ props, z, defineComponent, useId: createUseId(`mixin-${id}`), modifierClass: '' })
     return { isValid: true, html }
   }
   catch (error) {

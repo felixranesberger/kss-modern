@@ -66,7 +66,7 @@ interface ExplorerFolder {
 
 const compareLabels = new Intl.Collator('en', { numeric: true, sensitivity: 'base' }).compare
 
-/** Nest the mixins by the folders of their `mixinName` (`atoms/button` -> atoms > button). */
+/** Nest the mixins by the folders of their explorer name (`atoms/button` -> atoms > button). */
 function buildExplorerTree(entries: MixinManifestEntry[]): ExplorerFolder {
   const root: ExplorerFolder = { folders: new Map(), entries: [] }
   for (const entry of entries) {
@@ -97,7 +97,7 @@ function getLabel(entry: MixinManifestEntry): string {
 }
 
 /**
- * The mixin explorer (`mixins.html`): a filterable tree of every public mixin (see `MixinManifest`), nested by `mixinName`, on the left, the selected
+ * The mixin explorer (`mixins.html`): a filterable tree of every public mixin (see `MixinManifest`), nested by their explorer name, on the left, the selected
  * one's live preview in the middle and its controls, rendered code and Pug call in tabs below. The
  * selection and its props live in the hash (`#mixin=button&props=…`), so switching never reloads
  * the page and every state can be linked. `client/lib/playground/explorer.ts` drives it.
@@ -232,7 +232,7 @@ export function getMixinExplorerHtml(manifest: MixinManifest, config: ResolvedSt
             ></iframe>
             <div class="absolute inset-0 hidden overflow-auto p-6 md:p-10" data-explorer-no-schema>
                 <div class="max-w-[65ch]">
-                    <p class="text-styleguide-highlight">The <code class="font-mono">mixinSchema</code> of <code class="font-mono font-semibold" data-explorer-no-schema-signature></code> could not be evaluated, so it has no playground. The block may only use <code class="font-mono">z</code>.</p>
+                    <p class="text-styleguide-highlight">The schema of <code class="font-mono font-semibold" data-explorer-no-schema-signature></code> could not be evaluated, so it has no playground. The <code class="font-mono">defineComponent</code> or <code class="font-mono">mixinSchema</code> block may only use <code class="font-mono">z</code>.</p>
                     <pre class="mt-3 overflow-x-auto whitespace-pre-wrap rounded-lg border p-4 font-mono text-xs text-red-700 border-styleguide-border bg-styleguide-bg dark:text-red-400" data-explorer-schema-error></pre>
                 </div>
             </div>
@@ -260,7 +260,7 @@ export function getMixinExplorerHtml(manifest: MixinManifest, config: ResolvedSt
 
             <div id="mixin-explorer-panel-controls" class="min-h-0 grow overflow-y-auto" role="tabpanel" aria-labelledby="mixin-explorer-tab-controls" tabindex="0">
                 <div aria-label="Props" data-playground-panel></div>
-                <p class="hidden p-6 text-sm" data-explorer-no-controls>No controls: the <code class="font-mono">mixinSchema</code> could not be evaluated.</p>
+                <p class="hidden p-6 text-sm" data-explorer-no-controls>No controls: the schema could not be evaluated.</p>
             </div>
             <div id="mixin-explorer-panel-code" class="hidden min-h-0 grow overflow-auto p-4 text-sm" role="tabpanel" aria-labelledby="mixin-explorer-tab-code" tabindex="-1">
                 <div

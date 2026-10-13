@@ -9,35 +9,66 @@ export interface DiscoveredMixin {
   args: string | null
   /** 1-based line of the `mixin` keyword. */
   line: number
-  /** Source of the unbuffered code block assigning `mixinSchema`, when the mixin declares one. */
+  /**
+   * Source of the unbuffered code block declaring the schema: the one calling `defineComponent(`,
+   * else the one assigning `mixinSchema`. Present when the mixin declares one.
+   */
   schemaSource?: string
-  /** `- var mixinName = 'atoms/button'`: where the mixin sits in the explorer, `/` nests folders. */
+  /** `schemaSource` calls `defineComponent` rather than assigning `mixinSchema`. */
+  isDefineComponent?: boolean
+  /**
+   * Where the mixin sits in the explorer, `/` nests folders: the `name: '…'` literal of
+   * `defineComponent`, else `- var mixinName = 'atoms/button'`. Only plain literals are read.
+   */
   mixinName?: string
 }
 
+export interface MixinCode {
+  schemaSource?: string
+  isDefineComponent?: boolean
+  mixinName?: string
+}
+
+const DEFINE_COMPONENT_RE = /\bdefineComponent\s*\(/
 const MIXIN_SCHEMA_RE = /\bmixinSchema\s*=/
 /** `var|let|const mixinName = '…'` with a plain string literal; anything computed is not read. */
 const MIXIN_NAME_RE = /^\s*(?:var|let|const)\s+mixinName\s*=\s*(['"])([^'"\n]*)\1\s*(?:;\s*)?$/
+/** `defineComponent({ name: '…'` as its first property, or `name: '…',` on a line of its own. */
+const DEFINE_NAME_RE = /\bdefineComponent\s*\(\s*\{\s*name\s*:\s*(['"])([^'"\n]*)\1/
+const DEFINE_NAME_LINE_RE = /^\s*name\s*:\s*(['"])([^'"\n]*)\1\s*(?:,\s*)?$/m
 const MIXIN_KEYWORD_RE = /^\s*mixin\s/m
 
+/** The `name` string literal of a `defineComponent` block, read without running it. */
+export function readDefineComponentName(source: string): string | undefined {
+  return (DEFINE_NAME_RE.exec(source) ?? DEFINE_NAME_LINE_RE.exec(source))?.[2]
+}
+
 /**
- * Find the `mixinSchema` code block and the `mixinName` line in a mixin body, without descending
- * into nested mixins. Both are read here at build time; neither is executed.
+ * Find the code declaring the mixin's schema and explorer name in a mixin body, without descending
+ * into nested mixins: a `defineComponent(…)` block, or the older pair of a `mixinSchema` block and
+ * a `mixinName` line. Everything is read here at build time; nothing is executed.
  */
-export function findMixinCode(block: unknown): { schemaSource?: string, mixinName?: string } {
-  const found: { schemaSource?: string, mixinName?: string } = {}
+export function findMixinCode(block: unknown): MixinCode {
+  let defineSource: string | undefined
+  let schemaSource: string | undefined
+  let mixinName: string | undefined
   walk(block, (node) => {
     if (node.type === 'Mixin')
       return false
     if (node.type !== 'Code' || node.buffer)
       return
-    if (found.schemaSource === undefined && MIXIN_SCHEMA_RE.test(node.val))
-      found.schemaSource = node.val
+    if (defineSource === undefined && DEFINE_COMPONENT_RE.test(node.val))
+      defineSource = node.val
+    if (schemaSource === undefined && MIXIN_SCHEMA_RE.test(node.val))
+      schemaSource = node.val
     const name = MIXIN_NAME_RE.exec(node.val)?.[2]
-    if (found.mixinName === undefined && name !== undefined)
-      found.mixinName = name
+    if (mixinName === undefined && name !== undefined)
+      mixinName = name
   })
-  return found
+
+  if (defineSource !== undefined)
+    return { schemaSource: defineSource, isDefineComponent: true, mixinName: readDefineComponentName(defineSource) ?? mixinName }
+  return { schemaSource, mixinName }
 }
 
 /**
