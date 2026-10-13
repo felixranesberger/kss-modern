@@ -28,12 +28,23 @@ function isScriptUrl(value: string): boolean {
   return SCRIPT_URL_RE.test([...value].filter(character => character.charCodeAt(0) > 0x20).join(''))
 }
 
-/** The first string anywhere in `value` that carries markup or a script URL, if any. */
+/**
+ * Keys a record prop may turn into attribute names: an event handler (`onclick`) or anything that is
+ * no plain attribute name would let a link run script through `&attributes`.
+ */
+const UNSAFE_KEY_RE = /^on|[^\w:.-]/i
+
+/**
+ * The first string anywhere in `value` that carries markup or a script URL, or the first object key
+ * that could become an event handler or a broken attribute name, if any.
+ */
 export function findUnsafeString(value: unknown): string | undefined {
   if (typeof value === 'string')
     return value.includes('<') || isScriptUrl(value) ? value : undefined
   if (typeof value === 'object' && value !== null) {
-    for (const entry of Object.values(value)) {
+    for (const [key, entry] of Object.entries(value)) {
+      if (!Array.isArray(value) && UNSAFE_KEY_RE.test(key))
+        return key
       const unsafe = findUnsafeString(entry)
       if (unsafe !== undefined)
         return unsafe
@@ -47,15 +58,16 @@ export function findUnsafeString(value: unknown): string | undefined {
  *
  * The rendered component is inserted as HTML, so a link is untrusted input: a template that prints
  * a prop unescaped, or puts it into `href`/`src`, would run whatever the link carries. Props from a
- * URL that contain markup or a `javascript:`/`data:` URL are therefore refused. Typed into the
+ * URL that contain markup, a `javascript:`/`data:` URL or an object key like `onclick` are therefore refused. Typed into the
  * controls, the same values are fine: they only reach the person typing them.
  */
 export function readPropsFromUrl(url: URL): { props?: Record<string, unknown>, error?: string } {
   const hashProps = new URLSearchParams(url.hash.slice(1)).get(HASH_KEY)
   const result = parseProps(hashProps ?? url.searchParams.get(HASH_KEY))
-  const unsafe = result.props ? findUnsafeString(result.props) : undefined
+  // the prop names themselves are checked by the schema, only what they carry becomes markup
+  const unsafe = result.props ? findUnsafeString(Object.values(result.props)) : undefined
   if (unsafe !== undefined)
-    return { error: `The props from the link were not applied: they contain markup or a script URL (${JSON.stringify(unsafe.slice(0, 40))}). Enter such values in the controls instead.` }
+    return { error: `The props from the link were not applied: they contain markup, a script URL or an attribute name like onclick (${JSON.stringify(unsafe.slice(0, 40))}). Enter such values in the controls instead.` }
   return result
 }
 

@@ -3,6 +3,17 @@ import { getFields } from '../../../../client/lib/playground/fields.ts'
 import { formatPugCall, readPropsFromUrl, writePropsToHash, writePropsToQuery } from '../../../../client/lib/playground/state.ts'
 
 describe('props in the URL', () => {
+  it('refuses record keys that could become event handlers', () => {
+    const url = writePropsToHash(new URL('https://example.test/page.html'), { attributes: { onmouseover: 'alert(1)' } })
+    expect(readPropsFromUrl(url).error).toContain('"onmouseover"')
+    const quoted = writePropsToHash(new URL('https://example.test/page.html'), { attributes: { 'data-x" onclick': 'y' } })
+    expect(readPropsFromUrl(quoted).props).toBeUndefined()
+    const fine = writePropsToHash(new URL('https://example.test/page.html'), { attributes: { 'data-open': true, 'aria-label': 'Menu' }, tags: ['a'] })
+    expect(readPropsFromUrl(fine).props).toEqual({ attributes: { 'data-open': true, 'aria-label': 'Menu' }, tags: ['a'] })
+    const propName = writePropsToHash(new URL('https://example.test/page.html'), { online: true })
+    expect(readPropsFromUrl(propName).props).toEqual({ online: true })
+  })
+
   it('round-trips props through the hash', () => {
     const url = writePropsToHash(new URL('https://example.test/page.html?controls=0'), { label: 'Save & go', count: 2 })
     expect(url.searchParams.get('controls')).toBe('0')
