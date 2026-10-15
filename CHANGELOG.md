@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.7](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.6...v1.7.0-beta.7) (2026-10-15)
+
+### Features
+
+* write the JSON Schema of every public mixin to files with `mixinJsonSchemaDir`. Each mixin gets one file in the folders of its `defineComponent` name, `name: 'atoms/Button'` becomes `<dir>/atoms/Button.json`, a mixin without a name `<pug name>.json`. The content is the schema the playground uses, so props with a default are optional. Only files whose schema changed are written, and the file of a mixin that goes away during a run is removed. Off unless the option is set ([811506b](https://github.com/felixranesberger/kss-modern/commit/811506b))
+
 ## [1.7.0-beta.6](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.5...v1.7.0-beta.6) (2026-10-15)
 
 ### Features
