@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0-beta.8](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.7...v1.7.0-beta.8) (2026-10-15)
+
+### Features
+
+* resolve component schemas from `.schema.ts` files. A mixin passes only the name, `defineComponent('organisms/Intro', props)`, and the schema lives in a TypeScript file next to it that may import `zod` and relative files. kss-modern strips the types with `module.stripTypeScriptTypes`, which needs Node 22.13 or newer. A `.transform()` turns the props into what the template receives, the explorer shows that object in an **Output** tab. Object props may now nest ([43edcd4](https://github.com/felixranesberger/kss-modern/commit/43edcd4))
+* render Pug sections once per modifier. `modifierClass` holds the classes of the modifier being rendered instead of the `{{modifier_class}}` placeholder, so a template can map a modifier to a prop. Each modifier render gets its own `fullpage-<reference>-modifier-<index>.html`. Plain HTML markup keeps the placeholder swap ([765fea4](https://github.com/felixranesberger/kss-modern/commit/765fea4))
+* audit modifier previews in full. They get the same axe and html-validate checks as the base, their findings are merged into the section without the ones the base already reports, and the `kssAudit` report lists the audited modifiers per section in `modifiers` ([4462f67](https://github.com/felixranesberger/kss-modern/commit/4462f67))
+
 ## [1.7.0-beta.7](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.6...v1.7.0-beta.7) (2026-10-15)
 
 ### Features
