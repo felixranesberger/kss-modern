@@ -574,6 +574,11 @@ export interface in2Section {
   markup: string
   /** `markup` formatted for the code views. Set once the markup is compiled. */
   sourceCode?: string
+  /**
+   * Pug markup rendered once per modifier, in the order of `modifiers`. Each one gets its own
+   * fullpage file, see `modifierFullpageFileName`. Plain HTML markup has none.
+   */
+  modifierMarkup?: string[]
   modifiers: {
     value: string
     description: string

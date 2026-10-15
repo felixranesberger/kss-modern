@@ -14,7 +14,7 @@ import { prepareSchemaRegistry } from '../mixins/schema-registry.ts'
 import { evaluateMixinSchema } from '../mixins/schema.ts'
 import { requireZod } from '../zod.ts'
 import { computeDepSignatures, PugCompileCache } from './cache.ts'
-import { compileMarkup, pugErrorFile } from './compile-core.ts'
+import { compileSection, pugErrorFile } from './compile-core.ts'
 import { PugDependencyGraph } from './dependency-graph.ts'
 import { renderPugErrorOverlay } from './error-overlay.ts'
 import { clearPugParseCache } from './parse-cache.ts'
@@ -22,7 +22,23 @@ import { clearPugParseCache } from './parse-cache.ts'
 /** A section's markup, compiled, with the mixins it called while rendering. */
 export interface CompiledSection {
   markup: string
+  /** The markup rendered per modifier, in the order of the section's modifiers, see `compileSection`. */
+  modifierMarkup?: string[]
   mixinUsage?: MixinUsageNode[]
+}
+
+/** A section's compile input: its raw markup and the KSS modifier names to render it with. */
+export interface SectionSource {
+  markup: string
+  modifiers?: string[]
+}
+
+/**
+ * The cache key of a section: its raw markup plus its modifiers, so renaming a modifier
+ * recompiles the section although neither the markup nor a dependency changed.
+ */
+function cacheSourceOf(source: SectionSource): string {
+  return source.modifiers?.length ? `${source.markup}\n${source.modifiers.join('\n')}` : source.markup
 }
 
 export interface PugCompileError {
@@ -202,10 +218,10 @@ signals.forEach(signal => process.on(signal, () => {
   void terminatePugWorkers()
 }))
 
-async function storeResult(id: string, markupSource: string, html: string, dependencies: string[], mixinUsage: MixinUsageNode[]): Promise<void> {
+async function storeResult(id: string, markupSource: string, html: string, modifierHtml: string[] | undefined, dependencies: string[], mixinUsage: MixinUsageNode[]): Promise<void> {
   graph.setDependencies(id, dependencies)
   const depSignatures = await computeDepSignatures(dependencies)
-  cache.set(id, { markupSource, compiledHtml: html, dependencies, depSignatures, mixinUsage })
+  cache.set(id, { markupSource, compiledHtml: html, modifierHtml, dependencies, depSignatures, mixinUsage })
 }
 
 /**
@@ -235,15 +251,15 @@ async function compileInline(
   mode: Mode,
   contentDir: `${string}/`,
   repository: Map<string, CompiledSection>,
+  source: SectionSource,
   id: string,
   errors: PugCompileError[],
   schemaRegistry?: string,
 ): Promise<void> {
-  const markupSource = repository.get(id)!.markup
   try {
-    const { html, dependencies, mixinUsage } = await compileMarkup(contentDir, mode, markupSource, id, schemaRegistry)
-    repository.set(id, { markup: html, mixinUsage })
-    await storeResult(id, markupSource, html, dependencies, mixinUsage)
+    const { html, modifierHtml, dependencies, mixinUsage } = await compileSection(contentDir, mode, source.markup, id, schemaRegistry, source.modifiers)
+    repository.set(id, { markup: html, modifierMarkup: modifierHtml, mixinUsage })
+    await storeResult(id, cacheSourceOf(source), html, modifierHtml, dependencies, mixinUsage)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -256,16 +272,17 @@ async function compileViaWorkerPool(
   mode: Mode,
   contentDir: `${string}/`,
   repository: Map<string, CompiledSection>,
+  sources: Map<string, SectionSource>,
   ids: string[],
   errors: PugCompileError[],
   schemaRegistry?: string,
 ): Promise<void> {
   const tasks = ids.map(async (id) => {
-    const markupSource = repository.get(id)!.markup
+    const source = sources.get(id)!
 
     let result: PugWorkerOutput
     try {
-      result = await runPinned(id, { id, mode, html: markupSource, contentDir, schemaRegistry })
+      result = await runPinned(id, { id, mode, html: source.markup, contentDir, schemaRegistry, modifiers: source.modifiers })
     }
     catch (error) {
       // a thread-level crash (not a pug error — those come back as a message). runPinned has already
@@ -284,8 +301,8 @@ async function compileViaWorkerPool(
       return
     }
 
-    repository.set(id, { markup: result.html, mixinUsage: result.mixinUsage })
-    await storeResult(id, markupSource, result.html, result.dependencies, result.mixinUsage)
+    repository.set(id, { markup: result.html, modifierMarkup: result.modifierHtml, mixinUsage: result.mixinUsage })
+    await storeResult(id, cacheSourceOf(source), result.html, result.modifierHtml, result.dependencies, result.mixinUsage)
   })
 
   await Promise.all(tasks)
@@ -299,24 +316,24 @@ async function compileViaWorkerPool(
 async function compileIds(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, CompiledSection>,
+  repository: Map<string, SectionSource>,
   ids: string[],
 ): Promise<Map<string, CompiledSection>> {
   // Shallow copy: compileIds only ever replaces whole `{ markup }` value objects via `.set`, never
   // mutates the existing ones, so the caller's map stays untouched without a deep clone.
-  const clonedRepository = new Map(repository)
+  const clonedRepository = new Map<string, CompiledSection>(repository)
   if (ids.length === 0)
     return clonedRepository
 
   const misses: string[] = []
   await Promise.all(ids.map(async (id) => {
-    const entry = clonedRepository.get(id)
-    if (!entry)
+    const source = repository.get(id)
+    if (!source)
       return
 
-    if (await cache.isFresh(id, entry.markup)) {
+    if (await cache.isFresh(id, cacheSourceOf(source))) {
       const cached = cache.get(id)!
-      clonedRepository.set(id, { markup: cached.compiledHtml, mixinUsage: cached.mixinUsage })
+      clonedRepository.set(id, { markup: cached.compiledHtml, modifierMarkup: cached.modifierHtml, mixinUsage: cached.mixinUsage })
       graph.setDependencies(id, cached.dependencies)
       return
     }
@@ -343,10 +360,10 @@ async function compileIds(
   }
   const useInline = !workerFilePathResolved || (mode === 'development' && misses.length <= INLINE_THRESHOLD)
   if (useInline) {
-    await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors, schemaRegistry)))
+    await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, repository.get(id)!, id, errors, schemaRegistry)))
   }
   else {
-    await compileViaWorkerPool(mode, contentDir, clonedRepository, misses, errors, schemaRegistry)
+    await compileViaWorkerPool(mode, contentDir, clonedRepository, repository, misses, errors, schemaRegistry)
   }
 
   // production has no graceful degradation: any compile failure breaks the build
@@ -368,7 +385,7 @@ async function compileIds(
 export async function compilePugMarkup(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, CompiledSection>,
+  repository: Map<string, SectionSource>,
 ): Promise<Map<string, CompiledSection>> {
   return compileIds(mode, contentDir, repository, Array.from(repository.keys()))
 }
@@ -380,7 +397,7 @@ export async function compilePugMarkup(
 export async function compilePugMarkupIncremental(
   mode: Mode,
   contentDir: `${string}/`,
-  repository: Map<string, CompiledSection>,
+  repository: Map<string, SectionSource>,
   ids: Iterable<string>,
 ): Promise<Map<string, CompiledSection>> {
   const wanted = Array.from(ids).filter(id => repository.has(id))

@@ -78,7 +78,7 @@ test.describe('Global theme dropdown', () => {
     await page.goto('/preview-3.20.html', { waitUntil: 'networkidle' })
     await page.locator(globalSelect).selectOption('theme-midnight')
 
-    const links = page.locator(`${alertSection} a[href^="fullpage-3.20.html"]`)
+    const links = page.locator(`${alertSection} a[href^="fullpage-3.20"]`)
     const hrefs = await links.evaluateAll(anchors => anchors.map(anchor => anchor.getAttribute('href')!))
     expect(hrefs.length).toBeGreaterThan(0)
     for (const href of hrefs)
@@ -86,7 +86,7 @@ test.describe('Global theme dropdown', () => {
 
     // the modifier link keeps its own parameter alongside the theme
     const modifierHref = hrefs.find(href => href.includes('modifier='))
-    expect(modifierHref).toContain('modifier=.c-alert--')
+    expect(modifierHref).toMatch(/^fullpage-3\.20-modifier-\d+\.html\?.*modifier=\.c-alert--/)
 
     await page.goto(hrefs[0])
     await expect(page.locator('html')).toHaveClass(/theme-midnight/)

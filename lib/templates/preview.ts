@@ -4,7 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
+import { ensureStartingSlash, generateId, modifierFullpageFileName, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
 import { attrs } from '../template-utils.ts'
 import { logicalWriteFile } from '../utils.ts'
 
@@ -658,7 +658,12 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
           </svg>
       </h3>
       <ul class="mt-4 grid gap-6 overflow-hidden rounded-2xl border p-6 border-styleguide-border bg-styleguide-bg-highlight md:gap-x-10 md:gap-y-14">
-          ${section.modifiers?.map(modifier => `
+          ${section.modifiers?.map((modifier, modifierIndex) => {
+            // pug markup has a fullpage per modifier, plain HTML swaps the placeholder in the base fullpage
+            const modifierFileName = section.modifierMarkup?.[modifierIndex] !== undefined
+              ? modifierFullpageFileName(section.fullpageFileName, modifierIndex)
+              : section.fullpageFileName
+            return `
               <li>
                 <div>
                     <div class="flex items-center justify-between gap-6">
@@ -678,7 +683,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
     
                         <a 
                             class="p-2 group"
-                            href="${section.fullpageFileName}?modifier=${modifier.value}" 
+                            href="${modifierFileName}?modifier=${modifier.value}" 
                             target="_blank" 
                             title="Open in fullpage"
                           >
@@ -692,7 +697,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
     
                     <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none mt-2">
                         <iframe
-                              src="${section.fullpageFileName}"
+                              src="${modifierFileName}"
                               class="preview-iframe"
                               data-preview="true"
                               data-modifier="${modifier.value}"
@@ -703,7 +708,8 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
                     </div>
                 </div>
             </li>
-          `).join('\n')}
+          `
+          }).join('\n')}
       </ul>
     `
       : ''}

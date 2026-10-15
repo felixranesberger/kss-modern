@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { compileMarkup } from '../../../../lib/pug/compile-core.ts'
+import { compileMarkup, compileSection, modifierClassList } from '../../../../lib/pug/compile-core.ts'
 
 // Self-contained fixtures for the `modifierClass` global Pug local. Importing compile-core installs
 // the parse-cache patch; each file lives under its own temp dir so it can't collide with other suites.
@@ -16,6 +16,8 @@ describe('modifierClass global pug local', () => {
     // a parent that pulls a child in via `include` — both use the idiom
     await fs.writeFile(path.join(dir, '_child.pug'), '.c-child(class=modifierClass)\n')
     await fs.writeFile(path.join(dir, 'parent.pug'), '.c-tabs(class=modifierClass)\n  include _child.pug\n')
+    // a demo that maps the modifier to a prop instead of passing it through as a class
+    await fs.writeFile(path.join(dir, 'mapped.pug'), '- const variant = { \'c-button--primary\': \'primary\' }[modifierClass] || \'default\'\nbutton(data-variant=variant)\n')
   })
 
   afterAll(async () => {
@@ -42,5 +44,32 @@ describe('modifierClass global pug local', () => {
     const { html } = await compileMarkup(contentDir, 'development', markup, 'test.3')
     expect(html).toContain('class="c-child c-child--active"')
     expect(html).not.toContain('{{modifier_class}}')
+  })
+
+  it('renders pug markup once per modifier with the real modifier classes', async () => {
+    const { html, modifierHtml } = await compileSection(contentDir, 'development', 'mapped.pug', 'test.4', undefined, ['.c-button--primary', '.c-button--other'])
+    expect(html).toContain('data-variant="default"')
+    expect(modifierHtml).toEqual([
+      expect.stringContaining('data-variant="primary"'),
+      expect.stringContaining('data-variant="default"'),
+    ])
+  })
+
+  it('passes a compound modifier as a space separated class list', async () => {
+    const { modifierHtml } = await compileSection(contentDir, 'development', 'component.pug', 'test.5', undefined, ['.c-tabs--a.theme-b'])
+    expect(modifierHtml?.[0]).toContain('class="c-tabs c-tabs--a theme-b"')
+    expect(modifierClassList('c-tabs--a')).toBe('c-tabs--a')
+  })
+
+  it('renders no modifier markup for plain HTML, which keeps the placeholder', async () => {
+    const { modifierHtml } = await compileSection(contentDir, 'development', '<div class="{{modifier_class}}"></div>', 'test.6', undefined, ['.c-tabs--a'])
+    expect(modifierHtml).toBeUndefined()
+  })
+
+  it('keeps the rendered modifier when `<insert-vite-pug>` only hands the placeholder on', async () => {
+    const markup = '<insert-vite-pug src="_child.pug" modifierClass="{{modifier_class}}"></insert-vite-pug>'
+    const { html, modifierHtml } = await compileSection(contentDir, 'development', markup, 'test.7', undefined, ['.c-child--active'])
+    expect(html).toContain('class="c-child {{modifier_class}}"')
+    expect(modifierHtml?.[0]).toContain('class="c-child c-child--active"')
   })
 })

@@ -42,13 +42,24 @@ Compilation runs in a pool of worker threads. In `development` mode a compile er
 
 Every template receives three locals.
 
-**`modifierClass`** holds the `{{modifier_class}}` placeholder. Put it on the element that should carry the section's modifier:
+**`modifierClass`** holds the classes of the modifier being rendered. kss-modern renders a Pug section once for the base preview and once more per modifier. In the base render `modifierClass` is the `{{modifier_class}}` placeholder, which the browser removes. In a modifier render it is that modifier's classes, `.btn--primary` becomes `btn--primary` and `.btn--sm.btn--round` becomes `btn--sm btn--round`. Each modifier render gets its own fullpage file, `fullpage-<reference>-modifier-<index>.html`.
+
+Put it on the element that should carry the modifier:
 
 ```pug
 button.btn(type="button" class=modifierClass) Save changes
 ```
 
-kss-modern swaps the placeholder for each modifier's class. Every element with `class=modifierClass` receives the class, including elements that come from included mixins, so only place it where the modifier belongs.
+Every element with `class=modifierClass` receives the class, including elements that come from included mixins, so only place it where the modifier belongs.
+
+Because the value is real, a template can also map it to a prop. This keeps mixins whose variants are props free of a class pass-through:
+
+```pug
+- const variant = { 'btn--primary': 'primary', 'btn--danger': 'danger' }[modifierClass]
++button({ label: 'Save changes', variant })
+```
+
+Markup written as plain HTML is rendered once. There the browser swaps the placeholder for each modifier's class.
 
 **`useId(key?)`** returns an id that is unique per section and stable between builds. It is meant for labels, ARIA relations and anything else that needs matching ids:
 

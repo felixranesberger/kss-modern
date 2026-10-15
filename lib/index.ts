@@ -1,7 +1,7 @@
-import type { SectionMeta } from './insert-markup.ts'
+import type { MarkupEntry, SectionMeta } from './insert-markup.ts'
 import type { MixinManifest, MixinPipeline } from './mixins/index.ts'
 import type { FileObject, in2FirstLevelSection, in2Section } from './parser.ts'
-import type { CompiledSection } from './pug/index.ts'
+import type { CompiledSection, SectionSource } from './pug/index.ts'
 import type { MenuSearchKeywords } from './templates/preview.ts'
 import path from 'node:path'
 import process from 'node:process'
@@ -18,7 +18,7 @@ import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } 
 import { formatSourceCode } from './pug/compile-core.ts'
 import { createRebuildQueue } from './rebuild-queue.ts'
 import { writeRobotsFile } from './robots.ts'
-import { htmlToSearchText, replaceWrapperContent, stripPugErrorOverlay } from './shared.ts'
+import { htmlToSearchText, modifierFullpageFileName, replaceWrapperContent, stripPugErrorOverlay } from './shared.ts'
 import { generateFullPageFile } from './templates/fullpage.ts'
 import { renderMixinUsage } from './templates/mixin-usage.ts'
 import { generateMixinStandaloneFile, getMixinExplorerHtml } from './templates/mixins.ts'
@@ -370,15 +370,31 @@ async function writeFullPageFile(config: ResolvedStyleguideConfiguration, baseDi
   if (section.markup === undefined || section.markup.length === 0)
     return
 
+  await Promise.all([
+    writeFullPageVariant(config, baseDirectory, section, section.markup, section.fullpageFileName),
+    ...(section.modifierMarkup ?? []).map((markup, index) =>
+      writeFullPageVariant(config, baseDirectory, section, markup, modifierFullpageFileName(section.fullpageFileName, index)),
+    ),
+  ])
+}
+
+/** Write one fullpage file of a section: the base render or the render of one modifier. */
+async function writeFullPageVariant(
+  config: ResolvedStyleguideConfiguration,
+  baseDirectory: string,
+  section: in2Section,
+  markup: string,
+  fileName: string,
+): Promise<void> {
   try {
-    let htmlMarkup = section.markup
+    let htmlMarkup = markup
     if (section.wrapper) {
       htmlMarkup = replaceWrapperContent(section.wrapper, htmlMarkup)
     }
 
     await generateFullPageFile({
       id: section.id,
-      filePath: path.join(baseDirectory, section.fullpageFileName),
+      filePath: path.join(baseDirectory, fileName),
       page: {
         title: section.header,
         description: !section.hasMarkdownDescription ? section.description : undefined,
@@ -537,12 +553,13 @@ function reindexInsertMarkupConsumer(context: StyleguideContext, id: string): vo
  * Assigns the resolved markup to the section nodes. `markup` is rendered as is, `sourceCode` is its
  * formatted copy for the code views, without the dev-only pug compile-error overlay.
  */
-async function assignMarkup(nodeById: Map<string, in2Section>, resolved: Map<string, string>): Promise<void> {
-  await Promise.all([...resolved].map(async ([id, markup]) => {
+async function assignMarkup(nodeById: Map<string, in2Section>, resolved: Map<string, MarkupEntry>): Promise<void> {
+  await Promise.all([...resolved].map(async ([id, { markup, modifierMarkup }]) => {
     const node = nodeById.get(id)
     if (!node)
       return
     node.markup = markup
+    node.modifierMarkup = modifierMarkup
     node.sourceCode = await formatSourceCode(stripPugErrorOverlay(markup), id)
   }))
 }
@@ -579,9 +596,9 @@ async function buildContext(config: ResolvedStyleguideConfiguration, mixinsPromi
   })
 
   // compile all pug markup (output is compiled but not yet <insert-markup>-resolved)
-  const repository = new Map<string, { markup: string }>()
+  const repository = new Map<string, SectionSource>()
   for (const [id, markup] of rawMarkupBySection)
-    repository.set(id, { markup })
+    repository.set(id, { markup, modifiers: sectionsById.get(id)?.modifiers.map(modifier => modifier.name) })
   const compiledRepository = await compilePugMarkup(config.mode, config.contentDir, repository)
 
   // reverse <insert-markup> index, built from compiled (unresolved) markup
@@ -794,11 +811,11 @@ export async function rebuildSections(
   }
 
   // recompile the affected sections that actually have markup (cache-aware)
-  const subset = new Map<string, { markup: string }>()
+  const subset = new Map<string, SectionSource>()
   for (const id of affected) {
     const raw = context.rawMarkupBySection.get(id)
     if (raw !== undefined)
-      subset.set(id, { markup: raw })
+      subset.set(id, { markup: raw, modifiers: context.sectionsById.get(id)?.modifiers.map(modifier => modifier.name) })
   }
   if (subset.size === 0)
     return

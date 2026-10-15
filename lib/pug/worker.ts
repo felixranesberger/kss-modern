@@ -5,7 +5,7 @@ import { parentPort } from 'node:worker_threads'
 import { compileMixinModule } from '../mixins/compile.ts'
 import { evaluateMixinSchema } from '../mixins/schema.ts'
 import { requireZod } from '../zod.ts'
-import { compileMarkup, pugErrorFile } from './compile-core.ts'
+import { compileSection, pugErrorFile } from './compile-core.ts'
 
 export interface PugSectionJob {
   kind?: 'section'
@@ -15,6 +15,8 @@ export interface PugSectionJob {
   html: string
   /** The Node registry module of the `.schema.ts` files, when the content directory has any. */
   schemaRegistry?: string
+  /** The section's KSS modifier names, each rendered once more, see `compileSection`. */
+  modifiers?: string[]
 }
 
 /** Precompile one mixin into its playground render module (see `lib/mixins`). */
@@ -38,6 +40,7 @@ export type PugWorkerInput = PugSectionJob | PugMixinJob | PugSchemaJob
 interface PugWorkerSuccess {
   id: string
   html: string
+  modifierHtml?: string[]
   dependencies: string[]
   mixinUsage: MixinUsageNode[]
 }
@@ -81,8 +84,8 @@ parentPort.on('message', async (data: PugWorkerInput) => {
       return
     }
 
-    const { html: compiled, dependencies, mixinUsage } = await compileMarkup(data.contentDir, data.mode, data.html, id, data.schemaRegistry)
-    parentPort!.postMessage({ id, html: compiled, dependencies, mixinUsage } satisfies PugWorkerOutput)
+    const { html: compiled, modifierHtml, dependencies, mixinUsage } = await compileSection(data.contentDir, data.mode, data.html, id, data.schemaRegistry, data.modifiers)
+    parentPort!.postMessage({ id, html: compiled, modifierHtml, dependencies, mixinUsage } satisfies PugWorkerOutput)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)

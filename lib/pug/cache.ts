@@ -7,6 +7,8 @@ export interface PugCacheEntry {
   markupSource: string
   /** Final compiled HTML (post-format, post-accessibility-fix). */
   compiledHtml: string
+  /** The HTML rendered per modifier, see `compileSection`. */
+  modifierHtml?: string[]
   /** Absolute paths of every file the markup depends on (entry pug/html + includes/extends). */
   dependencies: string[]
   /** depPath -> signature; used to detect on-disk changes. */
