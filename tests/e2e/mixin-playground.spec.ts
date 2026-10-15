@@ -202,6 +202,34 @@ test.describe('Mixin explorer', () => {
     await expect(page.locator('[data-playground-pug-call]')).toHaveText('+card({ title: \'Card title\', links: [{ text: \'Blog\', href: \'https://example.test\', isExternal: true }, { text: \'Docs\', href: \'/docs\' }] })')
   })
 
+  test('edits an object prop as a group of fields behind a switch', async ({ page }) => {
+    await page.goto(`${EXPLORER}#mixin=card`)
+    const cta = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] .card__cta')
+    const group = page.locator('[data-field="cta"]')
+    await expect(group.locator('.c-field__help')).toHaveText('Call to action below the links')
+    await expect(group.getByRole('textbox')).toHaveCount(0)
+
+    await group.getByRole('checkbox', { name: 'Pass cta' }).check()
+    // the fields start from their examples and defaults, text has neither and `.min(1)` forbids it empty
+    await expect(page.locator('[data-field="cta.text"] .c-field__error')).toHaveText('Must not be empty')
+    await expect(group.getByRole('textbox', { name: 'href' })).toHaveValue('/more')
+
+    await group.getByRole('textbox', { name: 'text' }).fill('Read more')
+    await expect(cta).toHaveText('Read more')
+    await expect(cta).toHaveAttribute('href', '/more')
+    await expect(page.locator('[data-field="cta.text"] .c-field__error')).toBeHidden()
+
+    await group.getByRole('combobox', { name: 'variant' }).selectOption({ label: 'ghost' })
+    await expect(cta).toHaveClass(/card__cta--ghost/)
+
+    await page.getByRole('tab', { name: 'Pug call' }).click()
+    await expect(page.locator('[data-playground-pug-call]')).toHaveText('+card({ title: \'Card title\', cta: { text: \'Read more\', href: \'/more\', variant: \'ghost\' } })')
+    await page.getByRole('tab', { name: 'Controls' }).click()
+
+    await group.getByRole('checkbox', { name: 'Pass cta' }).uncheck()
+    await expect(cta).toHaveCount(0)
+  })
+
   test('edits a record prop with a key-value editor', async ({ page }) => {
     await page.goto(EXPLORER)
     const preview = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] button')

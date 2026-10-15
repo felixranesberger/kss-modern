@@ -35,8 +35,8 @@ describe('evaluateMixinSchema', () => {
   })
 
   it('reports zod features outside the supported set', () => {
-    const result = evaluateMixinSchema(z, 'var mixinSchema = z.object({ meta: z.object({ a: z.string() }) })')
-    expect(result).toEqual({ error: expect.stringContaining('prop "meta" is an object') })
+    const result = evaluateMixinSchema(z, 'var mixinSchema = z.object({ meta: z.string().nullable() })')
+    expect(result).toEqual({ error: expect.stringContaining('prop "meta" can be string or null') })
   })
 
   it('reports a schema block that throws as an error', () => {
@@ -92,8 +92,8 @@ describe('evaluateMixinSchema', () => {
     })
 
     it('reports zod features outside the supported set', () => {
-      expect(evaluateMixinSchema(z, block('{ schema: z.object({ meta: z.object({ a: z.string() }) }) }'), 'defineComponent'))
-        .toEqual({ error: expect.stringContaining('prop "meta" is an object') })
+      expect(evaluateMixinSchema(z, block('{ schema: z.object({ meta: z.string().nullable() }) }'), 'defineComponent'))
+        .toEqual({ error: expect.stringContaining('prop "meta" can be string or null') })
     })
   })
 })

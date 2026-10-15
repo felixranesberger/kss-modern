@@ -31,18 +31,25 @@ describe('checkSchemaSupport', () => {
       attributes: z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()])).optional(),
       counts: z.record(z.string(), z.int()).optional(),
       refined: z.string().refine(value => value.length > 2).optional(),
+      image: z.strictObject({
+        src: z.string().min(1),
+        alt: z.string().default(''),
+        loading: z.enum(['lazy', 'eager']).default('lazy'),
+        widths: z.array(z.int().positive()).optional(),
+        attributes: z.record(z.string(), z.string()).optional(),
+        sources: z.array(z.strictObject({ media: z.string(), srcset: z.string() })).optional(),
+      }).optional(),
+      cta: z.object({ text: z.string(), href: z.string() }).default({ text: 'More', href: '#' }),
     }).describe('A component'))).toEqual([])
   })
 
   it('names the prop and the problem of unsupported features', () => {
     expect(check(z.object({
-      nested: z.object({ a: z.string() }),
       record: z.record(z.string(), z.object({ a: z.string() })),
       nullable: z.string().nullable(),
       mixed: z.union([z.string(), z.number()]),
       anything: z.any(),
     }))).toEqual([
-      'prop "nested" is an object, nested objects are not supported; use an array of objects for a list of entries or z.record() for a map',
       'prop "record" has values that are no strings, numbers or booleans, which is not supported',
       'prop "nullable" can be string or null; nullable props and unions of types are not supported (except as record values)',
       'prop "mixed" can be string or number; nullable props and unions of types are not supported (except as record values)',
@@ -67,6 +74,20 @@ describe('checkSchemaSupport', () => {
       'prop "records" items is an object without fields, which is not supported',
       'prop "looseRows" items allows unknown keys (z.looseObject or .catchall()), which is not supported',
       'prop "grid" items is an array of arrays, only arrays of scalars or of flat objects are supported',
+    ])
+  })
+
+  it('allows one level of object props', () => {
+    expect(check(z.object({
+      image: z.strictObject({
+        crop: z.strictObject({ x: z.number() }),
+        alt: z.string().nullable(),
+      }),
+      loose: z.looseObject({ a: z.string() }),
+    }))).toEqual([
+      'prop "image" field "crop" is an object inside an object prop, only one level of nesting is supported',
+      'prop "image" field "alt" can be string or null; nullable props and unions of types are not supported (except as record values)',
+      'prop "loose" allows unknown keys (z.looseObject or .catchall()), which is not supported',
     ])
   })
 

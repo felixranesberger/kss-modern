@@ -357,6 +357,24 @@
     display: none;
   }
 
+  /* object prop: its fields hang off a line below the prop's label */
+  .c-group {
+    display: grid;
+    gap: 0.5em;
+  }
+
+  .c-group__fields {
+    display: grid;
+    gap: 0.75em;
+    padding-block: 0.25em;
+    padding-inline-start: 0.75em;
+    border-inline-start: 2px solid var(--color-border-default);
+  }
+
+  .c-group__fields .c-field__label {
+    font-size: 0.875em;
+  }
+
   .c-entry {
     display: grid;
     gap: 0.375em;

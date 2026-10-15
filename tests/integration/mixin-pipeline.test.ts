@@ -218,11 +218,11 @@ describe('mixin pipeline', () => {
 
   it('fails a production build on a schema outside the supported zod features', async () => {
     await fs.remove(path.join(tmpContent, 'pug/_broken-schema.pug'))
-    await editFile('pug/_badge.pug', source => source.replace('text: z.string(),', 'text: z.string(), meta: z.object({ a: z.string() }),'))
+    await editFile('pug/_badge.pug', source => source.replace('text: z.string(),', 'text: z.string(), meta: z.string().nullable(),'))
 
     await expect(createMixinPipeline(createConfig({ mode: 'production' })).build())
       .rejects
-      .toThrow(/Invalid schema in 1 mixin[\s\S]*badge[\s\S]*prop "meta" is an object/)
+      .toThrow(/Invalid schema in 1 mixin[\s\S]*badge[\s\S]*prop "meta" can be string or null/)
   })
 
   it('lists such a schema with its error in development', async () => {

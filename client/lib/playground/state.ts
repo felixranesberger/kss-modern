@@ -107,26 +107,37 @@ function formatValue(value: unknown): string {
   return JSON.stringify(value) ?? 'undefined'
 }
 
-/** `values` without the keys whose value equals the field's schema default. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * `values` without the keys whose value equals the field's schema default, also inside object
+ * props and list entries.
+ */
 function omitDefaults(values: Record<string, unknown>, fields: Field[]): Record<string, unknown> {
-  const defaults = new Map(fields.filter(field => field.hasDefault).map(field => [field.key, JSON.stringify(field.default)]))
-  return Object.fromEntries(Object.entries(values).filter(([key, value]) => defaults.get(key) !== JSON.stringify(value)))
+  const fieldsByKey = new Map(fields.map(field => [field.key, field]))
+  const shown: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(values)) {
+    const field = fieldsByKey.get(key)
+    const items = field?.items
+    if (field?.hasDefault && JSON.stringify(field.default) === JSON.stringify(value))
+      continue
+    if (field?.kind === 'object' && isPlainObject(value))
+      shown[key] = omitDefaults(value, field.fields ?? [])
+    else if (items?.kind === 'object' && Array.isArray(value))
+      shown[key] = value.map(entry => (isPlainObject(entry) ? omitDefaults(entry, items.fields) : entry))
+    else
+      shown[key] = value
+  }
+  return shown
 }
 
 /**
  * The Pug call that renders the current props, ready to paste into a template:
- * `+button({ label: 'Save' })`. Props and fields of list entries equal to their schema default are
- * left out.
+ * `+button({ label: 'Save' })`. Props, fields of object props and fields of list entries equal to
+ * their schema default are left out.
  */
 export function formatPugCall(name: string, props: Record<string, unknown>, fields: Field[] = []): string {
-  const shown = omitDefaults(props, fields)
-  for (const field of fields) {
-    const { items } = field
-    if (items?.kind === 'object' && Array.isArray(shown[field.key])) {
-      shown[field.key] = (shown[field.key] as unknown[]).map(entry =>
-        typeof entry === 'object' && entry !== null ? omitDefaults(entry as Record<string, unknown>, items.fields) : entry,
-      )
-    }
-  }
-  return `+${name}(${formatValue(shown)})`
+  return `+${name}(${formatValue(omitDefaults(props, fields))})`
 }

@@ -16,6 +16,9 @@
  *   lists of entries like FAQ items or links. The fields stay flat: no lists or objects inside them.
  * - `z.record()` with string keys (optionally `.regex()`) and scalar values, also a union of
  *   `z.string()`, `z.number()` and `z.boolean()`, for maps like additional HTML attributes
+ * - `z.strictObject()` / `z.object()` as a prop, for a group of props that belong together like an
+ *   image or a call to action. Its fields may be anything a prop may be except another object: one
+ *   level of nesting.
  * - `.optional()`, `.default()`, `.describe()`, `.meta({ examples })`
  *
  * Checks JSON Schema cannot express (`.refine()`, `.transform()`) pass through: the mixin's own
@@ -52,10 +55,14 @@ function checkKeys(schema: JsonSchema, allowed: string[]): string[] {
     .map(key => `uses "${key}", which comes from a zod feature the playground does not support`)
 }
 
-/** Where a value sits: a prop, the entry type of an array prop, or a field of such an entry. */
-type ValuePosition = 'prop' | 'array-item' | 'entry-field'
+/**
+ * Where a value sits: a prop, the entry type of an array prop, a field of such an entry, or a
+ * field of an object prop.
+ */
+type ValuePosition = 'prop' | 'array-item' | 'entry-field' | 'group-field'
 
-function checkEntry(schema: JsonSchema): string[] {
+/** The fields of a list entry (`entry-field`) or of an object prop (`group-field`). */
+function checkObjectFields(schema: JsonSchema, position: 'entry-field' | 'group-field'): string[] {
   if (!isObject(schema.properties))
     return ['is an object without fields, which is not supported']
 
@@ -64,7 +71,7 @@ function checkEntry(schema: JsonSchema): string[] {
     errors.push('allows unknown keys (z.looseObject or .catchall()), which is not supported')
 
   for (const [key, field] of Object.entries(schema.properties)) {
-    const fieldErrors = isObject(field) ? checkValue(field, 'entry-field') : ['is not a schema']
+    const fieldErrors = isObject(field) ? checkValue(field, position) : ['is not a schema']
     errors.push(...fieldErrors.map(error => `field "${key}" ${error}`))
   }
   return errors
@@ -127,12 +134,14 @@ function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
     }
     case 'object':
       if (position === 'array-item')
-        return checkEntry(schema)
+        return checkObjectFields(schema, 'entry-field')
       if (position === 'entry-field')
         return ['is an object, the fields of a list entry must be scalars']
       if (isRecord(schema))
         return checkRecord(schema)
-      return ['is an object, nested objects are not supported; use an array of objects for a list of entries or z.record() for a map']
+      if (position === 'group-field')
+        return ['is an object inside an object prop, only one level of nesting is supported']
+      return checkObjectFields(schema, 'group-field')
     default:
       return ['has a type the playground cannot edit (e.g. z.any() or z.unknown())']
   }

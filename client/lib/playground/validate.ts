@@ -80,11 +80,15 @@ export function validateValue(rules: ValueRules, value: unknown): string | undef
 
 /** Every problem with one entry of an array of objects, each prefixed with its field. */
 function validateEntry(rules: EntryRules, entry: unknown): string[] {
-  if (typeof entry !== 'object' || entry === null || Array.isArray(entry))
+  if (!isPlainObject(entry))
     return ['Must be an object']
   return rules.fields.flatMap(field =>
-    validateField(field, (entry as Record<string, unknown>)[field.key]).map(error => `${field.key}: ${error}`),
+    validateField(field, entry[field.key]).map(error => `${field.key}: ${error}`),
   )
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /** Every problem with the keys and values of a record, each prefixed with its key. */
@@ -116,6 +120,9 @@ export function validateField(field: Field, value: unknown): string[] {
   if (field.kind === 'record')
     return field.record ? validateRecord(field.record, value) : []
 
+  if (field.kind === 'object')
+    return isPlainObject(value) ? validateEntry({ kind: 'object', fields: field.fields ?? [] }, value) : ['Must be an object']
+
   if (field.kind !== 'array') {
     const error = validateValue(field as ValueRules, value)
     return error ? [error] : []
@@ -139,11 +146,20 @@ export function validateField(field: Field, value: unknown): string[] {
   return errors
 }
 
-/** Problems per prop key; props without problems are left out. */
+/**
+ * Problems per prop key; props without problems are left out. The problems of a field of an object
+ * prop sit under its dotted path (`image.alt`), so the panel shows them at that field.
+ */
 export function validateValues(fields: Field[], values: FieldValues): Map<string, string[]> {
   const problems = new Map<string, string[]>()
   for (const field of fields) {
-    const errors = validateField(field, values[field.key])
+    const value = values[field.key]
+    if (field.kind === 'object' && isPlainObject(value)) {
+      for (const [key, errors] of validateValues(field.fields ?? [], value))
+        problems.set(`${field.key}.${key}`, errors)
+      continue
+    }
+    const errors = validateField(field, value)
     if (errors.length > 0)
       problems.set(field.key, errors)
   }

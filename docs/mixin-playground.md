@@ -73,10 +73,11 @@ The playground creates a control for every prop and checks the schema's constrai
 | `z.array()` of any of the above, with `.min()`, `.max()`, `.length()` | list editor (add, remove, reorder) | number of entries, every entry |
 | `z.array(z.strictObject({ … }))` whose fields are any of the scalars above | list editor with one group of fields per entry | number of entries, every field of every entry |
 | `z.record(z.string(), …)` with scalar values or a union of `z.string()`, `z.number()`, `z.boolean()`; keys may use `.regex()`, `.min()`, `.max()` | key-value editor; with several value types a select picks `true`, `false` or a typed value | every key, every value |
+| `z.strictObject({ … })` as a prop, whose fields are any of the above | group of fields under the prop's label; an optional object gets a **Pass** switch | every field |
 | `.optional()`, `.default()` | an empty control leaves the prop out: empty text or number field, or the empty choice **—** of a select (an optional boolean becomes a select with **—**, true, false) | |
 | `.describe()`, `.meta({ examples })` | help text, starting value | |
 
-Not supported are nested objects, records of objects or lists, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
+Not supported are objects inside an object prop, records of objects or lists, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
 
 A list of entries, like the questions of an FAQ or the links of a footer column, is an array of flat objects. A fresh entry starts with the default of every field that has one and an empty value for every other required field. The Pug call leaves out entry fields equal to their default:
 
@@ -89,6 +90,20 @@ schema: z.object({
   })).min(1).meta({ examples: [[{ question: 'How do I apply?', answer: 'Online, until 15 March.' }]] }),
 }),
 ```
+
+Props that only make sense together, like the parts of an image or a call to action, can be an object prop. The object takes one level of nesting: its fields may be scalars, lists and records, but no further objects. An optional object starts switched off. Switched on, it starts with the default or first example of every field and an empty value for every other required field. The props of an optional object are all-or-nothing, so a refine like "text and href go together" becomes unnecessary. Issues of a field show at that field, and the Pug call leaves out fields equal to their default:
+
+```js
+schema: z.object({
+  cta: z.strictObject({
+    text: z.string().min(1),
+    href: z.string().min(1),
+    variant: z.enum(['primary', 'outline']).default('outline'),
+  }).describe('Button below the text').optional(),
+}),
+```
+
+In Fluid an object prop becomes flat arguments: the prop name plus the field name with a capital first letter. `cta.text` and `cta.href` become `ctaText` and `ctaHref`. That is why objects stop at one level, a second one would end in names like `cardImageHref`, which usually means the component needs a child component. Name the main field of an object the same way everywhere, e.g. `src` for an image and `text` for a button or link, so the rule needs no exceptions. List entries stay flat, an entry already is an array in Fluid.
 
 `.refine()`, `.superRefine()` and `.transform()` are allowed. JSON Schema cannot express them, so the form does not check them while you type. `defineComponent` still runs them on every render, and their errors appear next to the control as well.
 

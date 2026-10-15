@@ -17,6 +17,11 @@ mixin card(props)
         href: z.string(),
         isExternal: z.boolean().default(false),
       })).optional(),
+      cta: z.strictObject({
+        text: z.string().min(1),
+        href: z.string().meta({ examples: ['/more'] }),
+        variant: z.enum(['primary', 'ghost']).default('primary'),
+      }).describe('Call to action below the links').optional(),
     })
   - const p = mixinSchema.parse(props)
   article.card
@@ -27,3 +32,5 @@ mixin card(props)
       ul.card__links
         each link in p.links
           li: a(href=link.href target=link.isExternal ? '_blank' : undefined)= link.text
+    if p.cta
+      a.card__cta(href=p.cta.href class=`card__cta--${p.cta.variant}`)= p.cta.text

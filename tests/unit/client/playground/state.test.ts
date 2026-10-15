@@ -68,4 +68,14 @@ describe('formatPugCall', () => {
     expect(formatPugCall('linkList', { links: [{ text: 'Home', isExternal: false }, { text: 'Docs', isExternal: true }] }, fields))
       .toBe('+linkList({ links: [{ text: \'Home\' }, { text: \'Docs\', isExternal: true }] })')
   })
+
+  it('leaves out fields of object props equal to their default', () => {
+    const fields = getFields({
+      type: 'object',
+      properties: {
+        image: { type: 'object', properties: { src: { type: 'string' }, loading: { type: 'string', enum: ['lazy', 'eager'], default: 'lazy' } }, required: ['src'] },
+      },
+    })
+    expect(formatPugCall('card', { image: { src: 'a.jpg', loading: 'lazy' } }, fields)).toBe('+card({ image: { src: \'a.jpg\' } })')
+  })
 })

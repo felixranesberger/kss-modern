@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { getEmptyItem, getFields, getInitialValue, getInitialValues, getProps } from '../../../../client/lib/playground/fields.ts'
+import { getEmptyItem, getFields, getInitialObject, getInitialValue, getInitialValues, getProps } from '../../../../client/lib/playground/fields.ts'
 
 const schema = z.toJSONSchema(z.object({
   label: z.string().min(1).max(20).describe('Button text'),
@@ -70,6 +70,36 @@ describe('arrays of objects', () => {
 
   it('starts a fresh entry with defaults and empty required fields', () => {
     expect(getEmptyItem(field.items!)).toEqual({ text: '', href: '', isExternal: false })
+  })
+})
+
+describe('object props', () => {
+  const fields = getFields(z.toJSONSchema(z.object({
+    image: z.strictObject({
+      src: z.string().min(1).meta({ examples: ['university/2'] }),
+      alt: z.string().default(''),
+      loading: z.enum(['lazy', 'eager']).optional(),
+    }).describe('Cover image').optional(),
+    cta: z.strictObject({ text: z.string(), href: z.string() }),
+  }), { io: 'input' }) as Record<string, unknown>)
+  const byKey = Object.fromEntries(fields.map(field => [field.key, field]))
+
+  it('describes every field of the object', () => {
+    expect(byKey.image).toMatchObject({ kind: 'object', isOptional: true, description: 'Cover image' })
+    expect(byKey.image.fields?.map(field => [field.key, field.kind, field.isOptional])).toEqual([
+      ['src', 'string', false],
+      ['alt', 'string', true],
+      ['loading', 'enum', true],
+    ])
+  })
+
+  it('leaves an optional object out and builds a required one from its fields', () => {
+    expect(getInitialValue(byKey.image)).toBeUndefined()
+    expect(getInitialValue(byKey.cta)).toEqual({ text: '', href: '' })
+  })
+
+  it('starts an object switched on from the starting values of its fields', () => {
+    expect(getInitialObject(byKey.image.fields!)).toEqual({ src: 'university/2', alt: '' })
   })
 })
 

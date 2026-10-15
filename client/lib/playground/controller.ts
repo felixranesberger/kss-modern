@@ -74,7 +74,10 @@ export async function createPlayground(
     // the schema's constraints first: their errors show at the field, and nothing renders
     const problems = validateValues(fields, values)
     if (problems.size > 0) {
-      const issues: PropIssue[] = [...problems].flatMap(([key, messages]) => messages.map(message => ({ key, path: [key], message })))
+      const issues: PropIssue[] = [...problems].flatMap(([path, messages]) => {
+        const segments = path.split('.')
+        return messages.map(message => ({ key: segments[0], path: segments, message }))
+      })
       panel?.setIssues(issues)
       host.onInvalid?.({ isValid: false, issues }, props)
       return

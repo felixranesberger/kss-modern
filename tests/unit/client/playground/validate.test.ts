@@ -61,6 +61,14 @@ describe('validateField', () => {
     expect(errorsFor(z.record(z.string(), z.int()), { a: 'x' })).toEqual(['"a": Must be a number'])
   })
 
+  it('checks every field of an object prop', () => {
+    const image = z.strictObject({ src: z.string().min(1), width: z.int().optional() })
+    expect(errorsFor(image, { src: 'a' })).toEqual([])
+    expect(errorsFor(image, { src: '', width: 1.5 })).toEqual(['src: Must not be empty', 'width: Must be a whole number'])
+    expect(errorsFor(image, 'a')).toEqual(['Must be an object'])
+    expect(errorsFor(image.optional(), undefined)).toEqual([])
+  })
+
   it('accepts an optional prop that is not passed', () => {
     const [field] = fieldsOf({ value: z.number().min(5).optional() })
     expect(validateField(field, undefined)).toEqual([])
@@ -68,6 +76,15 @@ describe('validateField', () => {
 })
 
 describe('validateValues', () => {
+  it('files the problems of an object prop under the path of each field', () => {
+    const fields = fieldsOf({ image: z.strictObject({ src: z.string().min(1), alt: z.string() }) })
+    expect(validateValues(fields, { image: { src: '' } })).toEqual(new Map([
+      ['image.src', ['Must not be empty']],
+      ['image.alt', ['Required']],
+    ]))
+    expect(validateValues(fields, { image: 'x' })).toEqual(new Map([['image', ['Must be an object']]]))
+  })
+
   it('agrees with zod on the starting values of a valid schema', () => {
     const shape = { label: z.string().meta({ examples: ['Save'] }), count: z.int().min(0).default(0), tags: z.array(z.string()).default([]) }
     const fields = fieldsOf(shape)

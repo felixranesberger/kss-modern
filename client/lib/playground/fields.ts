@@ -8,7 +8,7 @@
 type JsonSchema = Record<string, unknown>
 
 export type ValueKind = 'string' | 'number' | 'integer' | 'boolean' | 'enum'
-export type FieldKind = ValueKind | 'array' | 'record'
+export type FieldKind = ValueKind | 'array' | 'record' | 'object'
 
 export type Literal = string | number | boolean | null
 
@@ -64,6 +64,8 @@ export interface Field extends Omit<ValueRules, 'kind'> {
   items?: ItemRules
   /** The key and value rules of a `record` field. */
   record?: RecordRules
+  /** The fields of an `object` field, a group of props like an image or a call to action. */
+  fields?: Field[]
   minItems?: number
   maxItems?: number
 }
@@ -153,6 +155,9 @@ export function getFields(schema: JsonSchema | undefined): Field[] {
       }
     }
 
+    if (property.type === 'object' && isObject(property.properties))
+      return { ...common, kind: 'object' as const, fields: getFields(property) }
+
     if (property.type === 'array') {
       const items = isObject(property.items) ? property.items : {}
       return {
@@ -216,7 +221,23 @@ export function getInitialValue(field: Field): unknown {
     return []
   if (field.kind === 'record')
     return {}
+  if (field.kind === 'object')
+    return getInitialObject(field.fields ?? [])
   return getEmptyValue(field as ValueRules)
+}
+
+/**
+ * The value of an object prop built from its fields' starting values, for a required object
+ * without default or example and for an optional one switched on in the panel.
+ */
+export function getInitialObject(fields: Field[]): Record<string, unknown> {
+  const object: Record<string, unknown> = {}
+  for (const field of fields) {
+    const value = getInitialValue(field)
+    if (value !== undefined)
+      object[field.key] = value
+  }
+  return object
 }
 
 /** Starting values of every control; props a URL carried replace them, absent props stay unset. */

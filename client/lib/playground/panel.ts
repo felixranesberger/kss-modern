@@ -5,7 +5,7 @@
  */
 import type { EntryRules, Field, FieldValues, RecordRules, ValueRules } from './fields.ts'
 import type { PropIssue } from './runtime.ts'
-import { getEmptyItem } from './fields.ts'
+import { getEmptyItem, getInitialObject } from './fields.ts'
 import panelStyles from './panel.css?inline'
 
 export interface PropsPanelOptions {
@@ -33,6 +33,15 @@ export interface PropsPanel {
   destroy: () => void
 }
 
+/** Where a control reads and writes its value: a prop, or a field of an object prop. */
+interface ValueSlot {
+  get: () => unknown
+  set: (value: unknown) => void
+}
+
+/** Renders one prop, or one field of an object prop, see `renderField` in `createPropsPanel`. */
+type RenderField = (field: Field, id: string, slot: ValueSlot, path: string, signal: AbortSignal) => HTMLElement
+
 interface FieldElements {
   /** Every control of the field; for an array one per entry. */
   controls: () => HTMLElement[]
@@ -53,6 +62,10 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   }
   element.append(...children)
   return element
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function toAttribute(value: number | undefined): string | undefined {
@@ -288,18 +301,50 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
     elements.controls().forEach(control => control.setAttribute('aria-invalid', String(Boolean(text))))
   }
 
+  /** The last validation issues, applied again when a group of fields is rebuilt. */
+  let issues: PropIssue[] = []
+
+  /** Show the issues at their fields; returns the ones no field owns. */
+  const applyIssues = (): string[] => {
+    const byKey = new Map<string, string[]>()
+    const general: string[] = []
+
+    for (const issue of issues) {
+      // an issue about a field of an object prop shows at that field
+      const fieldPath = typeof issue.path[1] === 'string' ? `${issue.key}.${issue.path[1]}` : undefined
+      const target = fieldPath !== undefined && fieldElements.has(fieldPath) ? fieldPath : issue.key
+      if (!fieldElements.has(target)) {
+        general.push(issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message)
+        continue
+      }
+      const rest = issue.path.slice(target === issue.key ? 1 : 2)
+      const [index, entryKey] = rest
+      const prefix = typeof index === 'number'
+        ? `Entry ${index + 1}: ${entryKey === undefined ? '' : `${String(entryKey)}: `}`
+        : rest.length > 0 ? `${rest.join('.')}: ` : ''
+      byKey.set(target, [...byKey.get(target) ?? [], `${prefix}${issue.message}`])
+    }
+
+    for (const key of fieldElements.keys())
+      setFieldError(key, byKey.get(key)?.join('\n'))
+    return general
+  }
+
   /** The list editor of an array prop: one control (or one group of fields) per entry, add, remove and reorder. */
-  const renderList = (field: Field, id: string, labelId: string, describedBy: string) => {
+  const renderList = (field: Field, id: string, labelId: string, describedBy: string, slot: ValueSlot, signal: AbortSignal) => {
     const list = createElement('ol', { class: 'c-list' })
     const addButton = createElement('button', { class: 'c-button', type: 'button' }, ['Add entry'])
     const group = createElement('div', { 'class': 'c-list-editor', 'role': 'group', 'aria-labelledby': labelId, 'aria-describedby': describedBy }, [list, addButton])
     let entryControls: HTMLElement[] = []
     let listController = new AbortController()
 
-    const getEntries = () => (Array.isArray(values[field.key]) ? values[field.key] as unknown[] : [])
+    const getEntries = () => {
+      const entries = slot.get()
+      return Array.isArray(entries) ? entries as unknown[] : []
+    }
 
     // an optional list left empty is not passed at all
-    const setEntries = (entries: unknown[]) => setValue(field.key, field.isOptional && entries.length === 0 ? undefined : entries)
+    const setEntries = (entries: unknown[]) => slot.set(field.isOptional && entries.length === 0 ? undefined : entries)
 
     const renderEntries = (focusIndex?: number) => {
       const replaceEntries = (entries: unknown[], nextFocusIndex?: number) => {
@@ -374,19 +419,19 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
    * The key-value editor of a record prop. Rows keep their own state, so a key can be empty or
    * repeated while it is typed; the prop holds every row with a key, the last one winning.
    */
-  const renderRecord = (field: Field, labelId: string, describedBy: string) => {
+  const renderRecord = (field: Field, labelId: string, describedBy: string, slot: ValueSlot, signal: AbortSignal) => {
     const rules = field.record!
     const list = createElement('ol', { class: 'c-list' })
     const addButton = createElement('button', { class: 'c-button', type: 'button' }, ['Add entry'])
     const group = createElement('div', { 'class': 'c-list-editor', 'role': 'group', 'aria-labelledby': labelId, 'aria-describedby': describedBy }, [list, addButton])
-    const current = values[field.key]
-    let rows = Object.entries(typeof current === 'object' && current !== null ? current as Record<string, unknown> : {}).map(([key, value]) => ({ key, value }))
+    const current = slot.get()
+    let rows = Object.entries(isPlainObject(current) ? current : {}).map(([key, value]) => ({ key, value }))
     let rowControls: HTMLElement[] = []
     let rowController = new AbortController()
 
     const emit = () => {
       const map = Object.fromEntries(rows.filter(row => row.key !== '').map(row => [row.key, row.value]))
-      setValue(field.key, field.isOptional && Object.keys(map).length === 0 ? undefined : map)
+      slot.set(field.isOptional && Object.keys(map).length === 0 ? undefined : map)
     }
 
     const renderRows = (focusIndex?: number) => {
@@ -435,8 +480,66 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
     return { group, controls: () => [...rowControls, addButton] }
   }
 
-  const renderField = (field: Field, index: number): HTMLElement => {
-    const id = `field-${index}`
+  /**
+   * The fields of an object prop, each with its own label, help and error. An optional object gets
+   * a switch: off leaves the prop out, on starts it from the starting values of its fields.
+   */
+  const renderGroup = (field: Field, id: string, labelId: string, describedBy: string, slot: ValueSlot, path: string, signal: AbortSignal, renderField: RenderField) => {
+    const groupFields = field.fields ?? []
+    const body = createElement('div', { class: 'c-group__fields' })
+    const group = createElement('div', { 'class': 'c-group', 'role': 'group', 'aria-labelledby': labelId, 'aria-describedby': describedBy })
+    let bodyController = new AbortController()
+    let toggle: HTMLInputElement | undefined
+
+    const getObject = () => {
+      const value = slot.get()
+      return isPlainObject(value) ? value : undefined
+    }
+
+    const renderBody = () => {
+      bodyController.abort()
+      bodyController = new AbortController()
+      for (const key of [...fieldElements.keys()]) {
+        if (key.startsWith(`${path}.`))
+          fieldElements.delete(key)
+      }
+
+      const isPassed = !field.isOptional || getObject() !== undefined
+      body.hidden = !isPassed
+      body.replaceChildren(...isPassed
+        ? groupFields.map((groupField, index) => renderField(groupField, `${id}-${index}`, {
+            get: () => getObject()?.[groupField.key],
+            set: (value) => {
+              const next = { ...getObject() }
+              if (value === undefined)
+                delete next[groupField.key]
+              else
+                next[groupField.key] = value
+              slot.set(next)
+            },
+          }, `${path}.${groupField.key}`, bodyController.signal))
+        : [])
+      applyIssues()
+    }
+
+    if (field.isOptional) {
+      const switchControl = createElement('input', { 'class': 'c-checkbox', 'type': 'checkbox', 'id': `${id}-switch`, 'aria-describedby': describedBy })
+      switchControl.checked = getObject() !== undefined
+      switchControl.addEventListener('change', () => {
+        slot.set(switchControl.checked ? getInitialObject(groupFields) : undefined)
+        renderBody()
+      }, { signal })
+      toggle = switchControl
+      group.append(createElement('label', { class: 'c-checkbox-row c-group__switch' }, [switchControl, `Pass ${field.key}`]))
+    }
+
+    group.append(body)
+    renderBody()
+    return { group, controls: () => (toggle ? [toggle] : []) }
+  }
+
+  /** Label, control, help and error of one prop or of one field of an object prop, stored under `path`. */
+  const renderField: RenderField = (field, id, slot, path, signal) => {
     const labelId = `${id}-label`
     const helpId = `${id}-help`
     const errorId = `${id}-error`
@@ -444,47 +547,52 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
 
     let controlRow: HTMLElement
     let controls: () => HTMLElement[]
-    if (field.kind === 'record') {
-      const recordEditor = renderRecord(field, labelId, describedBy)
+    if (field.kind === 'object') {
+      const groupEditor = renderGroup(field, id, labelId, describedBy, slot, path, signal, renderField)
+      controlRow = groupEditor.group
+      controls = groupEditor.controls
+    }
+    else if (field.kind === 'record') {
+      const recordEditor = renderRecord(field, labelId, describedBy, slot, signal)
       controlRow = recordEditor.group
       controls = recordEditor.controls
     }
     else if (field.kind === 'array') {
-      const listEditor = renderList(field, id, labelId, describedBy)
+      const listEditor = renderList(field, id, labelId, describedBy, slot, signal)
       controlRow = listEditor.group
       controls = listEditor.controls
     }
     else {
       const control = createValueControl(
         field as ValueRules,
-        values[field.key],
+        slot.get(),
         field.isOptional,
         { id, 'aria-describedby': describedBy, 'aria-required': String(!field.isOptional) },
-        value => setValue(field.key, value),
+        value => slot.set(value),
         signal,
       )
       controlRow = wrapControl(control)
       controls = () => [control]
     }
 
-    const label = field.kind === 'array' || field.kind === 'record'
+    const label = field.kind === 'array' || field.kind === 'record' || field.kind === 'object'
       ? createElement('span', { class: 'c-field__label', id: labelId }, [field.key])
       : createElement('label', { class: 'c-field__label', id: labelId, for: id }, [field.key])
     const help = createElement('p', { class: 'c-field__help', id: helpId, hidden: !field.description }, [field.description ?? ''])
     const error = createElement('p', { class: 'c-field__error', id: errorId, hidden: true })
-    fieldElements.set(field.key, { controls, error })
+    fieldElements.set(path, { controls, error })
 
-    return createElement('div', { 'class': 'c-field', 'data-field': field.key }, [
-      label,
-      controlRow,
-      help,
-      error,
-    ])
+    // the help of an object prop explains the group, so it comes before its fields
+    const children = field.kind === 'object' ? [label, help, controlRow, error] : [label, controlRow, help, error]
+    return createElement('div', { 'class': field.kind === 'object' ? 'c-field c-field--group' : 'c-field', 'data-field': path }, children)
   }
 
   const renderFields = () => {
     fieldElements = new Map()
-    form.replaceChildren(...fields.map(renderField))
+    form.replaceChildren(...fields.map((field, index) => renderField(field, `field-${index}`, {
+      get: () => values[field.key],
+      set: value => setValue(field.key, value),
+    }, field.key, signal)))
   }
 
   renderFields()
@@ -500,24 +608,9 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
       values = structuredClone(nextValues)
       renderFields()
     },
-    setIssues: (issues) => {
-      const byKey = new Map<string, string[]>()
-      const general: string[] = []
-
-      for (const issue of issues) {
-        if (!fieldElements.has(issue.key)) {
-          general.push(issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message)
-          continue
-        }
-        const [index, entryKey] = issue.path.slice(1)
-        const entryPrefix = index === undefined ? '' : `Entry ${Number(index) + 1}: ${entryKey === undefined ? '' : `${String(entryKey)}: `}`
-        const text = `${entryPrefix}${issue.message}`
-        byKey.set(issue.key, [...byKey.get(issue.key) ?? [], text])
-      }
-
-      for (const key of fieldElements.keys())
-        setFieldError(key, byKey.get(key)?.join('\n'))
-
+    setIssues: (nextIssues) => {
+      issues = nextIssues
+      const general = applyIssues()
       message.textContent = general.join('\n')
       message.hidden = general.length === 0
     },
