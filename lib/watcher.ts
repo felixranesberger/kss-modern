@@ -4,6 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import chokidar from 'chokidar'
 import { logger } from './logger.ts'
+import { isSchemaSource } from './mixins/schema-registry.ts'
 import { batchDebounce } from './scheduling.ts'
 import { isTransientFsError } from './utils.ts'
 
@@ -202,12 +203,13 @@ export function watchStyleguideForChanges(
       handleCss(filePath)
     else if (isMarkdownFile(filePath))
       requestStructural()
-    else if (isMarkupFile(filePath))
+    else if (isMarkupFile(filePath) || isSchemaSource(filePath))
       requestMarkup(filePath)
   }
 
   // Single watcher with file-extension routing in handlers
-  const validFileTypes = [...VALID_CSS_FILE_TYPES, '.md', ...MARKUP_FILE_TYPES]
+  // `.ts` for the `.schema.ts` files and what they import; other scripts are dropped in `routeEvent`
+  const validFileTypes = [...VALID_CSS_FILE_TYPES, '.md', ...MARKUP_FILE_TYPES, '.ts']
   return chokidar.watch(watchPath, {
     ignoreInitial: true,
     usePolling: USE_POLLING,

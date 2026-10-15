@@ -3,6 +3,7 @@
  * controls' state, validate and render on every change, and in development follow rebuilds. A host
  * only decides where the controls live and where the rendered HTML goes.
  */
+import type { ComponentRegistry } from '../../../lib/mixins/define-component.ts'
 import type { MixinManifestEntry } from '../../../lib/mixins/types.ts'
 import type { PlaygroundPageConfig } from '../../../lib/templates/mixins.ts'
 import type { Field, FieldValues } from './fields.ts'
@@ -11,7 +12,7 @@ import type { PropIssue, RenderFunction, RenderResult } from './runtime.ts'
 import { PausableInterval } from '../../utils/pausable-interval.ts'
 import { getFields, getInitialValues, getProps } from './fields.ts'
 import { createPropsPanel } from './panel.ts'
-import { fetchManifest, loadRenderFunction, renderMixin } from './runtime.ts'
+import { fetchManifest, loadRenderFunction, loadSchemaRegistry, renderMixin } from './runtime.ts'
 import { formatPugCall } from './state.ts'
 import { validateValues } from './validate.ts'
 
@@ -22,8 +23,8 @@ export interface PlaygroundHost {
   /** Where to mount the controls; omitted for a preview without controls. */
   panelHost?: HTMLElement
   isStandalone?: boolean
-  /** A successful render: show it. */
-  onRender: (html: string, props: Record<string, unknown>) => void
+  /** A successful render: show it. `output` is what the mixin's template received, see `RenderResult`. */
+  onRender: (html: string, props: Record<string, unknown>, output: unknown) => void
   /** The props are invalid or rendering threw: the last good render stays, the issues are shown. */
   onInvalid?: (result: Exclude<RenderResult, { isValid: true }>, props: Record<string, unknown>) => void
   /** Called with the new props after every edit, e.g. to keep the URL in sync. */
@@ -57,6 +58,9 @@ export async function createPlayground(
   let fields = getFields(entry.jsonSchema)
   let values: FieldValues = getInitialValues(fields, initial.props)
   let renderFunction: RenderFunction | undefined = entry.module ? await loadRenderFunction(entry) : undefined
+  // also when this mixin declares its schema in a block: a nested component may name its own
+  let schemaRegistryUrl = manifest.schemaRegistry
+  let registry: ComponentRegistry | undefined = schemaRegistryUrl ? await loadSchemaRegistry(schemaRegistryUrl) : undefined
   let panel: PropsPanel | undefined
 
   const getCurrentProps = () => getProps(fields, values)
@@ -84,10 +88,10 @@ export async function createPlayground(
     }
 
     // then the mixin's own `defineComponent` (or `mixinSchema.parse`), which also runs `.refine()` and the like
-    const result = renderMixin(renderFunction, entry!.id, props)
+    const result = renderMixin(renderFunction, entry!.id, props, registry)
     if (result.isValid) {
       panel?.setIssues([])
-      host.onRender(result.html, props)
+      host.onRender(result.html, props, result.output)
       return
     }
 
@@ -143,9 +147,16 @@ export async function createPlayground(
         return
       isChecking = true
       try {
-        const next = (await fetchManifest(config.manifestUrl, true)).mixins.find(candidate => candidate.id === config.id)
+        const nextManifest = await fetchManifest(config.manifestUrl, true)
+        const next = nextManifest.mixins.find(candidate => candidate.id === config.id)
         if (!next || !next.hasSchema)
           return
+
+        const isRegistryChanged = nextManifest.schemaRegistry !== schemaRegistryUrl
+        if (isRegistryChanged) {
+          schemaRegistryUrl = nextManifest.schemaRegistry
+          registry = schemaRegistryUrl ? await loadSchemaRegistry(schemaRegistryUrl) : undefined
+        }
 
         const previous = entry!
         entry = next
@@ -168,7 +179,7 @@ export async function createPlayground(
         if (next.module !== previous.module && next.module)
           renderFunction = await loadRenderFunction(next)
 
-        if (next.module !== previous.module || isSchemaChanged)
+        if (next.module !== previous.module || isSchemaChanged || isRegistryChanged)
           render()
       }
       catch (error) {

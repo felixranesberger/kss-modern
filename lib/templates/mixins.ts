@@ -154,6 +154,7 @@ export function getMixinExplorerHtml(manifest: MixinManifest, config: ResolvedSt
     { id: 'controls', title: 'Controls' },
     { id: 'code', title: 'Code' },
     { id: 'pug', title: 'Pug call' },
+    { id: 'output', title: 'Output' },
   ]
 
   return `
@@ -272,6 +273,10 @@ export function getMixinExplorerHtml(manifest: MixinManifest, config: ResolvedSt
             </div>
             <div id="mixin-explorer-panel-pug" class="hidden min-h-0 grow overflow-auto p-4 text-sm" role="tabpanel" aria-labelledby="mixin-explorer-tab-pug" tabindex="-1">
                 <code class="block whitespace-pre-wrap break-all font-mono text-styleguide-highlight" data-playground-pug-call></code>
+            </div>
+            <div id="mixin-explorer-panel-output" class="hidden min-h-0 grow overflow-auto p-4 text-sm" role="tabpanel" aria-labelledby="mixin-explorer-tab-output" tabindex="-1">
+                <p class="mb-3 max-w-[65ch]">What the template received: the props after defaults and <code class="font-mono">.transform()</code>. With a transform this is the object the integration hands to the template.</p>
+                <pre class="whitespace-pre-wrap break-all font-mono text-styleguide-highlight" data-playground-output></pre>
             </div>
         </div>
     </div>

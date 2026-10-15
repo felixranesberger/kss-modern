@@ -2,9 +2,11 @@
  * Loading and running a mixin's precompiled render module. zod is bundled here, so it only ever
  * loads on pages with a playground.
  */
+import type { ComponentRegistry } from '../../../lib/mixins/define-component.ts'
 import type { MixinManifest, MixinManifestEntry } from '../../../lib/mixins/types.ts'
 import { z } from 'zod'
-import { defineComponent } from '../../../lib/mixins/define-component.ts'
+import { collectComponentDefinitions, createDefineComponent } from '../../../lib/mixins/define-component.ts'
+import { ZOD_GLOBAL } from '../../../lib/mixins/types.ts'
 import { createUseId } from '../../../lib/use-id.ts'
 
 export type RenderFunction = (locals: Record<string, unknown>) => string
@@ -17,7 +19,8 @@ export interface PropIssue {
 }
 
 export type RenderResult
-  = | { isValid: true, html: string }
+  /** `output` is what the mixin's `defineComponent` returned: the props after defaults and `.transform()`. */
+  = | { isValid: true, html: string, output: unknown }
     | { isValid: false, issues: PropIssue[] }
     | { isValid: false, error: string }
 
@@ -49,6 +52,24 @@ export function loadRenderFunction(entry: MixinManifestEntry): Promise<RenderFun
   return loading
 }
 
+const registryCache = new Map<string, Promise<ComponentRegistry>>()
+
+/**
+ * Import the registry of the `.schema.ts` modules, once per URL. The modules import zod through a
+ * shim that reads it from a global, so they use the copy bundled here.
+ */
+export function loadSchemaRegistry(url: string): Promise<ComponentRegistry> {
+  const href = new URL(url, document.baseURI).href
+  let loading = registryCache.get(href)
+  if (!loading) {
+    (globalThis as Record<string, unknown>)[ZOD_GLOBAL] = z
+    loading = import(/* @vite-ignore */ href).then((registry: { modules: [string, Record<string, unknown>][] }) => collectComponentDefinitions(registry.modules))
+    loading.catch(() => registryCache.delete(href))
+    registryCache.set(href, loading)
+  }
+  return loading
+}
+
 function isZodError(error: unknown): error is { issues: { path: PropertyKey[], message: string }[] } {
   return typeof error === 'object' && error !== null && Array.isArray((error as { issues?: unknown }).issues)
 }
@@ -58,10 +79,22 @@ function isZodError(error: unknown): error is { issues: { path: PropertyKey[], m
  * `defineComponent`. The zod issues of invalid props, a `ZodError` from `mixinSchema.parse(props)`
  * or the error `defineComponent` throws, come back as issues per prop.
  */
-export function renderMixin(render: RenderFunction, id: string, props: Record<string, unknown>): RenderResult {
+export function renderMixin(render: RenderFunction, id: string, props: Record<string, unknown>, registry?: ComponentRegistry): RenderResult {
+  // the mixin's own `defineComponent` runs first, the ones of nested components after it
+  let output: unknown
+  let isOutputSet = false
+  const defineComponent = createDefineComponent({
+    registry,
+    onParse: (data) => {
+      if (isOutputSet)
+        return
+      output = data
+      isOutputSet = true
+    },
+  })
   try {
     const html = render({ props, z, defineComponent, useId: createUseId(`mixin-${id}`), modifierClass: '' })
-    return { isValid: true, html }
+    return { isValid: true, html, output }
   }
   catch (error) {
     if (isZodError(error)) {

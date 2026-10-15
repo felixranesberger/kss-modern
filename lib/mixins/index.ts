@@ -1,6 +1,8 @@
 import type { FileSignature } from '../file-signature.ts'
 import type { ResolvedStyleguideConfiguration } from '../index.ts'
+import type { ComponentRegistry } from './define-component.ts'
 import type { DiscoveredMixin } from './discovery.ts'
+import type { SchemaRegistryResult } from './schema-registry.ts'
 import type { MixinSchemaForm, MixinSchemaResult } from './schema.ts'
 import type { MixinManifest, MixinManifestEntry } from './types.ts'
 import { readFileSync } from 'node:fs'
@@ -14,16 +16,18 @@ import { logger } from '../logger.ts'
 import { compileMixinJobs, evaluateSchemaJobs, getPugDependencyGraph } from '../pug/index.ts'
 import { slugify } from '../shared.ts'
 import { logicalWriteFile } from '../utils.ts'
-import { getZodVersion } from '../zod.ts'
+import { getZodVersion, requireZod } from '../zod.ts'
 import { getMixinWrapperSource, MIXIN_COMPILE_OPTIONS } from './compile.ts'
 import { discoverMixins } from './discovery.ts'
 import { writeJsonSchemaFiles } from './json-schema-export.ts'
-import { getMixinPath, MIXIN_MANIFEST_PATH } from './types.ts'
+import { isSchemaSource, loadSchemaRegistry, prepareSchemaRegistry } from './schema-registry.ts'
+import { evaluateComponentDefinition } from './schema.ts'
+import { getMixinPath, MIXIN_MANIFEST_PATH, SCHEMA_OUTPUT_DIR } from './types.ts'
 
 export * from './types.ts'
 
 /** Bump when the shape of the persisted cache changes; older files are then discarded. */
-const CACHE_FORMAT = 4
+const CACHE_FORMAT = 5
 const DEFAULT_CACHE_DIR = 'node_modules/.cache/kss-modern'
 /** Prefix of mixin nodes in the shared pug dependency graph, next to the section ids. */
 export const MIXIN_GRAPH_PREFIX = 'mixin:'
@@ -171,7 +175,7 @@ function getNavigationSignature(manifest: MixinManifest | undefined): string {
   return JSON.stringify(manifest?.mixins.map(entry => [entry.id, entry.name, entry.path, entry.hasSchema]) ?? [])
 }
 
-async function writeOutput(outDir: string, manifest: MixinManifest, modules: Map<string, string>): Promise<void> {
+async function writeOutput(outDir: string, manifest: MixinManifest, modules: Map<string, string>, schemaFiles: Map<string, string>): Promise<void> {
   const mixinsDirectory = path.join(outDir, 'mixins')
   if (manifest.mixins.length === 0) {
     await fs.rm(mixinsDirectory, { recursive: true, force: true })
@@ -180,8 +184,17 @@ async function writeOutput(outDir: string, manifest: MixinManifest, modules: Map
 
   await Promise.all([
     ...[...modules].map(([modulePath, code]) => logicalWriteFile(path.join(outDir, modulePath), code)),
+    ...[...schemaFiles].map(([filePath, code]) => logicalWriteFile(path.join(outDir, filePath), code)),
     logicalWriteFile(path.join(outDir, MIXIN_MANIFEST_PATH), `${JSON.stringify(manifest, null, 2)}\n`),
   ])
+
+  // every registry build has its own hash directory; keep only the one the manifest references
+  const schemasDirectory = path.join(outDir, SCHEMA_OUTPUT_DIR)
+  const currentHash = manifest.schemaRegistry?.slice(SCHEMA_OUTPUT_DIR.length + 1).split('/')[0]
+  const hashDirectories = await fs.readdir(schemasDirectory).catch(() => [] as string[])
+  await Promise.all(hashDirectories
+    .filter(name => name !== currentHash)
+    .map(name => fs.rm(path.join(schemasDirectory, name), { recursive: true, force: true })))
 
   // content-hashed names leave every older build behind; drop what the manifest no longer references
   const referenced = new Set([...modules.keys()].map(modulePath => path.basename(modulePath)))
@@ -208,8 +221,9 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     const changedPugFiles = changedFiles
       ?.filter(file => file.endsWith('.pug'))
       .map(file => path.resolve(file))
+    const hasChangedSchemaSources = changedFiles?.some(file => !file.endsWith('.pug') && isSchemaSource(file)) ?? false
 
-    if (lastResult && changedPugFiles && changedPugFiles.length === 0)
+    if (lastResult && changedPugFiles && changedPugFiles.length === 0 && !hasChangedSchemaSources)
       return lastResult
 
     // only the version is needed up front: zod itself loads when a schema must be evaluated
@@ -282,20 +296,59 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
       .flatMap(file => (data.files[file]?.mixins ?? []).map(mixin => ({ file, mixin })))
     const ids = assignIds(discovered)
 
-    // 2. schema -> JSON Schema, keyed on the schema source and its form only; misses evaluate on
-    // the worker pool
-    const getSchemaForm = (mixin: DiscoveredMixin): MixinSchemaForm => mixin.isDefineComponent ? 'defineComponent' : 'mixinSchema'
-    const schemaKeys = discovered.map(({ mixin }) => mixin.schemaSource === undefined
-      ? undefined
-      : hashContent(`${getSchemaForm(mixin)}\n${mixin.schemaSource}\n${zodVersion}`))
+    // 2. schema -> JSON Schema, keyed on the schema source and its form only (a `.schema.ts`
+    // schema on the registry's hash); block misses evaluate on the worker pool, module misses here
+    const getSchemaForm = (mixin: DiscoveredMixin): MixinSchemaForm => mixin.isSchemaModule
+      ? 'module'
+      : mixin.isDefineComponent ? 'defineComponent' : 'mixinSchema'
+    const registry: SchemaRegistryResult = discovered.some(({ mixin }) => mixin.isSchemaModule)
+      ? await prepareSchemaRegistry(config.contentDir)
+      : undefined
+    const registryKey = registry ? ('error' in registry ? `error:${registry.error}` : registry.hash) : 'none'
+    const schemaKeys = discovered.map(({ mixin }) => {
+      if (mixin.schemaSource === undefined)
+        return undefined
+      const form = getSchemaForm(mixin)
+      return hashContent(form === 'module'
+        ? `${form}\n${mixin.mixinName}\n${registryKey}\n${zodVersion}`
+        : `${form}\n${mixin.schemaSource}\n${zodVersion}`)
+    })
     const usedSchemaKeys = new Set(schemaKeys.filter((key): key is string => key !== undefined))
     const schemaMisses = new Map<string, { source: string, form: MixinSchemaForm }>()
+    const moduleMisses = new Map<string, string>()
     discovered.forEach(({ mixin }, index) => {
       const schemaKey = schemaKeys[index]
-      if (schemaKey !== undefined && !data.schemas[schemaKey])
+      if (schemaKey === undefined || data.schemas[schemaKey])
+        return
+      if (mixin.isSchemaModule)
+        moduleMisses.set(schemaKey, mixin.mixinName ?? '')
+      else
         schemaMisses.set(schemaKey, { source: mixin.schemaSource!, form: getSchemaForm(mixin) })
     })
     const evaluated = await evaluateSchemaJobs([...schemaMisses].map(([id, job]) => ({ id, ...job })))
+    if (moduleMisses.size > 0) {
+      const z = requireZod()!
+      let components: ComponentRegistry | undefined
+      let loadError: string | undefined
+      if (registry && !('error' in registry)) {
+        try {
+          components = (await loadSchemaRegistry(registry.nodeRegistry)).components
+        }
+        catch (error) {
+          loadError = `The .schema.ts files could not be loaded: ${error instanceof Error ? error.message : String(error)}`
+        }
+      }
+      for (const [schemaKey, name] of moduleMisses) {
+        if (!registry)
+          evaluated.set(schemaKey, { error: `No .schema.ts file found for "${name}"` })
+        else if ('error' in registry)
+          evaluated.set(schemaKey, { error: registry.error })
+        else if (loadError !== undefined)
+          evaluated.set(schemaKey, { error: loadError })
+        else
+          evaluated.set(schemaKey, evaluateComponentDefinition(z, components!.get(name), name))
+      }
+    }
     for (const [schemaKey, schema] of evaluated) {
       data.schemas[schemaKey] = schema
       isCacheDirty = true
@@ -328,6 +381,8 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
       if (schema.name !== undefined)
         entry.path = getMixinPath(mixin.name, schema.name)
       entry.hasSchema = true
+      if (mixin.isSchemaModule)
+        entry.isSchemaModule = true
       entry.jsonSchema = schema.jsonSchema
       if (typeof schema.jsonSchema.description === 'string')
         entry.description = schema.jsonSchema.description
@@ -461,7 +516,10 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
 
     // mixins without a schema are internal: they stay out of the manifest and the styleguide
     const manifest: MixinManifest = { mixins: entries.filter(entry => entry.hasSchema || entry.schemaError !== undefined) }
-    await writeOutput(config.outDir, manifest, modules)
+    const schemaFiles = registry && !('error' in registry) ? registry.browserFiles : new Map<string, string>()
+    if (registry && !('error' in registry))
+      manifest.schemaRegistry = registry.browserRegistry
+    await writeOutput(config.outDir, manifest, modules, schemaFiles)
     if (config.mixinJsonSchemaDir)
       jsonSchemaFiles = await writeJsonSchemaFiles(config.mixinJsonSchemaDir, manifest, jsonSchemaFiles)
     if (isCacheDirty)

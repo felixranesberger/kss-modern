@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { Worker } from 'node:worker_threads'
 import { logger } from '../logger.ts'
 import { compileMixinModule } from '../mixins/compile.ts'
+import { prepareSchemaRegistry } from '../mixins/schema-registry.ts'
 import { evaluateMixinSchema } from '../mixins/schema.ts'
 import { requireZod } from '../zod.ts'
 import { computeDepSignatures, PugCompileCache } from './cache.ts'
@@ -236,10 +237,11 @@ async function compileInline(
   repository: Map<string, CompiledSection>,
   id: string,
   errors: PugCompileError[],
+  schemaRegistry?: string,
 ): Promise<void> {
   const markupSource = repository.get(id)!.markup
   try {
-    const { html, dependencies, mixinUsage } = await compileMarkup(contentDir, mode, markupSource, id)
+    const { html, dependencies, mixinUsage } = await compileMarkup(contentDir, mode, markupSource, id, schemaRegistry)
     repository.set(id, { markup: html, mixinUsage })
     await storeResult(id, markupSource, html, dependencies, mixinUsage)
   }
@@ -256,13 +258,14 @@ async function compileViaWorkerPool(
   repository: Map<string, CompiledSection>,
   ids: string[],
   errors: PugCompileError[],
+  schemaRegistry?: string,
 ): Promise<void> {
   const tasks = ids.map(async (id) => {
     const markupSource = repository.get(id)!.markup
 
     let result: PugWorkerOutput
     try {
-      result = await runPinned(id, { id, mode, html: markupSource, contentDir })
+      result = await runPinned(id, { id, mode, html: markupSource, contentDir, schemaRegistry })
     }
     catch (error) {
       // a thread-level crash (not a pug error — those come back as a message). runPinned has already
@@ -324,6 +327,13 @@ async function compileIds(
   if (misses.length === 0)
     return clonedRepository
 
+  // the `.schema.ts` registry is rebuilt only when one of its sources changed; a broken one makes
+  // the sections using it fail with "no .schema.ts file defines …", the mixin explorer names the cause
+  const registry = await prepareSchemaRegistry(contentDir)
+  const schemaRegistry = registry && !('error' in registry) ? registry.nodeRegistry : undefined
+  if (registry && 'error' in registry)
+    logger.error(`The .schema.ts files could not be prepared: ${registry.error}`)
+
   const errors: PugCompileError[] = []
   // Without a worker file, everything must compile on the main thread — degraded (serial) but
   // correct, and warned once so the slowdown is diagnosable rather than mysterious.
@@ -333,10 +343,10 @@ async function compileIds(
   }
   const useInline = !workerFilePathResolved || (mode === 'development' && misses.length <= INLINE_THRESHOLD)
   if (useInline) {
-    await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors)))
+    await Promise.all(misses.map(id => compileInline(mode, contentDir, clonedRepository, id, errors, schemaRegistry)))
   }
   else {
-    await compileViaWorkerPool(mode, contentDir, clonedRepository, misses, errors)
+    await compileViaWorkerPool(mode, contentDir, clonedRepository, misses, errors, schemaRegistry)
   }
 
   // production has no graceful degradation: any compile failure breaks the build

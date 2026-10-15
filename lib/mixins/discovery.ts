@@ -16,6 +16,8 @@ export interface DiscoveredMixin {
   schemaSource?: string
   /** `schemaSource` calls `defineComponent` rather than assigning `mixinSchema`. */
   isDefineComponent?: boolean
+  /** `defineComponent('atoms/Button', props)`: the schema lives in a `.schema.ts` file. */
+  isSchemaModule?: boolean
   /**
    * Where the mixin sits in the explorer, `/` nests folders: the `name: '…'` literal of
    * `defineComponent`, else `- var mixinName = 'atoms/button'`. Only plain literals are read.
@@ -26,6 +28,7 @@ export interface DiscoveredMixin {
 export interface MixinCode {
   schemaSource?: string
   isDefineComponent?: boolean
+  isSchemaModule?: boolean
   mixinName?: string
 }
 
@@ -33,6 +36,8 @@ const DEFINE_COMPONENT_RE = /\bdefineComponent\s*\(/
 const MIXIN_SCHEMA_RE = /\bmixinSchema\s*=/
 /** `var|let|const mixinName = '…'` with a plain string literal; anything computed is not read. */
 const MIXIN_NAME_RE = /^\s*(?:var|let|const)\s+mixinName\s*=\s*(['"])([^'"\n]*)\1\s*(?:;\s*)?$/
+/** `defineComponent('…'`, the form whose schema lives in a `.schema.ts` file. */
+const DEFINE_NAME_ARGUMENT_RE = /\bdefineComponent\s*\(\s*(['"])([^'"\n]*)\1/
 /** `defineComponent({ name: '…'` as its first property, or `name: '…',` on a line of its own. */
 const DEFINE_NAME_RE = /\bdefineComponent\s*\(\s*\{\s*name\s*:\s*(['"])([^'"\n]*)\1/
 const DEFINE_NAME_LINE_RE = /^\s*name\s*:\s*(['"])([^'"\n]*)\1\s*(?:,\s*)?$/m
@@ -40,7 +45,7 @@ const MIXIN_KEYWORD_RE = /^\s*mixin\s/m
 
 /** The `name` string literal of a `defineComponent` block, read without running it. */
 export function readDefineComponentName(source: string): string | undefined {
-  return (DEFINE_NAME_RE.exec(source) ?? DEFINE_NAME_LINE_RE.exec(source))?.[2]
+  return (DEFINE_NAME_ARGUMENT_RE.exec(source) ?? DEFINE_NAME_RE.exec(source) ?? DEFINE_NAME_LINE_RE.exec(source))?.[2]
 }
 
 /**
@@ -66,8 +71,15 @@ export function findMixinCode(block: unknown): MixinCode {
       mixinName = name
   })
 
-  if (defineSource !== undefined)
-    return { schemaSource: defineSource, isDefineComponent: true, mixinName: readDefineComponentName(defineSource) ?? mixinName }
+  if (defineSource !== undefined) {
+    const isSchemaModule = DEFINE_NAME_ARGUMENT_RE.test(defineSource)
+    return {
+      schemaSource: defineSource,
+      isDefineComponent: true,
+      ...isSchemaModule ? { isSchemaModule } : {},
+      mixinName: readDefineComponentName(defineSource) ?? mixinName,
+    }
+  }
   return { schemaSource, mixinName }
 }
 

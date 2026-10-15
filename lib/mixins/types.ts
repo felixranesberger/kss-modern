@@ -20,6 +20,8 @@ export interface MixinManifestEntry {
   line: number
   /** The mixin declares a usable schema (`defineComponent` or `mixinSchema`), so it gets a playground. */
   hasSchema: boolean
+  /** The schema lives in a `.schema.ts` file and needs the manifest's `schemaRegistry`. */
+  isSchemaModule?: boolean
   /** `.describe()` of the schema itself, shown under the mixin's name. */
   description?: string
   /** The schema as JSON Schema (`io: 'input'`), present when `hasSchema`. */
@@ -39,9 +41,18 @@ export interface MixinManifestEntry {
  */
 export interface MixinManifest {
   mixins: MixinManifestEntry[]
+  /**
+   * The registry module of the `.schema.ts` files, relative to the output directory. The
+   * playground imports it before rendering a mixin that names its component in `defineComponent`.
+   */
+  schemaRegistry?: string
 }
 
 export const MIXIN_MANIFEST_PATH = 'mixins/manifest.json'
+/** Where the playground's copy of the `.schema.ts` modules goes, relative to the output directory. */
+export const SCHEMA_OUTPUT_DIR = 'mixins/schemas'
+/** The global the playground puts its zod on before importing the `.schema.ts` registry. */
+export const ZOD_GLOBAL = '__kssModernZod'
 /** The mixin explorer: every mixin in one page, the selected one in the hash. */
 export const MIXIN_OVERVIEW_FILE = 'mixins.html'
 

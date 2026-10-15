@@ -85,6 +85,14 @@ describe('validateValues', () => {
     expect(validateValues(fields, { image: 'x' })).toEqual(new Map([['image', ['Must be an object']]]))
   })
 
+  it('files the problems of nested objects under their full path', () => {
+    const fields = fieldsOf({ status: z.strictObject({ url: z.string(), button: z.strictObject({ text: z.string().min(1), href: z.string() }) }) })
+    expect(validateValues(fields, { status: { url: '/s', button: { text: '' } } })).toEqual(new Map([
+      ['status.button.text', ['Must not be empty']],
+      ['status.button.href', ['Required']],
+    ]))
+  })
+
   it('agrees with zod on the starting values of a valid schema', () => {
     const shape = { label: z.string().meta({ examples: ['Save'] }), count: z.int().min(0).default(0), tags: z.array(z.string()).default([]) }
     const fields = fieldsOf(shape)

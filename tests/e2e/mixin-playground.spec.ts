@@ -12,7 +12,7 @@ test.describe('Mixin explorer', () => {
 
     // icon and legacy declare no schema, so they are not public
     const list = page.getByRole('navigation', { name: 'Mixins' })
-    await expect(list.locator('[data-explorer-item]')).toHaveText([/Button/, /Tag/, /Notice/, /Card/])
+    await expect(list.locator('[data-explorer-item]')).toHaveText([/Button/, /Tag/, /Notice/, /Card/, /Teaser/])
     await expect(list.locator('[data-explorer-item="button"]')).toHaveAttribute('aria-current', 'true')
     await expect(page.locator('[data-explorer-name]')).toHaveText('Button')
     await expect(page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] button')).toHaveText('Save')
@@ -228,6 +228,33 @@ test.describe('Mixin explorer', () => {
 
     await group.getByRole('checkbox', { name: 'Pass cta' }).uncheck()
     await expect(cta).toHaveCount(0)
+  })
+
+  test('plays a mixin whose schema lives in a .schema.ts file and shows the transformed output', async ({ page }) => {
+    await page.goto(`${EXPLORER}#mixin=teaser`)
+    const teaser = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] .teaser')
+    await expect(page.locator('[data-explorer-description]')).toHaveText('Teaser whose schema lives in a .schema.ts file')
+    await expect(teaser.locator('h3')).toHaveText('Teaser title')
+    await expect(teaser).not.toHaveClass(/teaser--highlight/)
+
+    await page.getByRole('combobox', { name: 'variant' }).selectOption({ label: 'highlight' })
+    await expect(teaser).toHaveClass(/teaser--highlight/)
+
+    await page.getByRole('tab', { name: 'Output' }).click()
+    const output = page.locator('[data-playground-output]')
+    await expect(output).toContainText('"isHighlighted": true')
+    await expect(output).toContainText('"hasCta": false')
+  })
+
+  test('edits an object nested in an object prop', async ({ page }) => {
+    await page.goto(`${EXPLORER}#mixin=teaser`)
+    const byline = page.frameLocator('#mixin-explorer-preview').locator('[data-kss-mixin-root] .teaser__byline')
+    await page.locator('[data-field="byline"]').getByRole('checkbox', { name: 'Pass byline' }).check()
+    await expect(page.locator('[data-field="byline.author.name"] .c-field__error')).toHaveText('Must not be empty')
+
+    await page.locator('[data-field="byline.author.name"]').getByRole('textbox').fill('Ada')
+    await expect(byline).toHaveText('Ada')
+    await expect(page.locator('[data-field="byline.author.name"] .c-field__error')).toBeHidden()
   })
 
   test('edits a record prop with a key-value editor', async ({ page }) => {

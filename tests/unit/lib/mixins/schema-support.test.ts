@@ -77,15 +77,17 @@ describe('checkSchemaSupport', () => {
     ])
   })
 
-  it('allows one level of object props', () => {
+  it('allows objects inside object props and checks their fields', () => {
     expect(check(z.object({
+      status: z.strictObject({
+        url: z.string(),
+        button: z.strictObject({ text: z.string(), href: z.string() }),
+      }),
       image: z.strictObject({
-        crop: z.strictObject({ x: z.number() }),
         alt: z.string().nullable(),
       }),
       loose: z.looseObject({ a: z.string() }),
     }))).toEqual([
-      'prop "image" field "crop" is an object inside an object prop, only one level of nesting is supported',
       'prop "image" field "alt" can be string or null; nullable props and unions of types are not supported (except as record values)',
       'prop "loose" allows unknown keys (z.looseObject or .catchall()), which is not supported',
     ])

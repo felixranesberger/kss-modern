@@ -13,6 +13,8 @@ export interface PugSectionJob {
   mode: Mode
   contentDir: `${string}/`
   html: string
+  /** The Node registry module of the `.schema.ts` files, when the content directory has any. */
+  schemaRegistry?: string
 }
 
 /** Precompile one mixin into its playground render module (see `lib/mixins`). */
@@ -79,7 +81,7 @@ parentPort.on('message', async (data: PugWorkerInput) => {
       return
     }
 
-    const { html: compiled, dependencies, mixinUsage } = await compileMarkup(data.contentDir, data.mode, data.html, id)
+    const { html: compiled, dependencies, mixinUsage } = await compileMarkup(data.contentDir, data.mode, data.html, id, data.schemaRegistry)
     parentPort!.postMessage({ id, html: compiled, dependencies, mixinUsage } satisfies PugWorkerOutput)
   }
   catch (error) {

@@ -310,14 +310,16 @@ export function createPropsPanel(options: PropsPanelOptions): PropsPanel {
     const general: string[] = []
 
     for (const issue of issues) {
-      // an issue about a field of an object prop shows at that field
-      const fieldPath = typeof issue.path[1] === 'string' ? `${issue.key}.${issue.path[1]}` : undefined
-      const target = fieldPath !== undefined && fieldElements.has(fieldPath) ? fieldPath : issue.key
+      // an issue shows at the deepest field of an object prop its path reaches
+      let depth = 1
+      while (typeof issue.path[depth] === 'string' && fieldElements.has([issue.key, ...issue.path.slice(1, depth + 1)].join('.')))
+        depth++
+      const target = [issue.key, ...issue.path.slice(1, depth)].join('.')
       if (!fieldElements.has(target)) {
         general.push(issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message)
         continue
       }
-      const rest = issue.path.slice(target === issue.key ? 1 : 2)
+      const rest = issue.path.slice(depth)
       const [index, entryKey] = rest
       const prefix = typeof index === 'number'
         ? `Entry ${index + 1}: ${entryKey === undefined ? '' : `${String(entryKey)}: `}`

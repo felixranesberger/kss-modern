@@ -61,6 +61,11 @@ describe('discoverMixins', () => {
     expect(mixin.schemaSource).toContain('defineComponent(')
   })
 
+  it('recognizes a defineComponent call that names a .schema.ts component', () => {
+    const [mixin] = discoverMixins(`mixin card(props)\n  - const p = defineComponent('molecules/Card', props)\n  article= p.title\n`, 'card.pug')
+    expect(mixin).toMatchObject({ isDefineComponent: true, isSchemaModule: true, mixinName: 'molecules/Card' })
+  })
+
   it('does not read a computed defineComponent name', () => {
     const source = 'mixin tag(props)\n  -\n    defineComponent({\n      name: prefix + \'/Tag\',\n      schema: z.object({}),\n    }, props)\n  span\n'
     expect(discoverMixins(source, 'tag.pug')[0]).toMatchObject({ isDefineComponent: true, mixinName: undefined })

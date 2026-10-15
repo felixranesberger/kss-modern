@@ -46,6 +46,45 @@ In the playground those errors appear next to the matching control. In a section
 
 The build evaluates the `defineComponent` block on its own to build the form. It runs the block with a `defineComponent` that only records the definition and returns an empty object, and without any props. The block may therefore only use `z`. It must not read `props` beyond passing them, or any other template variable. Keep computations on the parsed props in a code block after it. When the block throws, does not call `defineComponent` with a zod `schema`, or uses a feature outside the supported set below, a production build fails. In development the build logs a warning and the explorer shows the error in place of the playground.
 
+### The schema in a `.schema.ts` file
+
+A large schema, one that shares fragments with other components, or one that derives values for the template can move into a TypeScript file next to the mixin. The mixin then passes only the component's name:
+
+```pug
+mixin organismIntro(props)
+  - const p = defineComponent('organisms/Intro', props)
+
+  section.intro(class=p.isLarge && 'intro--large')
+    h1!= p.title
+```
+
+```ts
+// intro.schema.ts, next to intro.pug
+import { z } from 'zod'
+import { link } from '../fields'
+
+const input = z.strictObject({
+  title: z.string().min(1),
+  variant: z.enum(['default', 'large']).default('default'),
+  cta: link.optional(),
+}).describe('Head of a page')
+
+export const intro = {
+  name: 'organisms/Intro',
+  schema: input.transform(p => ({ ...p, isLarge: p.variant === 'large' })),
+  examples: { title: 'Mandate and mission' },
+}
+```
+
+Every export that is an object with a string `name` and a zod `schema` is a component. The name in `defineComponent('…', props)` picks it, and two exports with the same name fail. `examples` sets the starting value of the props it names, like `.meta({ examples })`. The controls come from the schema's input side. A `.transform()` (or `.transform().pipe(outputSchema)`) turns the props into what the template receives, so derived values like `isLarge` are computed once and the template only reads them. The **Output** tab of the explorer shows that object for the current props. When the integration computes those values before it calls the template, the transform is their specification.
+
+Rules for these files:
+
+- They may import `zod` (as `import { z } from 'zod'`) and relative files inside the content directory, nothing else. Type-only imports are fine, they disappear.
+- Only TypeScript that erases to JavaScript: types, interfaces, `satisfies`, `as`. No `enum`, no `namespace`, no parameter properties.
+- kss-modern strips the types with the runtime's `module.stripTypeScriptTypes`, which needs Node 22.13 or newer, or Deno. The stripped copies go to `node_modules/.cache/kss-modern/schemas/` for the build and to `mixins/schemas/` in the output for the playground, each under a hash of all sources.
+- Editing a `.schema.ts` file or a file it imports rebuilds the mixins and the sections that use them.
+
 ### The older form: `mixinSchema` and `mixinName`
 
 Mixins written before `defineComponent` declare the schema as a `mixinSchema` variable and the explorer name as a `mixinName` variable. This form still works and is treated exactly like `defineComponent`:
@@ -73,11 +112,11 @@ The playground creates a control for every prop and checks the schema's constrai
 | `z.array()` of any of the above, with `.min()`, `.max()`, `.length()` | list editor (add, remove, reorder) | number of entries, every entry |
 | `z.array(z.strictObject({ … }))` whose fields are any of the scalars above | list editor with one group of fields per entry | number of entries, every field of every entry |
 | `z.record(z.string(), …)` with scalar values or a union of `z.string()`, `z.number()`, `z.boolean()`; keys may use `.regex()`, `.min()`, `.max()` | key-value editor; with several value types a select picks `true`, `false` or a typed value | every key, every value |
-| `z.strictObject({ … })` as a prop, whose fields are any of the above | group of fields under the prop's label; an optional object gets a **Pass** switch | every field |
+| `z.strictObject({ … })` as a prop, whose fields are any of the above, objects included | group of fields under the prop's label, nested groups for nested objects; an optional object gets a **Pass** switch | every field |
 | `.optional()`, `.default()` | an empty control leaves the prop out: empty text or number field, or the empty choice **—** of a select (an optional boolean becomes a select with **—**, true, false) | |
 | `.describe()`, `.meta({ examples })` | help text, starting value | |
 
-Not supported are objects inside an object prop, records of objects or lists, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
+Not supported are records of objects or lists, nullable props, unions of different types, arrays of arrays, lists or objects inside a list entry, dates and other types JSON Schema cannot describe, and loose objects.
 
 A list of entries, like the questions of an FAQ or the links of a footer column, is an array of flat objects. A fresh entry starts with the default of every field that has one and an empty value for every other required field. The Pug call leaves out entry fields equal to their default:
 
@@ -91,7 +130,7 @@ schema: z.object({
 }),
 ```
 
-Props that only make sense together, like the parts of an image or a call to action, can be an object prop. The object takes one level of nesting: its fields may be scalars, lists and records, but no further objects. An optional object starts switched off. Switched on, it starts with the default or first example of every field and an empty value for every other required field. The props of an optional object are all-or-nothing, so a refine like "text and href go together" becomes unnecessary. Issues of a field show at that field, and the Pug call leaves out fields equal to their default:
+Props that only make sense together, like the parts of an image or a call to action, can be an object prop. So can the props of a child component, taken over from its schema. An object's fields may be anything a prop may be, further objects included. An optional object starts switched off. Switched on, it starts with the default or first example of every field and an empty value for every other required field. The props of an optional object are all-or-nothing, so a refine like "text and href go together" becomes unnecessary. Issues of a field show at that field, and the Pug call leaves out fields equal to their default:
 
 ```js
 schema: z.object({
@@ -103,7 +142,7 @@ schema: z.object({
 }),
 ```
 
-In Fluid an object prop becomes flat arguments: the prop name plus the field name with a capital first letter. `cta.text` and `cta.href` become `ctaText` and `ctaHref`. That is why objects stop at one level, a second one would end in names like `cardImageHref`, which usually means the component needs a child component. Name the main field of an object the same way everywhere, e.g. `src` for an image and `text` for a button or link, so the rule needs no exceptions. List entries stay flat, an entry already is an array in Fluid.
+Name the main field of an object the same way everywhere, e.g. `src` for an image and `text` for a button or link. List entries stay flat: the fields of an entry in `z.array(z.strictObject({ … }))` are scalars.
 
 `.refine()`, `.superRefine()` and `.transform()` are allowed. JSON Schema cannot express them, so the form does not check them while you type. `defineComponent` still runs them on every render, and their errors appear next to the control as well.
 

@@ -1,12 +1,14 @@
 import type { Biome } from '@biomejs/js-api'
 import type { StyleguideConfiguration } from '../index'
+import type { LoadedSchemaRegistry } from '../mixins/schema-registry.ts'
 import type { MixinUsageNode } from './mixin-trace.ts'
 import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import pug from 'pug'
 import { logger } from '../logger.ts'
-import { defineComponent } from '../mixins/define-component.ts'
+import { createDefineComponent } from '../mixins/define-component.ts'
+import { loadSchemaRegistry } from '../mixins/schema-registry.ts'
 import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
 import { createUseId } from '../use-id.ts'
 import { requireZod } from '../zod.ts'
@@ -111,6 +113,7 @@ function compilePugFile(
   mode: Mode,
   sectionId: string,
   extraLocals: Record<string, unknown> = {},
+  schemaRegistry?: LoadedSchemaRegistry,
 ): CompileResult {
   const source = readFileSync(pugFilePath, 'utf8')
   const pugFn = pug.compile(source, {
@@ -134,6 +137,14 @@ function compilePugFile(
   // section's modifier with `.c-tabs(class=modifierClass)` instead of writing the literal token; the
   // placeholder survives compilation and is swapped per modifier at runtime (see ModifierReplacer).
   // `extraLocals` wins, so `<insert-vite-pug modifierClass="…">` still bakes its fixed class instead.
+  // a component resolved from a `.schema.ts` file makes its sources dependencies of the section
+  let isRegistryUsed = false
+  const defineComponent = createDefineComponent({
+    registry: schemaRegistry?.components,
+    onResolve: () => {
+      isRegistryUsed = true
+    },
+  })
   const locals: Record<string, unknown> = { modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId), defineComponent }
   // `z` is zod (when installed), so markup can call mixins that declare their schema with
   // `defineComponent` or `mixinSchema`, see lib/mixins. A getter, so zod only loads for a template
@@ -142,6 +153,8 @@ function compilePugFile(
   const trace = createMixinTrace()
   locals[MIXIN_TRACE_LOCAL] = trace
   const html = pugFn(locals)
+  if (isRegistryUsed)
+    dependencies.push(...schemaRegistry!.sources)
 
   return { html, dependencies, mixinUsage: trace.read() }
 }
@@ -156,6 +169,7 @@ async function expandVitePugTags(
   mode: Mode,
   html: string,
   sectionId: string,
+  schemaRegistry?: LoadedSchemaRegistry,
 ): Promise<CompileResult> {
   const vitePugTags = html.match(INSERT_VITE_PUG_TAG_RE)
   if (!vitePugTags) {
@@ -183,7 +197,7 @@ async function expandVitePugTags(
       : {}
 
     const pugFilePath = path.join(contentDir, pugSourcePath)
-    const { html: pugOutput, dependencies: pugDependencies, mixinUsage: pugMixinUsage } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
+    const { html: pugOutput, dependencies: pugDependencies, mixinUsage: pugMixinUsage } = compilePugFile(pugFilePath, mode, sectionId, pugLocals, schemaRegistry)
     dependencies.push(...pugDependencies)
     mixinUsage.push(...pugMixinUsage)
     markupOutput = markupOutput.replaceAll(vitePugTag, pugOutput)
@@ -207,7 +221,10 @@ export async function compileMarkup(
   mode: Mode,
   html: string,
   sectionId: string,
+  /** The Node registry module of the `.schema.ts` files, see `lib/mixins/schema-registry.ts`. */
+  schemaRegistryFile?: string,
 ): Promise<CompileResult> {
+  const schemaRegistry = schemaRegistryFile ? await loadSchemaRegistry(schemaRegistryFile) : undefined
   let result = html
   const dependencies: string[] = []
   const mixinUsage: MixinUsageNode[] = []
@@ -222,13 +239,13 @@ export async function compileMarkup(
   }
   else if (isBarePath && trimmed.endsWith('.pug')) {
     const pugFilePath = path.join(contentDir, trimmed)
-    const compiled = compilePugFile(pugFilePath, mode, sectionId)
+    const compiled = compilePugFile(pugFilePath, mode, sectionId, {}, schemaRegistry)
     result = compiled.html
     dependencies.push(...compiled.dependencies)
     mixinUsage.push(...compiled.mixinUsage)
   }
 
-  const expanded = await expandVitePugTags(contentDir, mode, result, sectionId)
+  const expanded = await expandVitePugTags(contentDir, mode, result, sectionId, schemaRegistry)
   result = expanded.html
   dependencies.push(...expanded.dependencies)
   mixinUsage.push(...expanded.mixinUsage)

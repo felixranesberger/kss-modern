@@ -17,8 +17,8 @@
  * - `z.record()` with string keys (optionally `.regex()`) and scalar values, also a union of
  *   `z.string()`, `z.number()` and `z.boolean()`, for maps like additional HTML attributes
  * - `z.strictObject()` / `z.object()` as a prop, for a group of props that belong together like an
- *   image or a call to action. Its fields may be anything a prop may be except another object: one
- *   level of nesting.
+ *   image or a call to action, or the props of a child component. Its fields may be anything a prop
+ *   may be, including further objects.
  * - `.optional()`, `.default()`, `.describe()`, `.meta({ examples })`
  *
  * Checks JSON Schema cannot express (`.refine()`, `.transform()`) pass through: the mixin's own
@@ -139,8 +139,6 @@ function checkValue(schema: JsonSchema, position: ValuePosition): string[] {
         return ['is an object, the fields of a list entry must be scalars']
       if (isRecord(schema))
         return checkRecord(schema)
-      if (position === 'group-field')
-        return ['is an object inside an object prop, only one level of nesting is supported']
       return checkObjectFields(schema, 'group-field')
     default:
       return ['has a type the playground cannot edit (e.g. z.any() or z.unknown())']

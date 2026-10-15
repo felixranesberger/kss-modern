@@ -70,6 +70,7 @@ export default async (explorer: HTMLElement) => {
   const noControls = queryRequired<HTMLElement>('[data-explorer-no-controls]', explorer)
   const codeElement = queryRequired<HTMLElement>('[data-playground-code]', explorer)
   const pugCallElement = queryRequired<HTMLElement>('[data-playground-pug-call]', explorer)
+  const outputElement = queryRequired<HTMLElement>('[data-playground-output]', explorer)
   const schemaOnly = explorer.querySelectorAll<HTMLElement>('[data-explorer-requires-schema]')
   const copyButtons = explorer.querySelectorAll<HTMLButtonElement>('[data-playground-copy]')
 
@@ -155,6 +156,7 @@ export default async (explorer: HTMLElement) => {
     panelHost.hidden = !entry.hasSchema
     noControls.classList.toggle('hidden', entry.hasSchema)
     pugCallElement.textContent = entry.hasSchema ? '' : getSignature(entry)
+    outputElement.textContent = ''
 
     if (!entry.hasSchema) {
       noSchemaSignature.textContent = getSignature(entry)
@@ -174,10 +176,11 @@ export default async (explorer: HTMLElement) => {
       { id: entry.id, name: entry.name, manifestUrl: config.manifestUrl, isDevelopment: config.isDevelopment, shouldReload: config.shouldReload },
       {
         panelHost,
-        onRender: (html, props) => {
+        onRender: (html, props, output) => {
           if (current !== selection)
             return
           updateCode(html)
+          outputElement.textContent = JSON.stringify(output, null, 2) ?? ''
           pugCallElement.textContent = playground?.getPugCall() ?? ''
           if (config.shouldReload) {
             const reloadSrc = getPreviewUrl(entry, props)

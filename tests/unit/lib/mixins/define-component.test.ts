@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import { ComponentPropsError, defineComponent, formatComponentPropsError, formatIssuePath } from '../../../../lib/mixins/define-component.ts'
+import { collectComponentDefinitions, ComponentPropsError, createDefineComponent, defineComponent, formatComponentPropsError, formatIssuePath } from '../../../../lib/mixins/define-component.ts'
 
 const definition = {
   name: 'atoms/Button',
@@ -46,6 +46,31 @@ describe('defineComponent', () => {
   it('rejects a definition without a zod schema', () => {
     expect(() => defineComponent.call({ mixin: 'atomButton' }, { name: 'atoms/Button' } as never, {}))
       .toThrow(new TypeError('atoms/Button (+atomButton): `schema` must be a zod schema'))
+  })
+})
+
+describe('createDefineComponent', () => {
+  const card = { name: 'molecules/Card', schema: z.strictObject({ title: z.string() }).transform(p => ({ ...p, hasTitle: p.title !== '' })) }
+  const registry = collectComponentDefinitions([['card.schema.ts', { card, other: 'not a component' }]])
+
+  it('resolves a component name through the registry and returns the transformed props', () => {
+    const resolved: string[] = []
+    const parsed: unknown[] = []
+    const define = createDefineComponent({ registry, onResolve: name => resolved.push(name), onParse: data => parsed.push(data) })
+    expect(define('molecules/Card', { title: 'Hi' })).toEqual({ title: 'Hi', hasTitle: true })
+    expect(resolved).toEqual(['molecules/Card'])
+    expect(parsed).toEqual([{ title: 'Hi', hasTitle: true }])
+  })
+
+  it('names the component a registry does not define', () => {
+    expect(() => createDefineComponent({ registry }).call({ mixin: 'teaser' }, 'molecules/Teaser', {}))
+      .toThrow(new TypeError('molecules/Teaser (+teaser): no .schema.ts file defines the component "molecules/Teaser"'))
+    expect(() => defineComponent('molecules/Card', {})).toThrow('no .schema.ts file defines')
+  })
+
+  it('refuses two files defining the same component', () => {
+    expect(() => collectComponentDefinitions([['a.schema.ts', { card }], ['b.schema.ts', { card: { ...card } }]]))
+      .toThrow('The component "molecules/Card" is defined in a.schema.ts and in b.schema.ts')
   })
 })
 
