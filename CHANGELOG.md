@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.6](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.5...v1.7.0-beta.6) (2026-10-15)
+
+### Features
+
+* allow object props one level deep. A prop may be a `z.strictObject({ … })` whose fields are anything a prop may be except another object, for props that belong together like an image or a call to action. The playground shows its fields as a group, an optional object behind a **Pass** switch, and issues of a field at that field. In Fluid an object becomes flat arguments, `cta.text` becomes `ctaText` ([a9c05ef](https://github.com/felixranesberger/kss-modern/commit/a9c05ef))
+
 ## [1.7.0-beta.5](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.4...v1.7.0-beta.5) (2026-10-13)
 
 ### Features
