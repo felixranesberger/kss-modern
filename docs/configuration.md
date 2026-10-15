@@ -46,6 +46,7 @@ await buildStyleguide({
 | `reloadPreviewsOnThemeChange` | `boolean` | `false` | Reload a preview when its theme changes instead of swapping classes in place. |
 | `reloadPlaygroundOnChange` | `boolean` | `false` | Reload the [mixin playground](mixin-playground.md) preview on every props change instead of swapping its markup in place. |
 | `cacheDir` | `string \| false` | `node_modules/.cache/kss-modern` | Where the persistent build cache lives. `false` keeps it in memory only. |
+| `mixinJsonSchemaDir` | `string` | none | Writes the JSON Schema of every [mixin](mixin-playground.md#json-schema-files) with a schema into this directory. |
 | `deactivateDarkMode` | `boolean` | `false` | Hides the System/Light/Dark toggle and skips the dark pass of the contrast audit. |
 | `allowSearchEngineIndexing` | `boolean` | `false` | Lets search engines index the styleguide. |
 | `launchInEditor` | `boolean \| { rootDir: string }` | none | Adds "Open in editor" links in development mode. |

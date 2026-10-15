@@ -86,6 +86,28 @@ describe('mixin pipeline', () => {
     expect(await fs.readFile(path.join(tmpOut, byId(manifest, 'button').module!), 'utf-8')).toContain('export { render }')
   })
 
+  it('writes no JSON Schema files without mixinJsonSchemaDir', async () => {
+    await createMixinPipeline(createConfig()).build()
+    expect(await fs.pathExists(path.join(tmpRoot, 'schemas'))).toBe(false)
+  })
+
+  it('writes a JSON Schema file per mixin into mixinJsonSchemaDir and removes them with the mixin', async () => {
+    const schemaDir = path.join(tmpRoot, 'schemas')
+    const pipeline = createMixinPipeline(createConfig({ mixinJsonSchemaDir: schemaDir }))
+    const { manifest } = await pipeline.build()
+
+    expect(JSON.parse(await fs.readFile(path.join(schemaDir, 'atoms/Button.json'), 'utf-8'))).toEqual(byId(manifest, 'button').jsonSchema)
+    expect(await fs.pathExists(path.join(schemaDir, 'badge.json'))).toBe(true)
+    // a broken schema gets no file
+    expect(await fs.pathExists(path.join(schemaDir, 'broken.json'))).toBe(false)
+
+    const badgeFile = path.join(tmpContent, 'pug/_badge.pug')
+    await fs.remove(badgeFile)
+    await pipeline.build([badgeFile])
+    expect(await fs.pathExists(path.join(schemaDir, 'badge.json'))).toBe(false)
+    expect(await fs.pathExists(path.join(schemaDir, 'atoms/Button.json'))).toBe(true)
+  })
+
   it('compiles nothing on a second build without changes', async () => {
     const pipeline = createMixinPipeline(createConfig())
     expect((await pipeline.build()).stats).toMatchObject({ compiled: 2, cached: 0 })

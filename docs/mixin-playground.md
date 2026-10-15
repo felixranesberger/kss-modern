@@ -142,6 +142,18 @@ schema: z.object({
 }),
 ```
 
+### JSON Schema files
+
+Set [`mixinJsonSchemaDir`](configuration.md#optional-options) to get the schema of every mixin as a JSON Schema file, for example to check props in a backend. Without the option no files are written.
+
+```js
+mixinJsonSchemaDir: 'build/mixin-schemas',
+```
+
+Each mixin gets one file in the folders of its `name`. `name: 'atoms/Button'` becomes `build/mixin-schemas/atoms/Button.json`, a mixin without `name` is written as `<pug name>.json` at the top level. The content is the same JSON Schema the playground uses (`io: 'input'`, so props with a default are optional). A mixin with a broken schema gets no file. The path is relative to the working directory.
+
+When a mixin goes away during a build or watch run, its file is removed. Other files in the directory stay untouched, and so do files from mixins removed before the process started.
+
 ## Mixin explorer
 
 The **Mixins** entry in the sidebar, which appears once at least one mixin is found, opens the explorer at `mixins.html`. It works like Storybook:

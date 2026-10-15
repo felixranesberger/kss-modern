@@ -17,6 +17,7 @@ import { logicalWriteFile } from '../utils.ts'
 import { getZodVersion } from '../zod.ts'
 import { getMixinWrapperSource, MIXIN_COMPILE_OPTIONS } from './compile.ts'
 import { discoverMixins } from './discovery.ts'
+import { writeJsonSchemaFiles } from './json-schema-export.ts'
 import { getMixinPath, MIXIN_MANIFEST_PATH } from './types.ts'
 
 export * from './types.ts'
@@ -199,6 +200,8 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
   let pugFiles: Set<string> | undefined
   /** Module key -> the module last written for it; serves the last good build after a failed compile. */
   const lastGoodModules = new Map<string, string>()
+  /** JSON Schema files written for `mixinJsonSchemaDir`, removed again once their mixin is gone. */
+  let jsonSchemaFiles = new Map<string, string>()
 
   const build = async (changedFiles?: string[]): Promise<MixinBuildResult> => {
     const startedAt = performance.now()
@@ -459,6 +462,8 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     // mixins without a schema are internal: they stay out of the manifest and the styleguide
     const manifest: MixinManifest = { mixins: entries.filter(entry => entry.hasSchema || entry.schemaError !== undefined) }
     await writeOutput(config.outDir, manifest, modules)
+    if (config.mixinJsonSchemaDir)
+      jsonSchemaFiles = await writeJsonSchemaFiles(config.mixinJsonSchemaDir, manifest, jsonSchemaFiles)
     if (isCacheDirty)
       await writeCache(cacheFilePath, data)
 

@@ -106,6 +106,12 @@ interface StyleguideOptions {
    */
   cacheDir?: string | false
   /**
+   * Write the JSON Schema of every mixin declared with `defineComponent` or `mixinSchema` into this
+   * directory, one file per mixin in the folders of its explorer name: `name: 'atoms/Button'` ->
+   * `<dir>/atoms/Button.json`. Relative to the working directory. Off unless set.
+   */
+  mixinJsonSchemaDir?: string
+  /**
    * Let search engines index the generated styleguide.
    *
    * Off by default: a styleguide is internal documentation, and its output directory is usually
