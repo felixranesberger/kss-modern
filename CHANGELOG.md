@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.9](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.8...v1.7.0-beta.9) (2026-10-16)
+
+### Features
+
+* add a typed `defineComponent` for `.schema.ts` files. `export const button = defineComponent({ name: 'atoms/Button', schema, examples })` from `kss-modern/schema` returns the object unchanged, TypeScript checks `examples` against the props the schema takes and keeps `name` as a literal type. The registry gives the modules a shim of the function, so neither the build nor the playground has to resolve the package. Plain objects keep working. The package now has an exports map with `.` and `./schema` ([747b0aa](https://github.com/felixranesberger/kss-modern/commit/747b0aa))
+
 ## [1.7.0-beta.8](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.7...v1.7.0-beta.8) (2026-10-15)
 
 ### Features
