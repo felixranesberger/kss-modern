@@ -60,6 +60,7 @@ mixin organismIntro(props)
 
 ```ts
 // intro.schema.ts, next to intro.pug
+import { defineComponent } from 'kss-modern/schema'
 import { z } from 'zod'
 import { link } from '../fields'
 
@@ -69,18 +70,18 @@ const input = z.strictObject({
   cta: link.optional(),
 }).describe('Head of a page')
 
-export const intro = {
+export const intro = defineComponent({
   name: 'organisms/Intro',
   schema: input.transform(p => ({ ...p, isLarge: p.variant === 'large' })),
   examples: { title: 'Mandate and mission' },
-}
+})
 ```
 
-Every export that is an object with a string `name` and a zod `schema` is a component. The name in `defineComponent('…', props)` picks it, and two exports with the same name fail. `examples` sets the starting value of the props it names, like `.meta({ examples })`. The controls come from the schema's input side. A `.transform()` (or `.transform().pipe(outputSchema)`) turns the props into what the template receives, so derived values like `isLarge` are computed once and the template only reads them. The **Output** tab of the explorer shows that object for the current props. When the integration computes those values before it calls the template, the transform is their specification.
+`defineComponent` from `kss-modern/schema` returns the object unchanged and adds the types: TypeScript checks `examples` against the props the schema takes, so a typo in a prop name or a value outside an enum fails in the editor. A plain object works as well. Every export that is an object with a string `name` and a zod `schema` is a component. The name in `defineComponent('…', props)` picks it, and two exports with the same name fail. `examples` sets the starting value of the props it names, like `.meta({ examples })`. The controls come from the schema's input side. A `.transform()` (or `.transform().pipe(outputSchema)`) turns the props into what the template receives, so derived values like `isLarge` are computed once and the template only reads them. The **Output** tab of the explorer shows that object for the current props. When the integration computes those values before it calls the template, the transform is their specification.
 
 Rules for these files:
 
-- They may import `zod` (as `import { z } from 'zod'`) and relative files inside the content directory, nothing else. Type-only imports are fine, they disappear.
+- They may import `zod` (as `import { z } from 'zod'`), `defineComponent` from `kss-modern/schema` and relative files inside the content directory, nothing else. Type-only imports are fine, they disappear.
 - Only TypeScript that erases to JavaScript: types, interfaces, `satisfies`, `as`. No `enum`, no `namespace`, no parameter properties.
 - kss-modern strips the types with the runtime's `module.stripTypeScriptTypes`, which needs Node 22.13 or newer, or Deno. The stripped copies go to `node_modules/.cache/kss-modern/schemas/` for the build and to `mixins/schemas/` in the output for the playground, each under a hash of all sources.
 - Editing a `.schema.ts` file or a file it imports rebuilds the mixins and the sections that use them.

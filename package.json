@@ -27,6 +27,17 @@
   "bugs": "https://github.com/felixranesberger/kss-modern/issues",
   "main": "./dist/node/lib/index.mjs",
   "types": "./dist/node/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/node/lib/index.d.ts",
+      "import": "./dist/node/lib/index.mjs"
+    },
+    "./schema": {
+      "types": "./dist/node/lib/component-schema.d.ts",
+      "import": "./dist/node/lib/component-schema.mjs"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist"
   ],

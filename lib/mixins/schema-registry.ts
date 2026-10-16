@@ -24,6 +24,8 @@ export const SCHEMA_FILE_SUFFIX = '.schema.ts'
 
 const REGISTRY_FILE = 'registry.js'
 const ZOD_SHIM_FILE = '__zod.js'
+const COMPONENT_SCHEMA_SPECIFIER = 'kss-modern/schema'
+const COMPONENT_SCHEMA_SHIM_FILE = '__kss-modern-schema.js'
 /**
  * Inside `node_modules`, so a bare `zod` import resolves from the project. Node refuses to strip
  * types under `node_modules`, which is why the copies are plain JavaScript.
@@ -37,7 +39,7 @@ const NODE_CACHE_DIR = 'node_modules/.cache/kss-modern/schemas'
 const IMPORT_RE = /^[\t ]*(import|export)\b([^'";]*)(['"])([^'"\n]+)\3/gm
 const FROM_RE = /(?:^|\s)from\s*$/
 const TYPE_ONLY_RE = /^\s+type\s/
-const ALLOWED_BARE_IMPORTS = new Set(['zod'])
+const ALLOWED_BARE_IMPORTS = new Set(['zod', COMPONENT_SCHEMA_SPECIFIER])
 
 export interface SchemaRegistryBuild {
   hash: string
@@ -63,7 +65,7 @@ interface SourceFile {
   file: string
   /** Path relative to the content directory, `/`-separated, with a `.js` extension. */
   output: string
-  /** The type-stripped source with rewritten relative imports, `zod` still bare. */
+  /** The type-stripped source with rewritten relative imports and `kss-modern/schema` pointing at its shim, `zod` still bare. */
   code: string
 }
 
@@ -134,7 +136,7 @@ async function collectSources(contentDir: string, entries: string[]): Promise<So
         continue
       if (!specifier.startsWith('.')) {
         if (!ALLOWED_BARE_IMPORTS.has(specifier))
-          throw new Error(`${file}: only zod and relative files can be imported in a .schema.ts file, not "${specifier}"`)
+          throw new Error(`${file}: only zod, ${COMPONENT_SCHEMA_SPECIFIER} and relative files can be imported in a .schema.ts file, not "${specifier}"`)
         continue
       }
       const target = await resolveImport(file, specifier)
@@ -145,6 +147,7 @@ async function collectSources(contentDir: string, entries: string[]): Promise<So
       replacements.push([specifier, relative])
     }
 
+    replacements.push([COMPONENT_SCHEMA_SPECIFIER, relativeShim(placeholder.output, COMPONENT_SCHEMA_SHIM_FILE)])
     placeholder.code = replacements.reduce(
       (code, [specifier, replacement]) => code.replaceAll(`'${specifier}'`, `'${replacement}'`).replaceAll(`"${specifier}"`, `"${replacement}"`),
       stripped,
@@ -163,12 +166,15 @@ function getRegistrySource(contentDir: string, entries: string[], sources: strin
   return `${imports.join('\n')}\n\nexport const modules = [\n${modules.join('\n')}\n]\n\nexport const sources = ${JSON.stringify(sources)}\n`
 }
 
+/** The import specifier of a shim in the root of the hash directory, relative to the module at `output`. */
+function relativeShim(output: string, shimFile: string): string {
+  const shim = path.posix.relative(path.posix.dirname(output), shimFile)
+  return shim.startsWith('.') ? shim : `./${shim}`
+}
+
 /** Point the bare `zod` imports at the playground's shim, relative to each file. */
 function toBrowserCode(output: string, code: string): string {
-  let shim = path.posix.relative(path.posix.dirname(output), ZOD_SHIM_FILE)
-  if (!shim.startsWith('.'))
-    shim = `./${shim}`
-  return code.replace(/(from\s+|import\s+)(['"])zod\2/g, `$1$2${shim}$2`)
+  return code.replace(/(from\s+|import\s+)(['"])zod\2/g, `$1$2${relativeShim(output, ZOD_SHIM_FILE)}$2`)
 }
 
 const ZOD_SHIM_SOURCE = `const z = globalThis.${ZOD_GLOBAL}
@@ -176,6 +182,15 @@ if (!z)
   throw new Error('kss-modern: the playground did not provide zod to the .schema.ts modules')
 export { z }
 export default z
+`
+
+/**
+ * `defineComponent` of `kss-modern/schema` (lib/component-schema.ts). Its own file next to the
+ * modules, so neither the build nor the playground has to resolve the package.
+ */
+const COMPONENT_SCHEMA_SHIM_SOURCE = `export function defineComponent(definition) {
+  return definition
+}
 `
 
 async function writeIfMissing(file: string, code: string): Promise<void> {
@@ -216,6 +231,7 @@ async function buildRegistry(contentDir: string, entries: string[]): Promise<Sch
   await Promise.all([
     ...sources.map(source => writeIfMissing(path.join(nodeDirectory, source.output), source.code)),
     writeIfMissing(path.join(nodeDirectory, REGISTRY_FILE), registrySource),
+    writeIfMissing(path.join(nodeDirectory, COMPONENT_SCHEMA_SHIM_FILE), COMPONENT_SCHEMA_SHIM_SOURCE),
   ])
   await pruneHashDirectories(nodeRoot, hash)
 
@@ -223,6 +239,7 @@ async function buildRegistry(contentDir: string, entries: string[]): Promise<Sch
   for (const source of sources)
     browserFiles.set(`${SCHEMA_OUTPUT_DIR}/${hash}/${source.output}`, toBrowserCode(source.output, source.code))
   browserFiles.set(`${SCHEMA_OUTPUT_DIR}/${hash}/${ZOD_SHIM_FILE}`, ZOD_SHIM_SOURCE)
+  browserFiles.set(`${SCHEMA_OUTPUT_DIR}/${hash}/${COMPONENT_SCHEMA_SHIM_FILE}`, COMPONENT_SCHEMA_SHIM_SOURCE)
   // the playground does not need the absolute source paths
   browserFiles.set(`${SCHEMA_OUTPUT_DIR}/${hash}/${REGISTRY_FILE}`, getRegistrySource(contentDir, entries, []))
 

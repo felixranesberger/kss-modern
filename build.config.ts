@@ -74,7 +74,7 @@ const previewInlineContent = `<script>
 
 export default defineBuildConfig({
   outDir: 'dist/node',
-  entries: ['./lib/index', './lib/pug/worker'],
+  entries: ['./lib/index', './lib/pug/worker', './lib/component-schema'],
   declaration: true,
   failOnWarn: false,
   externals: ['@antfu/utils', ...shikiExternalPackages],

@@ -21,7 +21,7 @@ export const link = z.strictObject({
   href: z.string().min(1),
 })
 `,
-  'molecules/card.schema.ts': `import type { ComponentDefinition } from 'kss-modern'
+  'molecules/card.schema.ts': `import { defineComponent } from 'kss-modern/schema'
 import { z } from 'zod'
 import { link } from '../shared/fields'
 
@@ -33,11 +33,11 @@ const input = z.strictObject({
 
 type Input = z.output<typeof input>
 
-export const card = {
+export const card = defineComponent({
   name: 'molecules/Card',
   schema: input.transform((p: Input) => ({ ...p, isHighlighted: p.variant === 'highlight', hasCta: p.cta !== undefined })),
   examples: { title: 'Card title', cta: { text: 'More', href: '#' } },
-} satisfies ComponentDefinition
+})
 `,
   'molecules/card.pug': `mixin card(props)
   - const p = defineComponent('molecules/Card', props)
@@ -102,16 +102,24 @@ describe('.schema.ts modules', () => {
     })
   })
 
-  it('writes the modules for the playground, with zod taken from a shim', async () => {
+  it('writes the modules for the playground, with zod and kss-modern/schema taken from shims', async () => {
     const { manifest } = await createMixinPipeline(createConfig()).build()
     expect(manifest.schemaRegistry).toMatch(/^mixins\/schemas\/[\da-f]{16}\/registry\.js$/)
 
     const directory = path.join(tmpOut, path.dirname(manifest.schemaRegistry!))
     const card = await fs.readFile(path.join(directory, 'molecules/card.schema.js'), 'utf-8')
     expect(card).toContain(`from '../__zod.js'`)
+    expect(card).toContain(`from '../__kss-modern-schema.js'`)
     expect(card).toContain(`from '../shared/fields.js'`)
-    expect(card).not.toContain('satisfies')
+    expect(card).not.toContain('Input')
     expect(await fs.pathExists(path.join(directory, '__zod.js'))).toBe(true)
+    expect(await fs.pathExists(path.join(directory, '__kss-modern-schema.js'))).toBe(true)
+  })
+
+  it('still reads a component exported as a plain object', async () => {
+    await writeFile('molecules/card.schema.ts', `import { z } from 'zod'\n\nexport const card = { name: 'molecules/Card', schema: z.strictObject({ title: z.string() }), examples: { title: 'Plain' } }\n`)
+    const { manifest } = await createMixinPipeline(createConfig()).build()
+    expect(getCard(manifest).jsonSchema?.properties).toMatchObject({ title: { examples: ['Plain'] } })
   })
 
   it('renders a section with the transformed props and depends on the schema sources', async () => {
@@ -146,7 +154,7 @@ describe('.schema.ts modules', () => {
   it('reports an import the playground cannot resolve', async () => {
     await writeFile('molecules/card.schema.ts', `import { z } from 'zod'\nimport { merge } from 'lodash'\n\nexport const card = { name: 'molecules/Card', schema: z.strictObject({}) }\n`)
     const { manifest } = await createMixinPipeline(createConfig()).build()
-    expect(getCard(manifest)).toMatchObject({ hasSchema: false, schemaError: expect.stringContaining('only zod and relative files') })
+    expect(getCard(manifest)).toMatchObject({ hasSchema: false, schemaError: expect.stringContaining('only zod, kss-modern/schema and relative files') })
   })
 
   it('reports a component name no .schema.ts file exports', async () => {
