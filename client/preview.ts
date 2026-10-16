@@ -164,6 +164,14 @@ if (sectionThemeSelects.length > 0) {
     .catch(console.error)
 }
 
+// the mixin explorer pulls in zod, so it loads only on the mixins page
+const mixinExplorer = document.querySelector<HTMLElement>('[data-mixin-explorer]')
+if (mixinExplorer) {
+  import('./lib/playground/explorer.ts')
+    .then(({ default: init }) => init(mixinExplorer))
+    .catch(console.error)
+}
+
 const editorSelectForm = document.querySelector<HTMLFormElement>('.editor-select')
 if (editorSelectForm) {
   import('./lib/editor-select.ts')

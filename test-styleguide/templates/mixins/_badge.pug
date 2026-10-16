@@ -1,0 +1,17 @@
+//- Badge with a mixinSchema covering text, enum, number and list controls.
+mixin badge(props)
+  - var mixinName = 'atoms/Badge'
+  -
+    var mixinSchema = z.object({
+      label: z.string().describe('Badge text').meta({ examples: ['New'] }),
+      status: z.enum(['neutral', 'success', 'warning', 'error']).default('neutral'),
+      count: z.number().int().min(0).max(99).optional().describe('Number shown after the label'),
+      tags: z.array(z.string().min(1)).max(3).default([]).describe('Extra labels after the count'),
+    }).describe('Small status label, optionally with a counter.')
+  - const p = mixinSchema.parse(props)
+  span.c-badge(class=p.status !== 'neutral' && `c-badge--${p.status}`)
+    = p.label
+    if p.count !== undefined
+      |  (#{p.count})
+    each tag in p.tags
+      |  · #{tag}

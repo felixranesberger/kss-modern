@@ -8,6 +8,8 @@ npm install --save-dev kss-modern
 
 kss-modern runs on Node.js and is used from a small build script. There is no CLI.
 
+The [mixin playground](mixin-playground.md) additionally needs zod 4 (`npm install --save-dev zod`). It is an optional peer dependency, and without it only the playground is left out.
+
 ## Your first styleguide
 
 Document a component with a KSS comment right next to its CSS:
@@ -129,7 +131,7 @@ server.printUrls()
 The watcher reacts to two kinds of changes:
 
 - A KSS comment in a `.css` or `.scss` file changed, or any `.md` file changed. This triggers a full rebuild. Edits to plain CSS rules outside the comments trigger nothing, your own build pipeline handles those.
-- A `.pug` or `.html` template changed. Only the sections that use it are rebuilt, including sections that reach it through `include`, `extends` or `<insert-markup>`.
+- A `.pug` or `.html` template changed. Only the sections that use it are rebuilt, including sections that reach it through `include`, `extends` or `<insert-markup>`. The same goes for the [mixin playground](mixin-playground.md): only the mixins that depend on the file are compiled again.
 
 In `development` mode a Pug compile error shows up as an overlay inside the affected preview, and the watcher keeps running.
 

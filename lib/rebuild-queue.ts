@@ -1,6 +1,9 @@
 export interface RebuildQueueHandlers {
-  /** Full rebuild — reparses everything and produces a fresh context. */
-  onStructural: () => Promise<void>
+  /**
+   * Full rebuild — reparses everything and produces a fresh context. Receives the markup files that
+   * changed alongside, which the sections no longer need but the mixin pipeline does.
+   */
+  onStructural: (changedMarkupFiles: string[]) => Promise<void>
   /** Incremental rebuild of the sections depending on the given markup files. */
   onMarkup: (changedFiles: string[]) => Promise<void>
   /** Reports a handler that rejected. The queue keeps draining either way. */
@@ -8,7 +11,7 @@ export interface RebuildQueueHandlers {
 }
 
 export interface RebuildQueue {
-  requestStructural: () => void
+  requestStructural: (changedMarkupFiles?: Iterable<string>) => void
   requestMarkup: (changedFiles: Iterable<string>) => void
   /** Resolves once no rebuild is running and nothing is queued. */
   whenIdle: () => Promise<void>
@@ -44,10 +47,11 @@ export function createRebuildQueue(handlers: RebuildQueueHandlers): RebuildQueue
   const runNext = async () => {
     if (isStructuralPending) {
       isStructuralPending = false
-      // A full rebuild reparses and rewrites everything, so any markup work
-      // queued alongside it would be redundant.
+      // A full rebuild reparses and rewrites every section, so the markup work
+      // queued alongside it is folded into it.
+      const changedFiles = [...pendingMarkupFiles]
       pendingMarkupFiles.clear()
-      await handlers.onStructural()
+      await handlers.onStructural(changedFiles)
       return
     }
 
@@ -80,7 +84,10 @@ export function createRebuildQueue(handlers: RebuildQueueHandlers): RebuildQueue
   }
 
   return {
-    requestStructural: () => {
+    requestStructural: (changedMarkupFiles = []) => {
+      for (const file of changedMarkupFiles) {
+        pendingMarkupFiles.add(file)
+      }
       isStructuralPending = true
       void drain()
     },

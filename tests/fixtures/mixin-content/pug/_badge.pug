@@ -1,0 +1,8 @@
+mixin badge(props)
+  -
+    var mixinSchema = z.object({
+      text: z.string(),
+      count: z.number().int().min(0).default(0),
+    }).describe('A small status label')
+  - const p = mixinSchema.parse(props)
+  span.badge= p.text + ' ' + p.count

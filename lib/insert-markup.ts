@@ -5,25 +5,34 @@ export interface SectionMeta {
   modifiers: { name: string }[]
 }
 
+/** A section's compiled markup, with the markup rendered per modifier when the section has one. */
+export interface MarkupEntry {
+  markup: string
+  modifierMarkup?: string[]
+}
+
 export const INSERT_MARKUP_REGEX = /<insert-markup>(\d+(?:\.\d+)*)(?:-(\d*))?<\/insert-markup>/g
 
 /**
  * Resolves <insert-markup> references for the given section ids WITHOUT mutating `repository`.
  * References are read recursively from `repository` (which should hold compiled, not-yet-resolved
  * markup for every section), so this is safe to call repeatedly during incremental rebuilds.
- * Returns a map of sectionId -> fully resolved markup.
+ * Returns a map of sectionId -> fully resolved markup, and resolved modifier markup where present.
  */
 export function resolveInsertMarkupForSections(
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, MarkupEntry>,
   sectionsById: Map<string, SectionMeta>,
   ids: Iterable<string>,
-): Map<string, string> {
-  const resolved = new Map<string, string>()
+): Map<string, MarkupEntry> {
+  const resolved = new Map<string, MarkupEntry>()
   for (const id of ids) {
     const entry = repository.get(id)
     if (!entry)
       continue
-    resolved.set(id, resolveMarkup(entry.markup, repository, sectionsById, new Set([id])))
+    resolved.set(id, {
+      markup: resolveMarkup(entry.markup, repository, sectionsById, new Set([id])),
+      modifierMarkup: entry.modifierMarkup?.map(markup => resolveMarkup(markup, repository, sectionsById, new Set([id]))),
+    })
   }
   return resolved
 }
@@ -35,7 +44,7 @@ export function getInsertMarkupReferences(markup: string): string[] {
 
 function resolveMarkup(
   markup: string,
-  repository: Map<string, { markup: string }>,
+  repository: Map<string, MarkupEntry>,
   sectionsById: Map<string, SectionMeta>,
   visited: Set<string>,
 ): string {
@@ -56,8 +65,9 @@ function resolveMarkup(
       if (!modifier)
         return errorBlock(refId, `modifier index ${modifierIdx} out of range for section "${refId}"`)
 
+      // pug markup was rendered per modifier, plain HTML swaps the placeholder
       const className = modifier.name.replace(/^\./, '')
-      inserted = inserted.replaceAll('{{modifier_class}}', className)
+      inserted = refEntry.modifierMarkup?.[modifierIdx] ?? inserted.replaceAll('{{modifier_class}}', className)
     }
 
     const nextVisited = new Set(visited)

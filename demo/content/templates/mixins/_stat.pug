@@ -1,0 +1,38 @@
+//- A stat tile whose schema uses every kind of playground control:
+//- text, number, integer, checkbox, select, optional props and raw JSON.
+include _icon
+
+mixin stat(props)
+  -
+    const p = defineComponent({
+      name: 'molecules/Stat tile',
+      schema: z.object({
+        label: z.string().describe('What the number measures').meta({ examples: ['Monthly revenue'] }),
+        value: z.number().describe('The current value').meta({ examples: [48.2] }),
+        unit: z.string().optional().describe('Printed after the value').meta({ examples: ['k€'] }),
+        decimals: z.number().int().min(0).max(3).default(1).describe('Decimal places of the value'),
+        icon: z.enum(['chart', 'user', 'trending-up', 'leaf']).default('chart'),
+        trend: z.number().optional().describe('Change against last month, in percent'),
+        isDown: z.boolean().default(false).describe('Show the trend as a decline'),
+        points: z.array(z.number()).min(2).default([12, 14, 13, 17, 16, 19, 22, 21, 25, 27]).describe('Sparkline values, oldest first'),
+      }).describe('A key number with its trend against last month and a sparkline.'),
+    }, props)
+
+  -
+    const max = Math.max(...p.points)
+    const min = Math.min(...p.points)
+    const range = max - min || 1
+    const step = 200 / (p.points.length - 1)
+    const spark = p.points.map((point, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)} ${(36 - ((point - min) / range) * 32).toFixed(1)}`).join(' ')
+  .stat
+    span.stat__label
+      +icon(p.icon)
+      = p.label
+    span.stat__value= `${p.value.toFixed(p.decimals)}${p.unit ? ` ${p.unit}` : ''}`
+    if p.trend !== undefined
+      span.stat__trend(class=p.isDown ? 'stat__trend--down' : '')
+        = `${p.trend > 0 ? '+' : ''}${p.trend}%`
+        span  vs last month
+    svg.stat__spark(class=p.isDown ? 'stat__spark--down' : '' viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true")
+      path(d=`${spark} L200 40 L0 40 Z` fill="currentColor" opacity="0.12")
+      path(d=spark fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke")

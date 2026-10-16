@@ -20,6 +20,12 @@ export async function generateFullPageFile(data: {
   deactivateDarkMode?: boolean
   allowSearchEngineIndexing?: boolean
   ogImageUrl?: string
+  /**
+   * Turns the page into a mixin playground page: `html` is rendered by the playground client, which
+   * reads this JSON. The project's scripts are parked in a `<template>` and started by the client
+   * once the component is in the DOM, so scripts that initialise components on load find it.
+   */
+  playgroundConfig?: string
 }) {
   // The audit iframe reads this to decide whether to run the color-contrast
   // check in a forced dark scheme. Dark mode exists unless the styleguide
@@ -69,12 +75,16 @@ export async function generateFullPageFile(data: {
       `
       : `<meta name="theme-color" content="${data.brandColor}">`}
     <script type="module" src="styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
+    ${data.playgroundConfig ? '<script type="module" src="styleguide-assets/__STYLEGUIDE_PLAYGROUND_JS__"></script>' : ''}
     ${computedStyleTags}
     ${computedThemeStyleTags}
 </head>
 <body${data.page.bodyclass ? ` class="${data.page.bodyclass}"` : ''}>
     ${data.html}
-    ${computedScriptTags}
+    ${data.playgroundConfig
+      ? `<script type="application/json" id="kss-playground-config">${data.playgroundConfig.replaceAll('<', '\\u003c')}</script>
+    <template id="kss-playground-project-scripts">${computedScriptTags}</template>`
+      : computedScriptTags}
 </body>
 </html>
 `.trim()

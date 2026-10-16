@@ -1,0 +1,17 @@
+include _icon
+
+mixin button(props)
+  - var mixinName = 'atoms/Button'
+  -
+    var mixinSchema = z.object({
+      label: z.string().min(1).describe('Button text').meta({ examples: ['Save'] }),
+      variant: z.enum(['primary', 'ghost', 'danger']).default('primary'),
+      icon: z.string().optional(),
+      count: z.number().int().min(0).max(9).default(0),
+      attributes: z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()])).optional(),
+    }).describe('A button for the main action')
+  - const p = mixinSchema.parse(props)
+  button.btn(type="button" class=`btn--${p.variant}` data-count=p.count)&attributes(p.attributes || {})
+    if p.icon
+      +icon(p.icon)
+    = p.label

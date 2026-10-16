@@ -1,0 +1,9 @@
+mixin teaser(props)
+  - const p = defineComponent('organisms/Teaser', props)
+
+  article.teaser(class=p.isHighlighted && 'teaser--highlight')
+    h3= p.title
+    if p.hasCta
+      a.teaser__cta(href=p.cta.href)= p.cta.text
+    if p.byline
+      p.teaser__byline= p.byline.author.name

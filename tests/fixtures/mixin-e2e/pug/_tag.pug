@@ -1,0 +1,12 @@
+mixin tag(props)
+  - var mixinName = 'molecules/labels/Tag'
+  -
+    var mixinSchema = z.object({
+      text: z.string().meta({ examples: ['New'] }),
+      extras: z.array(z.string().min(1)).max(2).default([]).describe('Additional labels'),
+    }).describe('Short label for filters and categories')
+  - const p = mixinSchema.parse(props)
+  span.tag
+    = p.text
+    each extra in p.extras
+      span.tag__extra= extra

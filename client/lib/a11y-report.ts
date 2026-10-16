@@ -1,10 +1,10 @@
 import type { Result as AxeResult, AxeResults, ImpactValue, resultGroups } from 'axe-core'
 import type { Message as HTMLValidateMessage } from 'html-validate'
-import type { AccessibilityAuditDetail, ModifierContrastDetail } from './audit-runner.ts'
+import type { AccessibilityAuditDetail, ModifierAuditDetail } from './audit-runner.ts'
 import type { ColorSchemeMode, SchemeContrastResult } from './color-contrast-audit.ts'
 import type { AnnotatedNode, ContrastAnnotation, ReviewReason } from './text-over-image-contrast.ts'
 import { sectionSanitizeId } from '../utils.ts'
-import { AUDIT_TIMEOUT_MS, AXE_RESULT_GROUPS, flattenAxeTarget, htmlValidateImpact, runAccessibilityAudit, runModifierContrastAudit } from './audit-runner.ts'
+import { AUDIT_TIMEOUT_MS, AXE_RESULT_GROUPS, flattenAxeTarget, htmlValidateImpact, runAccessibilityAudit, runModifierAudit, withoutBaseFindings } from './audit-runner.ts'
 import { getSectionPreviews, SECTION_SELECTOR } from './section-previews.ts'
 
 /**
@@ -31,7 +31,10 @@ export interface A11yReportOptions {
    * inapplicable, which is many times larger and rarely useful to an agent.
    */
   include?: A11yReportInclude
-  /** Also audit modifier previews for color-contrast. Default `true`. */
+  /**
+   * Also audit modifier previews with the full audit. Their findings are merged into the section,
+   * without the ones the base preview already has. Default `true`.
+   */
   modifiers?: boolean
   /** Per-iframe timeout in ms. Default `30000`. */
   timeout?: number
@@ -89,6 +92,8 @@ export interface A11ySectionReport extends A11ySectionMeta {
   error?: string
   /** Non-fatal problems, e.g. a modifier preview that could not be audited. */
   warnings?: string[]
+  /** The modifier previews that were audited and merged into `findings`. */
+  modifiers?: string[]
   /** Rule counts across all four groups, regardless of the `include` filter. */
   counts: Record<resultGroups, number>
   findings: A11yFinding[]
@@ -207,6 +212,7 @@ function toFindings(
 
 function toHtmlValidateFindings(
   messages: (HTMLValidateMessage & { ruleDescription?: string })[],
+  modifier?: string,
 ): A11yFinding[] {
   // one finding per rule, with every occurrence as a node — same grouping the
   // dialog uses, and far cheaper to read than one entry per occurrence
@@ -233,6 +239,7 @@ function toHtmlValidateFindings(
       impact: htmlValidateImpact(message.severity.toString()),
       description: message.ruleDescription || message.message,
       helpUrl: message.ruleUrl || '',
+      modifier,
       nodes: [node],
     })
   })
@@ -252,7 +259,8 @@ export function buildSectionReport(
   target: A11ySectionMeta,
   details: {
     base: AccessibilityAuditDetail
-    modifiers?: ModifierContrastDetail[]
+    /** Raw modifier audits, the findings the base already has are removed here. */
+    modifiers?: ModifierAuditDetail[]
     warnings?: string[]
   },
   include: A11yReportInclude = 'violations',
@@ -279,18 +287,27 @@ export function buildSectionReport(
     colorContrast.forEach(({ mode, result }) => collect(result, { mode, modifier }))
   }
 
+  const collectHtmlValidate = (messages: AccessibilityAuditDetail['htmlValidate'], modifier?: string) => {
+    const htmlValidateFindings = toHtmlValidateFindings(messages, modifier)
+    counts.violations += htmlValidateFindings.length
+    findings.push(...htmlValidateFindings)
+  }
+
   collect(base.axe.result)
   collectContrast(base.axe.colorContrast)
-  modifiers.forEach(detail => collectContrast(detail.colorContrast, detail.modifier))
+  collectHtmlValidate(base.htmlValidate)
 
-  const htmlValidateFindings = toHtmlValidateFindings(base.htmlValidate)
-  counts.violations += htmlValidateFindings.length
-  findings.push(...htmlValidateFindings)
+  modifiers.map(detail => withoutBaseFindings(base, detail)).forEach((detail) => {
+    collect(detail.axe.result, { modifier: detail.modifier })
+    collectContrast(detail.axe.colorContrast, detail.modifier)
+    collectHtmlValidate(detail.htmlValidate, detail.modifier)
+  })
 
   return {
     ...target,
     status: 'audited',
     warnings: warnings.length > 0 ? warnings : undefined,
+    modifiers: modifiers.length > 0 ? modifiers.map(detail => detail.modifier) : undefined,
     counts,
     findings,
   }
@@ -350,13 +367,13 @@ async function waitForPreviewIframes(iframes: HTMLIFrameElement[]): Promise<void
 
 export interface AuditDeps {
   runAccessibilityAudit: typeof runAccessibilityAudit
-  runModifierContrastAudit: typeof runModifierContrastAudit
+  runModifierAudit: typeof runModifierAudit
   waitForIframes: (iframes: HTMLIFrameElement[]) => Promise<void>
 }
 
 const defaultDeps: AuditDeps = {
   runAccessibilityAudit,
-  runModifierContrastAudit,
+  runModifierAudit,
   waitForIframes: waitForPreviewIframes,
 }
 
@@ -388,13 +405,13 @@ export async function runStyleguideAudit(
       const baseDetail = await deps.runAccessibilityAudit(iframe, { timeout })
 
       const warnings: string[] = []
-      const modifiers: ModifierContrastDetail[] = []
+      const modifiers: ModifierAuditDetail[] = []
 
       // sequential on purpose: bounding the work per section keeps a page with
       // dozens of previews from firing all of their audits at once
       for (const iframe of modifierIframes) {
         try {
-          modifiers.push(await deps.runModifierContrastAudit(iframe, { timeout }))
+          modifiers.push(await deps.runModifierAudit(iframe, { timeout }))
         }
         catch (error) {
           warnings.push(

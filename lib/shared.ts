@@ -164,3 +164,8 @@ export function generateId(): number {
   const { value } = idGen.next()
   return value
 }
+
+/** The fullpage file of a section's modifier render: `fullpage-1.2.html` becomes `fullpage-1.2-modifier-0.html`. */
+export function modifierFullpageFileName(fullpageFileName: string, modifierIndex: number): string {
+  return fullpageFileName.replace(/\.html$/, `-modifier-${modifierIndex}.html`)
+}

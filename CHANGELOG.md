@@ -1,5 +1,76 @@
 # Changelog
 
+## [1.7.0-beta.9](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.8...v1.7.0-beta.9) (2026-10-16)
+
+### Features
+
+* add a typed `defineComponent` for `.schema.ts` files. `export const button = defineComponent({ name: 'atoms/Button', schema, examples })` from `kss-modern/schema` returns the object unchanged, TypeScript checks `examples` against the props the schema takes and keeps `name` as a literal type. The registry gives the modules a shim of the function, so neither the build nor the playground has to resolve the package. Plain objects keep working. The package now has an exports map with `.` and `./schema` ([747b0aa](https://github.com/felixranesberger/kss-modern/commit/747b0aa))
+
+## [1.7.0-beta.8](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.7...v1.7.0-beta.8) (2026-10-15)
+
+### Features
+
+* resolve component schemas from `.schema.ts` files. A mixin passes only the name, `defineComponent('organisms/Intro', props)`, and the schema lives in a TypeScript file next to it that may import `zod` and relative files. kss-modern strips the types with `module.stripTypeScriptTypes`, which needs Node 22.13 or newer. A `.transform()` turns the props into what the template receives, the explorer shows that object in an **Output** tab. Object props may now nest ([43edcd4](https://github.com/felixranesberger/kss-modern/commit/43edcd4))
+* render Pug sections once per modifier. `modifierClass` holds the classes of the modifier being rendered instead of the `{{modifier_class}}` placeholder, so a template can map a modifier to a prop. Each modifier render gets its own `fullpage-<reference>-modifier-<index>.html`. Plain HTML markup keeps the placeholder swap ([765fea4](https://github.com/felixranesberger/kss-modern/commit/765fea4))
+* audit modifier previews in full. They get the same axe and html-validate checks as the base, their findings are merged into the section without the ones the base already reports, and the `kssAudit` report lists the audited modifiers per section in `modifiers` ([4462f67](https://github.com/felixranesberger/kss-modern/commit/4462f67))
+
+## [1.7.0-beta.7](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.6...v1.7.0-beta.7) (2026-10-15)
+
+### Features
+
+* write the JSON Schema of every public mixin to files with `mixinJsonSchemaDir`. Each mixin gets one file in the folders of its `defineComponent` name, `name: 'atoms/Button'` becomes `<dir>/atoms/Button.json`, a mixin without a name `<pug name>.json`. The content is the schema the playground uses, so props with a default are optional. Only files whose schema changed are written, and the file of a mixin that goes away during a run is removed. Off unless the option is set ([811506b](https://github.com/felixranesberger/kss-modern/commit/811506b))
+
+## [1.7.0-beta.6](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.5...v1.7.0-beta.6) (2026-10-15)
+
+### Features
+
+* allow object props one level deep. A prop may be a `z.strictObject({ … })` whose fields are anything a prop may be except another object, for props that belong together like an image or a call to action. The playground shows its fields as a group, an optional object behind a **Pass** switch, and issues of a field at that field. In Fluid an object becomes flat arguments, `cta.text` becomes `ctaText` ([a9c05ef](https://github.com/felixranesberger/kss-modern/commit/a9c05ef))
+
+## [1.7.0-beta.5](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.4...v1.7.0-beta.5) (2026-10-13)
+
+### Features
+
+* declare public mixins with `defineComponent`. `const p = defineComponent({ name: 'atoms/Button', schema: z.strictObject({ … }) }, props)` replaces the `mixinName` variable, the `mixinSchema` variable and `mixinSchema.parse(props)`. It parses the props and throws one line per issue with the component name, the Pug mixin, the prop and the reason (`atoms/Button (+atomButton): label: Invalid input`), and the playground still shows the issues next to the controls. `name` places the mixin in the explorer and names its START and END markers. The `mixinSchema` form keeps working ([8d51ddf](https://github.com/felixranesberger/kss-modern/commit/8d51ddf))
+
+## [1.7.0-beta.4](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.3...v1.7.0-beta.4) (2026-10-13)
+
+### Bug Fixes
+
+* refuse props from a link whose nested object keys could become event handlers. Record props turn their keys into attribute names, so a key like `onmouseover` or one with characters outside a plain attribute name now stops the props from the URL, like markup and script URLs already did. Values typed into the controls are unaffected ([44518f9](https://github.com/felixranesberger/kss-modern/commit/44518f9))
+
+## [1.7.0-beta.3](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.2...v1.7.0-beta.3) (2026-10-13)
+
+### Features
+
+* support records with scalar values in the mixin playground. A prop like `z.record(z.string().regex(/^data-[a-z-]+$/), z.union([z.string(), z.boolean()]))` gets a key-value editor: every key is checked against the key schema, every value against the allowed types, and with several value types a select picks `true`, `false` or a typed value. A new entry of a map that allows booleans starts as `true`. Records of objects or lists stay unsupported ([9efa5ab](https://github.com/felixranesberger/kss-modern/commit/9efa5ab))
+
+## [1.7.0-beta.2](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.1...v1.7.0-beta.2) (2026-10-13)
+
+### Features
+
+* mark the output of public mixins with START and END comments. Every mixin with a `mixinSchema` is wrapped in `<!-- START CARD-->` and `<!-- END CARD-->` in section previews, fullpages and the playground, so the delivered markup shows where each component begins and ends. The name is the last segment of `mixinName` in upper-case words (`organisms/form/FileUpload` becomes `FILE UPLOAD`), else the mixin's own name. A mixin that writes its own `// START …` comment keeps it and gets no second pair ([82ed697](https://github.com/felixranesberger/kss-modern/commit/82ed697))
+
+## [1.7.0-beta.1](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.0...v1.7.0-beta.1) (2026-10-13)
+
+### Features
+
+* support arrays of flat objects in the mixin playground. A prop like `z.array(z.strictObject({ question: z.string(), answer: z.string() }))` gets a list editor with one group of fields per entry: add, remove and reorder entries, every field checked while typing. A fresh entry starts with the field defaults and empty required fields, errors name the entry and the field (`Entry 2: text: Must not be empty`), and the Pug call leaves out entry fields equal to their default. The fields of an entry stay flat: lists or objects inside an entry, records and loose objects still fail the build ([717fa0b](https://github.com/felixranesberger/kss-modern/commit/717fa0b))
+
+## [1.7.0-beta.0](https://github.com/felixranesberger/kss-modern/compare/v1.6.2...v1.7.0-beta.0) (2026-10-12)
+
+### Features
+
+* add the mixin playground. A new **Mixins** explorer (`mixins.html`) works like Storybook: every Pug mixin that declares a `mixinSchema` in a filterable tree (mixins without a schema count as internal and are not shown). A `- var mixinName = 'atoms/Button'` line in the mixin places it in folders, one per `/`, so atoms, molecules and organisms each get their own, with the schema's description under the name, the selected one rendered live in the middle, and below it tabs for the controls, the rendered HTML and the matching Pug call. A mixin that declares its props as a zod schema in a `mixinSchema` code block gets controls generated from the schema. Strings, numbers, booleans, enums and literals, and arrays of these are supported, with their constraints checked at the control while typing; any other zod feature fails a production build. Validation errors appear next to the control while the last good render stays visible. Selection and props live in the URL hash, so switching never reloads the page and every state can be shared. The explorer is linked from the sidebar and the search and supports the accessibility audit. Each mixin with a schema also gets a standalone page (`mixins-<name>-standalone.html`) without the styleguide UI, whose controls sit in a shadow root so project CSS and the controls cannot affect each other. `?props=`, `?controls=0`, `?theme=` and `?scheme=` make it usable for visual regression tests and embedding. Props from a link are refused when a string contains markup or a `javascript:`/`data:` URL, so a crafted link cannot inject script. Mixins are precompiled at build time into small render modules with content-hashed names, so the browser needs no Pug compiler. See [docs/mixin-playground.md](docs/mixin-playground.md) ([1430c41](https://github.com/felixranesberger/kss-modern/commit/1430c41))
+* add a **Show mixins** row under every section preview that uses public mixins: a tree of the mixins the preview calls while rendering, nested as they are called, each linked to the mixin explorer. Internal mixins are skipped and their public calls move up to the nearest public mixin ([1430c41](https://github.com/felixranesberger/kss-modern/commit/1430c41))
+* add the `z` template local. It holds zod when installed, so section markup can call mixins that parse their props with `mixinSchema`. zod 4 is a new optional peer dependency. Without it only the playground is left out ([1430c41](https://github.com/felixranesberger/kss-modern/commit/1430c41))
+* add a persistent build cache for the mixin pipeline in `node_modules/.cache/kss-modern/` (configurable with `cacheDir`). It keeps the mixins found per file, every evaluated schema and every compiled module, checks files by `mtime:size` with a content hash as fallback, and is discarded silently when it is corrupt or from another version. A rebuild without template changes compiles no mixin, also after a restart. A changed partial recompiles only the mixins including it, and CSS and Markdown edits skip the mixin pipeline ([1430c41](https://github.com/felixranesberger/kss-modern/commit/1430c41))
+* add `reloadPlaygroundOnChange` to reload the playground preview on every change instead of swapping its markup and dispatching `kss-modern:playground-render` ([1430c41](https://github.com/felixranesberger/kss-modern/commit/1430c41))
+* add `logger.debug()`, used for a per-build `mixins: … total, … cached, … compiled` line (visible with `CONSOLA_LEVEL=4`) ([1430c41](https://github.com/felixranesberger/kss-modern/commit/1430c41))
+
+### Bug Fixes
+
+* opening a preview page with a hash that is not an element id no longer leaves the page blank. The anchor jump passed the hash to `querySelector`, which throws on anything that is not a valid selector ([b48e2dd](https://github.com/felixranesberger/kss-modern/commit/b48e2dd))
+
 ## [1.6.2](https://github.com/felixranesberger/kss-modern/compare/v1.6.1...v1.6.2) (2026-10-02)
 
 ### Bug Fixes

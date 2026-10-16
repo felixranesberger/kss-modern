@@ -1,7 +1,7 @@
 {
   "name": "kss-modern",
   "type": "module",
-  "version": "1.6.2",
+  "version": "1.7.0-beta.9",
   "description": "Modern KSS compatible styleguide generator",
   "keywords": [
     "kss",
@@ -27,6 +27,17 @@
   "bugs": "https://github.com/felixranesberger/kss-modern/issues",
   "main": "./dist/node/lib/index.mjs",
   "types": "./dist/node/lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/node/lib/index.d.ts",
+      "import": "./dist/node/lib/index.mjs"
+    },
+    "./schema": {
+      "types": "./dist/node/lib/component-schema.d.ts",
+      "import": "./dist/node/lib/component-schema.mjs"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist"
   ],
@@ -54,9 +65,20 @@
     "fs-extra": "^11.3.6",
     "markdown-it-async": "^2.2.0",
     "pug": "^3.0.4",
+    "pug-lexer": "^5.0.1",
     "pug-load": "^3.0.0",
+    "pug-parser": "^6.0.0",
+    "pug-walk": "^2.0.0",
     "shiki": "^4.3.1",
     "tinyglobby": "^0.2.17"
+  },
+  "peerDependencies": {
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",
@@ -76,6 +98,7 @@
     "motion": "^12.42.2",
     "unbuild": "^3.6.1",
     "vite": "^8.1.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "zod": "^4.0.0"
   }
 }
