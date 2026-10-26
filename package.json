@@ -59,7 +59,7 @@
     "tinyglobby": "^0.2.17"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.1.0",
+    "@antfu/eslint-config": "^10.0.0",
     "@leeoniya/ufuzzy": "^1.0.19",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.2",
