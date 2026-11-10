@@ -20,6 +20,12 @@ export interface MixinManifestEntry {
   line: number
   /** The mixin declares a usable schema (`defineComponent` or `mixinSchema`), so it gets a playground. */
   hasSchema: boolean
+  /**
+   * Slots the mixin renders: `default` for its `block`, plus named slots it reads from
+   * `pug_mixins.$fragments.collect(block)`, which a caller fills with `+fragment('<name>')`.
+   * Present when the mixin has any.
+   */
+  slots?: string[]
   /** The schema lives in a `.schema.ts` file and needs the manifest's `schemaRegistry`. */
   isSchemaModule?: boolean
   /** `.describe()` of the schema itself, shown under the mixin's name. */

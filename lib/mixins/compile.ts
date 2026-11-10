@@ -21,9 +21,32 @@ export interface CompiledMixinModule {
   dependencies: string[]
 }
 
-/** The virtual template a mixin is compiled from: include its file, call it with `props`. */
-export function getMixinWrapperSource(file: string, name: string): string {
-  return `include ${path.basename(file)}\n+${name}(props)`
+/** The local that carries slot contents by name into a render, see {@link getMixinWrapperSource}. */
+export const MIXIN_SLOTS_LOCAL = '__kssSlots'
+
+/**
+ * The virtual template a mixin is compiled from: include its file, call it with `props`. With
+ * `slots` (from the discovery), a render that passes `__kssSlots` fills them: `default` as the
+ * call's block, a named slot as `+fragment('<name>')`. Without that local the call has no block.
+ */
+export function getMixinWrapperSource(file: string, name: string, slots: readonly string[] = []): string {
+  const include = `include ${path.basename(file)}`
+  if (slots.length === 0)
+    return `${include}\n+${name}(props)`
+
+  const isNamed = slots.some(slot => slot !== 'default')
+  const fill = isNamed
+    ? `      if __kssSlot === 'default'\n        != __kssContent\n      else\n        +fragment(__kssSlot)\n          != __kssContent`
+    : `      != __kssContent`
+  return [
+    include,
+    `if ${MIXIN_SLOTS_LOCAL}`,
+    `  +${name}(props)`,
+    `    each __kssContent, __kssSlot in ${MIXIN_SLOTS_LOCAL}`,
+    fill,
+    'else',
+    `  +${name}(props)`,
+  ].join('\n')
 }
 
 /**
@@ -67,11 +90,12 @@ export const mixinPugPlugin = {
 /**
  * Precompile one mixin into a standalone ES module. The browser only ever changes prop values,
  * never the template, so the module carries no pug compiler: `render({ props, z,
- * defineComponent, useId, modifierClass })` returns HTML. Throws on a pug error.
+ * defineComponent, useId, modifierClass })` returns HTML. `slots` are the mixin's slots, filled
+ * through `__kssSlots`, see {@link getMixinWrapperSource}. Throws on a pug error.
  */
-export function compileMixinModule(file: string, name: string): CompiledMixinModule {
+export function compileMixinModule(file: string, name: string, slots: readonly string[] = []): CompiledMixinModule {
   const absoluteFile = path.resolve(file)
-  const { body, dependencies } = pug.compileClientWithDependenciesTracked(getMixinWrapperSource(absoluteFile, name), {
+  const { body, dependencies } = pug.compileClientWithDependenciesTracked(getMixinWrapperSource(absoluteFile, name, slots), {
     ...MIXIN_COMPILE_OPTIONS,
     // a sibling of the mixin's file, so its relative includes resolve exactly as in the file itself
     filename: path.join(path.dirname(absoluteFile), `__kss-mixin-${name}.pug`),
@@ -82,4 +106,12 @@ export function compileMixinModule(file: string, name: string): CompiledMixinMod
     code: `${body}\nexport { render }\n`,
     dependencies: [...new Set([absoluteFile, ...dependencies.map(dep => path.resolve(dep))])],
   }
+}
+
+export type MixinRender = (locals: Record<string, unknown>) => string
+
+/** The `render` function of a module from {@link compileMixinModule}, for use in Node. */
+export function loadMixinRender(code: string): MixinRender {
+  // eslint-disable-next-line no-new-func
+  return new Function(`${code.replace(/export \{ render \}\s*$/, '')}\nreturn render`)() as MixinRender
 }

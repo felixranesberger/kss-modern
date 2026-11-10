@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { discoverMixins } from '../../../../lib/mixins/discovery.ts'
+import { DEFAULT_SLOT, discoverMixins } from '../../../../lib/mixins/discovery.ts'
 import { getMixinPath } from '../../../../lib/mixins/types.ts'
 
 describe('discoverMixins', () => {
@@ -120,5 +120,47 @@ describe('discoverMixins', () => {
 
   it('throws on a source that does not parse', () => {
     expect(() => discoverMixins('mixin broken(\n  div\n', 'broken.pug')).toThrow()
+  })
+})
+
+describe('slots', () => {
+  const slotsOf = (body: string[]) => discoverMixins(['mixin component(props)', ...body.map(line => `  ${line}`)].join('\n'), 'component.pug')[0].slots
+
+  it('has no slots without a block', () => {
+    expect(slotsOf(['p= props.text'])).toBeUndefined()
+  })
+
+  it('finds the default slot in a block, also inside tags and conditionals', () => {
+    expect(slotsOf(['.c-box', '  if block', '    block'])).toEqual([DEFAULT_SLOT])
+  })
+
+  it('reads named slots from the result of $fragments.collect(block), in source order', () => {
+    expect(slotsOf([
+      '- const slots = pug_mixins.$fragments.collect(block)',
+      '.c-list(class=slots.filter && \'has-filter\')',
+      '  != slots.controls',
+      '  if slots.filter',
+      '    +filter()',
+      '      != slots.filter',
+      '  ul',
+      '    != slots[\'list\']',
+      '  p #{slots.footer}',
+    ])).toEqual(['filter', 'controls', 'list', 'footer'])
+  })
+
+  it('reads named slots from a destructuring of collect(block)', () => {
+    expect(slotsOf(['- const { header, content: body } = pug_mixins.$fragments.collect(block)', '!= header', '!= body'])).toEqual(['header', 'content'])
+  })
+
+  it('does not take a collect(block) as the default slot, only a block', () => {
+    expect(slotsOf(['- const slots = pug_mixins.$fragments.collect(block)', '!= slots.content', 'footer', '  block'])).toEqual([DEFAULT_SLOT, 'content'])
+  })
+
+  it('ignores blocks and slots of nested mixin definitions', () => {
+    expect(slotsOf(['mixin inner()', '  - const slots = pug_mixins.$fragments.collect(block)', '  != slots.a', '  block', 'p'])).toBeUndefined()
+  })
+
+  it('does not read other variables that end in the same name', () => {
+    expect(slotsOf(['- const slots = pug_mixins.$fragments.collect(block)', '!= mySlots.a', '!= p.slots.b', '!= slots.c'])).toEqual(['c'])
   })
 })

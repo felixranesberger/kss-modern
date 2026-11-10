@@ -185,11 +185,40 @@ export default z
 `
 
 /**
- * `defineComponent` of `kss-modern/schema` (lib/component-schema.ts). Its own file next to the
- * modules, so neither the build nor the playground has to resolve the package.
+ * The runtime of `kss-modern/schema` (lib/component-schema.ts), kept in step with it. Its own file
+ * next to the modules, so neither the build nor the playground has to resolve the package. The fake
+ * registry sits on `globalThis` under the same key, so the fixtures read what the copy registered.
  */
-const COMPONENT_SCHEMA_SHIM_SOURCE = `export function defineComponent(definition) {
+export const COMPONENT_SCHEMA_SHIM_SOURCE = `export function defineComponent(definition) {
   return definition
+}
+
+const FAKES_KEY = Symbol.for('kss-modern.fakes')
+
+function getFakeRegistry() {
+  return globalThis[FAKES_KEY] ??= new WeakMap()
+}
+
+export function withFake(schema, fake) {
+  getFakeRegistry().set(schema, fake)
+  return schema
+}
+
+const TRANSPARENT_WRAPPERS = new Set(['optional', 'nullable', 'default', 'prefault'])
+
+export function getFake(schema) {
+  const registry = getFakeRegistry()
+  let current = typeof schema === 'object' && schema !== null ? schema : undefined
+  while (current) {
+    for (let candidate = current; candidate; candidate = candidate._zod?.parent) {
+      const fake = registry.get(candidate)
+      if (fake)
+        return fake
+    }
+    const def = current._zod?.def
+    current = def?.type && TRANSPARENT_WRAPPERS.has(def.type) ? def.innerType : undefined
+  }
+  return undefined
 }
 `
 
@@ -202,11 +231,21 @@ async function writeIfMissing(file: string, code: string): Promise<void> {
 }
 
 /** Remove every hash directory in `directory` but `keep`. */
+/** Another build of the same project, e.g. a watcher next to a test run, may still import a younger one. */
+const PRUNE_GRACE_MS = 10 * 60 * 1000
+
 async function pruneHashDirectories(directory: string, keep: string): Promise<void> {
+  const now = new Date()
+  await fs.utimes(path.join(directory, keep), now, now).catch(() => {})
   const present = await fs.readdir(directory).catch(() => [] as string[])
   await Promise.all(present
     .filter(name => name !== keep && /^[\da-f]{16}$/.test(name))
-    .map(name => fs.rm(path.join(directory, name), { recursive: true, force: true })))
+    .map(async (name) => {
+      const target = path.join(directory, name)
+      const stat = await fs.stat(target).catch(() => undefined)
+      if (stat && now.getTime() - stat.mtimeMs > PRUNE_GRACE_MS)
+        await fs.rm(target, { recursive: true, force: true })
+    }))
 }
 
 async function buildRegistry(contentDir: string, entries: string[]): Promise<SchemaRegistryBuild | SchemaRegistryError> {

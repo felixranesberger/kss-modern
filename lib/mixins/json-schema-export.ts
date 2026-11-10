@@ -1,4 +1,4 @@
-import type { MixinManifest } from './types.ts'
+import type { MixinManifest, MixinManifestEntry } from './types.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { logger } from '../logger.ts'
@@ -15,11 +15,13 @@ function toFileSegment(segment: string): string | undefined {
 }
 
 /**
- * The file of every mixin with a usable schema, relative to the export directory: its explorer
- * path, `atoms/Button` -> `atoms/Button.json`. A path taken twice gets a numeric suffix.
+ * The file of every mixin with a usable schema, relative to an export directory: its explorer
+ * path, `atoms/Button` -> `atoms/Button.json`. A path taken twice gets a numeric suffix. `what`
+ * names the export in that warning.
  */
-export function getJsonSchemaFiles(manifest: MixinManifest): Map<string, Record<string, unknown>> {
-  const files = new Map<string, Record<string, unknown>>()
+export function getMixinExportPaths(manifest: MixinManifest, what: string): Map<MixinManifestEntry, string> {
+  const paths = new Map<MixinManifestEntry, string>()
+  const taken = new Set<string>()
   for (const entry of manifest.mixins) {
     if (!entry.hasSchema || !entry.jsonSchema)
       continue
@@ -27,14 +29,20 @@ export function getJsonSchemaFiles(manifest: MixinManifest): Map<string, Record<
     const segments = entry.path.map(toFileSegment).filter((segment): segment is string => segment !== undefined)
     const base = (segments.length > 0 ? segments : [entry.id]).join('/')
     let file = `${base}.json`
-    for (let count = 2; files.has(file); count++)
+    for (let count = 2; taken.has(file); count++)
       file = `${base}-${count}.json`
     if (file !== `${base}.json`)
-      logger.warn(`The JSON Schema of mixin "${entry.name}" (${entry.file}:${entry.line}) is written to ${file}, since ${base}.json is taken.`)
+      logger.warn(`The ${what} of mixin "${entry.name}" (${entry.file}:${entry.line}) is written to ${file}, since ${base}.json is taken.`)
 
-    files.set(file, entry.jsonSchema)
+    taken.add(file)
+    paths.set(entry, file)
   }
-  return files
+  return paths
+}
+
+/** The JSON Schema of every mixin with a usable schema by its file, see {@link getMixinExportPaths}. */
+export function getJsonSchemaFiles(manifest: MixinManifest): Map<string, Record<string, unknown>> {
+  return new Map([...getMixinExportPaths(manifest, 'JSON Schema')].map(([entry, file]) => [file, entry.jsonSchema!]))
 }
 
 /**

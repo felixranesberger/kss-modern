@@ -1,33 +1,40 @@
 import type { FileSignature } from '../file-signature.ts'
+import type { FixtureDefinition, CasesReport as FixtureReport } from '../fixtures/index.ts'
 import type { ResolvedStyleguideConfiguration } from '../index.ts'
 import type { ComponentRegistry } from './define-component.ts'
 import type { DiscoveredMixin } from './discovery.ts'
+import type { MixinFixtureExporter, MixinFixtureSource } from './fixture-export.ts'
 import type { SchemaRegistryResult } from './schema-registry.ts'
 import type { MixinSchemaForm, MixinSchemaResult } from './schema.ts'
 import type { MixinManifest, MixinManifestEntry } from './types.ts'
 import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { glob } from 'tinyglobby'
+import { getFake } from '../component-schema.ts'
 import { checkFileSignature, hashContent, readFileSignature } from '../file-signature.ts'
 import { logger } from '../logger.ts'
 import { compileMixinJobs, evaluateSchemaJobs, getPugDependencyGraph } from '../pug/index.ts'
 import { slugify } from '../shared.ts'
+import { createUseId } from '../use-id.ts'
 import { logicalWriteFile } from '../utils.ts'
 import { getZodVersion, requireZod } from '../zod.ts'
 import { getMixinWrapperSource, MIXIN_COMPILE_OPTIONS } from './compile.ts'
+import { createDefineComponent } from './define-component.ts'
 import { discoverMixins } from './discovery.ts'
+import { createMixinFixtureExporter, fingerprint, formatFixtureOverview, formatFixtureReport, getFixtureProblems } from './fixture-export.ts'
 import { writeJsonSchemaFiles } from './json-schema-export.ts'
 import { isSchemaSource, loadSchemaRegistry, prepareSchemaRegistry } from './schema-registry.ts'
-import { evaluateComponentDefinition } from './schema.ts'
+import { evaluateComponentDefinition, readSchemaBlockDefinition } from './schema.ts'
 import { getMixinPath, MIXIN_MANIFEST_PATH, SCHEMA_OUTPUT_DIR } from './types.ts'
 
 export * from './types.ts'
 
 /** Bump when the shape of the persisted cache changes; older files are then discarded. */
-const CACHE_FORMAT = 5
+const CACHE_FORMAT = 7
 const DEFAULT_CACHE_DIR = 'node_modules/.cache/kss-modern'
 /** Prefix of mixin nodes in the shared pug dependency graph, next to the section ids. */
 export const MIXIN_GRAPH_PREFIX = 'mixin:'
@@ -84,6 +91,22 @@ export interface MixinPipeline {
 let kssModernVersion: string | undefined
 
 /** This package's version, part of every cache key. Works from the sources and from `dist/`. */
+const nodeRequire = createRequire(import.meta.url)
+let fakerVersion: string | undefined
+
+/** The installed `@faker-js/faker`, part of the schema keys: the faked `examples` change with it. */
+function getFakerVersion(): string {
+  if (fakerVersion === undefined) {
+    try {
+      fakerVersion = (nodeRequire('@faker-js/faker/package.json') as { version: string }).version
+    }
+    catch {
+      fakerVersion = 'none'
+    }
+  }
+  return fakerVersion
+}
+
 function getKssModernVersion(): string {
   if (kssModernVersion)
     return kssModernVersion
@@ -215,6 +238,8 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
   const lastGoodModules = new Map<string, string>()
   /** JSON Schema files written for `mixinJsonSchemaDir`, removed again once their mixin is gone. */
   let jsonSchemaFiles = new Map<string, string>()
+  let fixtureExporter: MixinFixtureExporter | undefined
+  let isFixtureReportLogged = false
 
   const build = async (changedFiles?: string[]): Promise<MixinBuildResult> => {
     const startedAt = performance.now()
@@ -310,8 +335,8 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
         return undefined
       const form = getSchemaForm(mixin)
       return hashContent(form === 'module'
-        ? `${form}\n${mixin.mixinName}\n${registryKey}\n${zodVersion}`
-        : `${form}\n${mixin.schemaSource}\n${zodVersion}`)
+        ? `${form}\n${mixin.mixinName}\n${registryKey}\n${zodVersion}\n${getFakerVersion()}`
+        : `${form}\n${mixin.schemaSource}\n${zodVersion}\n${getFakerVersion()}`)
     })
     const usedSchemaKeys = new Set(schemaKeys.filter((key): key is string => key !== undefined))
     const schemaMisses = new Map<string, { source: string, form: MixinSchemaForm }>()
@@ -346,7 +371,7 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
         else if (loadError !== undefined)
           evaluated.set(schemaKey, { error: loadError })
         else
-          evaluated.set(schemaKey, evaluateComponentDefinition(z, components!.get(name), name))
+          evaluated.set(schemaKey, await evaluateComponentDefinition(z, components!.get(name), name))
       }
     }
     for (const [schemaKey, schema] of evaluated) {
@@ -364,6 +389,7 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
         file: toPosixRelative(file),
         line: mixin.line,
         hasSchema: false,
+        ...mixin.slots ? { slots: mixin.slots } : {},
       }
       const schemaKey = schemaKeys[index]
       if (schemaKey === undefined)
@@ -395,7 +421,7 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     )
     const previousIds = new Set(lastResult?.manifest.mixins.map(entry => entry.id))
     const modules = new Map<string, string>()
-    const jobs: { id: string, file: string, name: string, moduleKey: string, key: string, entry: MixinManifestEntry }[] = []
+    const jobs: { id: string, file: string, name: string, slots?: string[], moduleKey: string, key: string, entry: MixinManifestEntry }[] = []
     let cachedCount = 0
 
     await Promise.all(discovered.map(async ({ file, mixin }, index) => {
@@ -405,7 +431,7 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
 
       const moduleKey = `${file}#${mixin.name}`
       const key = hashContent(JSON.stringify([
-        getMixinWrapperSource(file, mixin.name),
+        getMixinWrapperSource(file, mixin.name, mixin.slots),
         getKssModernVersion(),
         zodVersion,
         MIXIN_COMPILE_OPTIONS,
@@ -434,11 +460,11 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
         return
       }
 
-      jobs.push({ id: entry.id, file, name: mixin.name, moduleKey, key, entry })
+      jobs.push({ id: entry.id, file, name: mixin.name, slots: mixin.slots, moduleKey, key, entry })
     }))
 
     const results = await compileMixinJobs(
-      jobs.map(({ id, file, name }) => ({ id, file, name })),
+      jobs.map(({ id, file, name, slots }) => ({ id, file, name, slots })),
       // a small incremental rebuild is not worth the worker round-trip
       { inline: lastResult !== undefined && changedPugFiles !== undefined && jobs.length <= 2 },
     )
@@ -525,6 +551,29 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     if (isCacheDirty)
       await writeCache(cacheFilePath, data)
 
+    // 4. test fixtures, after the cache so a failing production build still keeps it
+    if (config.mixinFixtureDir) {
+      fixtureExporter ??= createMixinFixtureExporter(config.mixinFixtureDir)
+      const sources = await getFixtureSources(discovered, entries, schemaKeys, modules, registry)
+      const versionKey = `${getKssModernVersion()}\n${zodVersion}\n${getFakerVersion()}`
+      const { summaries, computed } = await fixtureExporter.write(manifest, sources, versionKey)
+      const failures = summaries
+        .map(summary => ({ summary, problems: getFixtureProblems(summary) }))
+        .filter(({ problems }) => problems.length > 0)
+      const isComputed = new Set(computed)
+      for (const { summary, problems } of failures) {
+        if (isComputed.has(summary.component))
+          logger.warn(`The test fixtures of "${summary.component}" have problems:\n${problems.map(problem => `- ${problem}`).join('\n')}`)
+      }
+      logFixtureReport(summaries, computed.length > 0 || !isFixtureReportLogged)
+      isFixtureReportLogged = true
+      if (config.mode === 'production' && failures.length > 0) {
+        throw new Error(`Test fixtures failed for ${failures.length} mixin(s):\n\n${
+          failures.map(({ summary, problems }) => `  • ${summary.component} (${summary.file})\n${problems.map(problem => `    - ${problem}`).join('\n')}`).join('\n\n')
+        }`)
+      }
+    }
+
     const stats: MixinBuildStats = {
       total: manifest.mixins.length,
       cached: cachedCount,
@@ -541,6 +590,71 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     }
     lastResult = result
     return result
+  }
+
+  /** The fixture input of every mixin with a render module, see `./fixture-export.ts`. */
+  async function getFixtureSources(
+    discovered: { file: string, mixin: DiscoveredMixin }[],
+    entries: MixinManifestEntry[],
+    schemaKeys: (string | undefined)[],
+    modules: Map<string, string>,
+    registry: SchemaRegistryResult,
+  ): Promise<MixinFixtureSource[]> {
+    const z = requireZod()!
+    const components = registry && !('error' in registry) && discovered.some(({ mixin }) => mixin.isSchemaModule)
+      ? (await loadSchemaRegistry(registry.nodeRegistry)).components
+      : undefined
+    const locals = (entry: MixinManifestEntry) => () => ({
+      z,
+      defineComponent: createDefineComponent({ registry: components }),
+      useId: createUseId(`mixin-${entry.id}`),
+      modifierClass: '',
+    })
+
+    return discovered.flatMap(({ mixin }, index): MixinFixtureSource[] => {
+      const entry = entries[index]
+      const code = entry.module === undefined ? undefined : modules.get(entry.module)
+      if (!entry.hasSchema || code === undefined)
+        return []
+      const name = entry.path.join('/')
+
+      if (mixin.isSchemaModule) {
+        const definition = components?.get(mixin.mixinName ?? '')
+        if (!definition)
+          return []
+        return [{
+          entry,
+          definitionKey: hashContent(fingerprint(definition, getFake)),
+          code,
+          loadDefinition: async () => definition as unknown as FixtureDefinition,
+          locals: locals(entry),
+        }]
+      }
+
+      const form = mixin.isDefineComponent ? 'defineComponent' : 'mixinSchema'
+      return [{
+        entry,
+        definitionKey: schemaKeys[index]!,
+        code,
+        loadDefinition: async () => ({ ...readSchemaBlockDefinition(z, mixin.schemaSource!, form), name }) as FixtureDefinition,
+        locals: locals(entry),
+      }]
+    })
+  }
+
+  /** `mixinFixtureReport`: the overview, or the full report of the components it names. */
+  function logFixtureReport(summaries: { component: string, file: string, report: FixtureReport, errors: string[] }[], isDue: boolean): void {
+    const option = config.mixinFixtureReport
+    if (!option || !isDue)
+      return
+    if (option === true) {
+      logger.info(`Test fixtures in ${config.mixinFixtureDir}:\n${formatFixtureOverview(summaries)}`)
+      return
+    }
+    for (const component of typeof option === 'string' ? [option] : option) {
+      const summary = summaries.find(candidate => candidate.component === component)
+      logger.info(summary ? formatFixtureReport(summary) : `No test fixtures for "${component}": no mixin with a schema has this name.`)
+    }
   }
 
   return {

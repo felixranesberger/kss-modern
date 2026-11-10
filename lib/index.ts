@@ -35,6 +35,7 @@ import {
 import { watchStyleguideForChanges } from './watcher.ts'
 
 export { createLogger, type LogBox, type Logger, logger } from './logger.ts'
+export { formatMixinFixtureReport, type MixinFixtureCase, type MixinFixtureFile } from './mixins/fixture-export.ts'
 
 /** The styleguide's accent colour: one value, or one per color scheme. */
 export type StyleguideBrandColor = string | {
@@ -111,6 +112,19 @@ interface StyleguideOptions {
    * `<dir>/atoms/Button.json`. Relative to the working directory. Off unless set.
    */
   mixinJsonSchemaDir?: string
+  /**
+   * Write the test cases of every mixin with a schema into this directory, with the markup its Pug
+   * mixin renders for each: `name: 'atoms/Button'` -> `<dir>/atoms/Button.json`. A backend test
+   * renders the same props with its own templates and compares. Needs `@faker-js/faker`. Relative
+   * to the working directory. Off unless set, see `docs/component-fixtures.md`.
+   */
+  mixinFixtureDir?: string
+  /**
+   * Log the report of the test fixtures after a build that changed them: `true` for an overview
+   * of all components, a component name (`'molecules/Card'`) or a list of them for the full report.
+   * Needs `mixinFixtureDir`.
+   */
+  mixinFixtureReport?: boolean | string | string[]
   /**
    * Let search engines index the generated styleguide.
    *
