@@ -25,6 +25,8 @@ export interface PugMixinJob {
   id: string
   file: string
   name: string
+  /** The mixin's slots, see `getMixinWrapperSource`. */
+  slots?: string[]
 }
 
 /** Evaluate one schema block and convert it to JSON Schema (see `lib/mixins/schema.ts`). */
@@ -73,13 +75,13 @@ parentPort.on('message', async (data: PugWorkerInput) => {
   try {
     if (data.kind === 'schema') {
       const z = requireZod()
-      const schema = z ? evaluateMixinSchema(z, data.source, data.form) : { error: 'zod 4 is not installed' }
+      const schema = z ? await evaluateMixinSchema(z, data.source, data.form) : { error: 'zod 4 is not installed' }
       parentPort!.postMessage({ id, schema } satisfies PugSchemaWorkerOutput)
       return
     }
 
     if (data.kind === 'mixin') {
-      const { code, dependencies } = compileMixinModule(data.file, data.name)
+      const { code, dependencies } = compileMixinModule(data.file, data.name, data.slots)
       parentPort!.postMessage({ id, code, dependencies } satisfies PugMixinWorkerOutput)
       return
     }

@@ -36,6 +36,10 @@
       "types": "./dist/node/lib/component-schema.d.ts",
       "import": "./dist/node/lib/component-schema.mjs"
     },
+    "./fixtures": {
+      "types": "./dist/node/lib/fixtures/index.d.ts",
+      "import": "./dist/node/lib/fixtures/index.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -73,15 +77,20 @@
     "tinyglobby": "^0.2.17"
   },
   "peerDependencies": {
+    "@faker-js/faker": "^10.0.0",
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
+    "@faker-js/faker": {
+      "optional": true
+    },
     "zod": {
       "optional": true
     }
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",
+    "@faker-js/faker": "10.6.0",
     "@leeoniya/ufuzzy": "^1.0.19",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.2",
@@ -96,6 +105,7 @@
     "jsdom": "^29.1.1",
     "keyux": "^0.11.5",
     "motion": "^12.42.2",
+    "typescript": "~6.0.3",
     "unbuild": "^3.6.1",
     "vite": "^8.1.3",
     "vitest": "^4.1.10",
