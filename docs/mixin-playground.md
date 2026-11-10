@@ -73,15 +73,28 @@ const input = z.strictObject({
 export const intro = defineComponent({
   name: 'organisms/Intro',
   schema: input.transform(p => ({ ...p, isLarge: p.variant === 'large' })),
-  examples: { title: 'Mandate and mission' },
+  examples: { title: 'Mandate and mission', cta: { text: 'Learn more', href: f => f.internet.url() } },
 })
 ```
 
 `defineComponent` from `kss-modern/schema` returns the object unchanged and adds the types: TypeScript checks `examples` against the props the schema takes, so a typo in a prop name or a value outside an enum fails in the editor. A plain object works as well. Every export that is an object with a string `name` and a zod `schema` is a component. The name in `defineComponent('…', props)` picks it, and two exports with the same name fail. `examples` sets the starting value of the props it names, like `.meta({ examples })`. The controls come from the schema's input side. A `.transform()` (or `.transform().pipe(outputSchema)`) turns the props into what the template receives, so derived values like `isLarge` are computed once and the template only reads them. The **Output** tab of the explorer shows that object for the current props. When the integration computes those values before it calls the template, the transform is their specification.
 
+`examples` must name every prop with a free value: strings, numbers, arrays and objects without a default, optional ones included. Enums, booleans, literals, props with a default and records may be left out. A value is fixed or a function that gets a [Faker](https://fakerjs.dev) instance (`@faker-js/faker`, an optional peer dependency), in objects and list elements as well. A shared fragment can bring its own fake with `withFake`, then the props using it need no entry:
+
+```ts
+import { withFake } from 'kss-modern/schema'
+
+export const link = withFake(
+  z.strictObject({ text: z.string().min(1), href: z.string().min(1) }),
+  f => ({ text: f.lorem.words(2), href: f.internet.url() }),
+)
+```
+
+`kss-modern/fixtures` turns `examples` into plain values with `resolveExamples(definition, { seed })`. The build does the same with seed 1 for the explorer and the [JSON Schema files](#json-schema-files), so they hold plain values and no function. The same `examples` feed the [test fixtures](component-fixtures.md), which combine the schema's values into test cases and render each with the mixin.
+
 Rules for these files:
 
-- They may import `zod` (as `import { z } from 'zod'`), `defineComponent` from `kss-modern/schema` and relative files inside the content directory, nothing else. Type-only imports are fine, they disappear.
+- They may import `zod` (as `import { z } from 'zod'`), `defineComponent` and `withFake` from `kss-modern/schema` and relative files inside the content directory, nothing else. Type-only imports are fine, they disappear.
 - Only TypeScript that erases to JavaScript: types, interfaces, `satisfies`, `as`. No `enum`, no `namespace`, no parameter properties.
 - kss-modern strips the types with the runtime's `module.stripTypeScriptTypes`, which needs Node 22.13 or newer, or Deno. The stripped copies go to `node_modules/.cache/kss-modern/schemas/` for the build and to `mixins/schemas/` in the output for the playground, each under a hash of all sources.
 - Editing a `.schema.ts` file or a file it imports rebuilds the mixins and the sections that use them.
@@ -193,6 +206,12 @@ mixinJsonSchemaDir: 'build/mixin-schemas',
 Each mixin gets one file in the folders of its `name`. `name: 'atoms/Button'` becomes `build/mixin-schemas/atoms/Button.json`, a mixin without `name` is written as `<pug name>.json` at the top level. The content is the same JSON Schema the playground uses (`io: 'input'`, so props with a default are optional). A mixin with a broken schema gets no file. The path is relative to the working directory.
 
 When a mixin goes away during a build or watch run, its file is removed. Other files in the directory stay untouched, and so do files from mixins removed before the process started.
+
+The `examples` in a file are resolved: a Faker function or a `withFake` fragment is written as the value it makes with seed 1.
+
+### Slots
+
+The build reads the slots of every mixin from its template and lists them in `slots` of the manifest entry: `default` when the mixin renders `block`, and the named slots of a mixin that splits its block with `const slots = pug_mixins.$fragments.collect(block)` and reads `slots.header` or `slots['header']`. A caller fills those with `+fragment('header')`. The [test fixtures](component-fixtures.md) test every slot empty and filled, with the content from `slots` in `defineComponent`.
 
 ## Mixin explorer
 

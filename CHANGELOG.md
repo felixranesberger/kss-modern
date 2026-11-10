@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### ⚠ BREAKING CHANGES
+
+* `examples` in `defineComponent` of `kss-modern/schema` is now required and must be complete. Every prop with a free value (string, number, array, object without default) needs an entry, optional ones included. Enums, booleans, literals, props with a default, records and fragments with `withFake` may be left out. Existing `.schema.ts` files fail the type check until the missing entries are added, tsc names each one. Nothing changes at runtime
+
+### Features
+
+* take Faker in `examples`. Every value may be a function `f => f.lorem.sentence()` that gets a [Faker](https://fakerjs.dev) instance, in objects and list elements as well, and tsc checks what it returns. `defineComponent` also takes `slots` (content per slot name), `cases` (named cases that are always tested) and `strength` for the coming fixture generator. `@faker-js/faker` is an optional peer dependency like `zod`, `kss-modern/schema` imports only its types
+* add `withFake(schema, fake)` to `kss-modern/schema`. It attaches a fake to a shared fragment like a link or an image, so a prop using it needs no entry in `examples`. The mark survives `.optional()`, `.default()` and `.describe()`, and `getFake(schema)` reads it back. The fakes live in a registry on `globalThis`, so the copy of `kss-modern/schema` the `.schema.ts` modules get and the package see the same ones
+* add the entry `kss-modern/fixtures` with `createFaker(seed)` and `resolveExamples(definition, { seed })`. It turns `examples` into plain values with a fixed seed and fills the props whose fragment has a fake. `fakeProps`, `testCases` and `explainCases` are declared with their types but not implemented yet
+* implement `fakeProps`, `testCases` and `explainCases`, and add `selectTestCases` for cases and report in one pass. Up to 10,000 combinations every one is tested, above it the cases cover every value pair (`strength: 3` every triple) plus the cases whose Pug markup brings a new feature. `impossible` lists value tuples as `string[][]`
+* list the slots of a mixin in `slots` of its manifest entry: `default` for its `block`, plus the named slots read with `pug_mixins.$fragments.collect(block)`. The render module fills them through the local `__kssSlots`
+* resolve the fakes in `examples` with seed 1 for the explorer and `mixinJsonSchemaDir`, so both keep plain values
+* write test fixtures with `mixinFixtureDir`. Each component with a schema gets `<dir>/<name>.json` with its cases (`id`, `name`, `stage`, input `props`, `slots`, image paths in `files`) and the markup of its mixin per case, plus the report. A file is only recomputed when the hash of schema, template, slots, seed and versions changes, also across restarts, and the file of a removed component is deleted. Render errors, unreachable values, fakes that break the schema and a missing Faker are logged, and fail a production build. `mixinFixtureReport` logs an overview or the report of single components, `formatMixinFixtureReport(dir, component?)` prints it from the files. See [docs/component-fixtures.md](docs/component-fixtures.md)
+
+### Bug Fixes
+
+* keep the `.schema.ts` copies in `node_modules/.cache/kss-modern/schemas/` of other builds for ten minutes. A second build of the same project, like a test run next to the watcher, deleted the directory the first one still imported
+
 ## [1.7.0-beta.10](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.9...v1.7.0-beta.10) (2026-11-11)
 
 ### Bug Fixes
