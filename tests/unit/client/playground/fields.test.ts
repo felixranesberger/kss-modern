@@ -118,11 +118,24 @@ describe('initial values', () => {
   const fields = getFields(schema)
   const byKey = Object.fromEntries(fields.map(field => [field.key, field]))
 
-  it('prefers the default, then the first example, then an empty value', () => {
+  it('prefers the first example, then the default, then an empty value', () => {
     expect(getInitialValue(byKey.variant)).toBe('primary')
     expect(getInitialValue(byKey.ratio)).toBe(0.5)
     expect(getInitialValue(byKey.label)).toBe('')
     expect(getInitialValue(byKey.tags)).toEqual([])
+  })
+
+  it('starts a prop that has a default with its example', () => {
+    const withExamples = z.toJSONSchema(z.object({
+      isCurrent: z.boolean().default(false),
+      items: z.array(z.string()).default([]),
+    }), { io: 'input' }) as { properties: Record<string, Record<string, unknown>> }
+    withExamples.properties.isCurrent.examples = [true]
+    withExamples.properties.items.examples = [['Berufswahl']]
+    const [isCurrent, items] = getFields(withExamples)
+
+    expect(getInitialValue(isCurrent)).toBe(true)
+    expect(getInitialValue(items)).toEqual(['Berufswahl'])
   })
 
   it('leaves an optional prop without default or example out', () => {

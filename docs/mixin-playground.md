@@ -153,7 +153,7 @@ Name the main field of an object the same way everywhere, e.g. `src` for an imag
 schema: z.object({ /* … */ }).describe('The main action of a view'),
 ```
 
-A control starts with the schema default, else with the first example from `.meta({ examples: [...] })`, else empty.
+A control starts with the first example, from `examples` in `defineComponent` or `.meta({ examples: [...] })`, else with the schema default, else empty. An example also wins over a default, so a prop with `.default(false)` can start as `true` in the explorer.
 
 ### Folders in the explorer
 

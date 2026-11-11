@@ -207,14 +207,16 @@ export function getEmptyItem(rules: ItemRules): unknown {
 }
 
 /**
- * A control's starting value: the schema default, else the first example, else empty. Empty is
- * `undefined` (not passed) for an optional prop, and the type's empty value for a required one.
+ * A control's starting value: the first example, else the schema default, else empty. The example
+ * wins because it is the demo value the author picked for the explorer, the default is what the
+ * template falls back to. Empty is `undefined` (not passed) for an optional prop, and the type's
+ * empty value for a required one.
  */
 export function getInitialValue(field: Field): unknown {
-  if (field.hasDefault)
-    return field.default
   if (field.hasExample)
     return field.example
+  if (field.hasDefault)
+    return field.default
   if (field.isOptional)
     return undefined
   if (field.kind === 'array')
