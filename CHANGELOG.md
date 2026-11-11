@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.10](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.9...v1.7.0-beta.10) (2026-11-11)
+
+### Bug Fixes
+
+* start a playground control with its example before the schema default. A prop with `.default()` ignored the example from `defineComponent`, so `isCurrent: z.boolean().default(false)` started as `false` although the example said `true`, and schemas whose refinements depend on such a prop failed with invalid props in the explorer. The default still applies when there is no example ([0047b48](https://github.com/felixranesberger/kss-modern/commit/0047b48))
+
 ## [1.7.0-beta.9](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.8...v1.7.0-beta.9) (2026-10-16)
 
 ### Features
