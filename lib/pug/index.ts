@@ -420,7 +420,7 @@ export async function compileMixinJobs(
   await Promise.all(jobs.map(async (job) => {
     if (useInline) {
       try {
-        const { code, dependencies } = compileMixinModule(job.file, job.name)
+        const { code, dependencies } = compileMixinModule(job.file, job.name, job.slots)
         results.set(job.id, { id: job.id, code, dependencies })
       }
       catch (error) {
@@ -453,7 +453,7 @@ export async function evaluateSchemaJobs(jobs: { id: string, source: string, for
   await Promise.all(jobs.map(async (job) => {
     if (!workerFilePathResolved) {
       const z = requireZod()
-      results.set(job.id, z ? evaluateMixinSchema(z, job.source, job.form) : { error: 'zod 4 is not installed' })
+      results.set(job.id, z ? await evaluateMixinSchema(z, job.source, job.form) : { error: 'zod 4 is not installed' })
       return
     }
 

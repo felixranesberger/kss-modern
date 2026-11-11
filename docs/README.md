@@ -13,6 +13,7 @@ kss-modern reads KSS comments from your CSS or SCSS files and builds a static st
 5. **[The styleguide UI](styleguide-ui.md)** describes what visitors can do in the generated styleguide.
 6. **[Accessibility audit](accessibility-audit.md)** covers the Audit button and the `window.kssAudit()` API for CI and AI agents.
 7. **[Mixin playground](mixin-playground.md)** lists your Pug mixins and turns the ones with a zod schema into live, editable previews.
+8. **[Component test fixtures](component-fixtures.md)** generates test cases with the expected Pug markup for every component, so a backend can compare its own rendering.
 
 ## Learn from the demo
 

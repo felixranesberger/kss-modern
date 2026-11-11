@@ -33,8 +33,8 @@ export interface ComponentDefinition {
   name?: string
   schema: SafeParseSchema
   /**
-   * Demo values per prop, only for a definition in a `.schema.ts` file: the explorer starts with
-   * them, like with `.meta({ examples })`. They are never defaults.
+   * Demo values per prop: the explorer starts with them, like with `.meta({ examples })`. They are
+   * never defaults. A value may be a Faker function, see `resolveExamples` in `lib/fixtures`.
    */
   examples?: Record<string, unknown>
 }
