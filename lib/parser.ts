@@ -110,8 +110,9 @@ function parseColors(text: string): ColorObject[] {
   text = text.trim()
   const colors: ColorObject[] = []
 
-  // Extract colors (hex, rgb, css variables etc)
-  const regex = /^(\S+)\s*:\s*(var\(--[a-z0-9-]+\)|[a-z]+|#[0-9a-f]{3}|#(?:[0-9a-f]{2}){2,4}|(?:rgb|hsl)a?\((?:-?\d+%?[,\s]+){2,3}[\d.]+%?\))(?:\s*-\s*(.*))?$/gim
+  // Extract colors: css variables, named colors, hex and the CSS color functions in any of their
+  // syntaxes (legacy commas, space-separated with `/ alpha`, units like `deg`)
+  const regex = /^(\S+)\s*:\s*(var\(--[a-z0-9-]+\)|[a-z]+|#[0-9a-f]{3,4}|#(?:[0-9a-f]{2}){3,4}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()\n]+\))(?:\s*-\s*(.*))?$/gim
 
   let test = regex.exec(text)
 

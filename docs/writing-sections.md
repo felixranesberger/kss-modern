@@ -145,7 +145,7 @@ A section with modifiers but without `Markup:` shows no previews.
 
 ### Colors
 
-`Colors:` renders a palette of swatches. Clicking a swatch copies its value.
+`Colors:` renders a palette of swatches. Clicking a swatch opens a popover with the color as HEX, RGB, HSL and OKLCH, plus the description of the line. Clicking a value copies it, the popover stays open for the next one.
 
 ```css
 /*
@@ -160,9 +160,9 @@ Styleguide 1.1.1
 */
 ```
 
-Each line is `name: value` with an optional ` - description`. Values can be hex colors, `rgb()`, `rgba()`, `hsl()`, `hsla()`, named colors or `var(--token)`.
+Each line is `name: value` with an optional ` - description`. Values can be hex colors (also with alpha), named colors, `var(--token)` or a color function in any syntax: `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()` and `color()`.
 
-The swatches are drawn in the styleguide UI, where your preview CSS is not loaded. A `var(--token)` swatch only shows a color if the property is defined there too, for example through a stylesheet with `type: 'overwriteStyleguide'` (see [Configuration](configuration.md#html)). Literal values always work.
+A `var(--token)` swatch also offers the `var()` and the property name. Its color is resolved where the property is defined: in the styleguide UI if a stylesheet with `type: 'overwriteStyleguide'` defines it (see [Configuration](configuration.md#html)), otherwise in a hidden document that loads your preview CSS (`color-resolver.html` in the output). The value follows the light/dark toggle and the global theme, so it matches what the previews show.
 
 ### Icons
 

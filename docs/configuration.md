@@ -88,7 +88,7 @@ html: {
 Each asset has a `src` and an optional `type`:
 
 - Without a `type`, or with `type: 'regular'`, the asset is loaded into the preview iframes only. This is where your component CSS and JavaScript belong. It never leaks into the styleguide UI.
-- With `type: 'overwriteStyleguide'`, the asset is loaded into the styleguide UI instead. Use it to adjust the look of the styleguide itself, or to define the custom properties that `var()` color swatches need.
+- With `type: 'overwriteStyleguide'`, the asset is loaded into the styleguide UI instead. Use it to adjust the look of the styleguide itself. `var()` color swatches don't need it, they resolve in your preview CSS.
 
 `src` is written into the pages as given. All pages sit in the root of `outDir`, so a relative path such as `assets/styles.css` resolves against `outDir` and keeps working when the styleguide is served from a subdirectory. Scripts accept `additionalAttributes`, for example `{ type: 'module' }` or `{ defer: '' }`.
 

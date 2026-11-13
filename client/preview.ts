@@ -91,6 +91,13 @@ if (copyButtons.length > 0) {
     .catch(console.error)
 }
 
+const colorSwatchLists = document.querySelectorAll<HTMLElement>('[data-color-swatches]')
+if (colorSwatchLists.length > 0) {
+  import('./lib/color-swatches.ts')
+    .then(({ default: init }) => init(colorSwatchLists))
+    .catch(console.error)
+}
+
 const markdownFolded = document.querySelectorAll<HTMLElement>('.markdown-container-folded')
 if (markdownFolded.length > 0) {
   markdownFolded.forEach((container) => {

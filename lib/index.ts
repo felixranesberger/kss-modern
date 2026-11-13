@@ -18,8 +18,8 @@ import { compilePugMarkup, compilePugMarkupIncremental, getPugDependencyGraph } 
 import { formatSourceCode } from './pug/compile-core.ts'
 import { createRebuildQueue } from './rebuild-queue.ts'
 import { writeRobotsFile } from './robots.ts'
-import { htmlToSearchText, modifierFullpageFileName, replaceWrapperContent, stripPugErrorOverlay } from './shared.ts'
-import { generateFullPageFile } from './templates/fullpage.ts'
+import { COLOR_RESOLVER_FILE_NAME, htmlToSearchText, modifierFullpageFileName, replaceWrapperContent, stripPugErrorOverlay } from './shared.ts'
+import { generateColorResolverFile, generateFullPageFile } from './templates/fullpage.ts'
 import { renderMixinUsage } from './templates/mixin-usage.ts'
 import { generateMixinStandaloneFile, getMixinExplorerHtml } from './templates/mixins.ts'
 import {
@@ -760,6 +760,12 @@ export async function buildAll(
     copyStyleguideAssets(config),
     writeRobotsFile(config.outDir, config.allowSearchEngineIndexing ?? false),
     writeMixinPages(config, context),
+    generateColorResolverFile({
+      filePath: path.join(context.baseDirectory, COLOR_RESOLVER_FILE_NAME),
+      lang: config.html.lang,
+      css: config.html.assets.css,
+      previewThemes: config.previewThemes,
+    }),
     ...fileWriteTasks,
   ])
 

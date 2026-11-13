@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+* open a popover on a color swatch that copies the color as HEX, RGB, HSL or OKLCH, a `var(--token)` swatch also as `var()` and property name. It shows the color, its name and the description from the `Colors:` line, and confirms a copy in the row itself, so several formats can be copied in a row. A copy the clipboard refuses, for example outside a secure context, shows as failed instead. Hovering a swatch shows a copy hint. Such a swatch resolves in a hidden document with the preview CSS (`color-resolver.html`), so it shows its color and follows the light/dark toggle and the global theme. The popover is anchored with CSS anchor positioning and reusable through `toggleCopyPopover()` in `client/lib/copy-popover.ts`. The browser converts the colors via relative color syntax
+* recognize every CSS color function in `Colors:`, also space-separated with units and alpha like `hsl(142deg 71% 45%)`, plus `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()` and hex with alpha. Such lines were dropped before
+
 ## [1.7.0-beta.10](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.9...v1.7.0-beta.10) (2026-11-11)
 
 ### Bug Fixes

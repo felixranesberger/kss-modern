@@ -4,7 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, modifierFullpageFileName, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
+import { COLOR_RESOLVER_FILE_NAME, ensureStartingSlash, generateId, modifierFullpageFileName, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
 import { attrs } from '../template-utils.ts'
 import { logicalWriteFile } from '../utils.ts'
 
@@ -772,21 +772,40 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
 }
 
 function getMainContentColors(section: in2Section): string {
+  const hasCustomProperties = section.colors?.some(color => color.color.startsWith('var(')) ?? false
+
   return `
-    <ul class="my-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
-        ${section.colors?.map(
-          color => `<li>
-            <button 
-                class="relative w-full rounded-2xl px-4 py-6 cursor-copy" 
+    <ul
+        class="my-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6"
+        data-color-swatches
+        ${hasCustomProperties ? `data-color-resolver="${COLOR_RESOLVER_FILE_NAME}"` : ''}
+    >
+        ${section.colors?.map((color) => {
+          const label = sanitizeSpecialCharacters(color.name ?? color.color)
+          const value = sanitizeSpecialCharacters(color.color)
+
+          return `<li>
+            <button
+                class="c-color-swatch"
                 type="button"
-                style="background-color: ${color.color}"
-                data-clipboard-value="${color.color}"
-                data-clipboard-alert-message="Copied color to clipboard!"
+                style="background-color: ${value}"
+                data-color-value="${value}"
+                ${color.name ? `data-color-name="${sanitizeSpecialCharacters(color.name)}"` : ''}
+                ${color.description ? `data-color-description="${sanitizeSpecialCharacters(color.description)}"` : ''}
+                data-copied-label="Copied"
+                data-copy-failed-label="Copy failed"
+                aria-expanded="false"
               >
-                <span class="sr-only">Copy color to clipboard</span>  
+                <span class="sr-only">Copy formats of color ${label}</span>
+                <span class="c-color-swatch__hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25">
+                    <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />
+                    <path d="M10.5 3.5v-.25A1.75 1.75 0 0 0 8.75 1.5h-5.5A1.75 1.75 0 0 0 1.5 3.25v5.5c0 .97.78 1.75 1.75 1.75h.25" />
+                  </svg>
+                </span>
               </button>
-          </li>`,
-        ).join('\n')}
+          </li>`
+        }).join('\n')}
     </ul>
   `
 }

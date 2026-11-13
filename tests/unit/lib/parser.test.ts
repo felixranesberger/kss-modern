@@ -413,6 +413,49 @@ describe('color parsing', () => {
     expect(colors![0].color).toBe('hsl(240, 100%, 50%)')
   })
 
+  it('parses space-separated color functions with units and alpha', async () => {
+    const scss = `
+/**
+ * Modern Colors
+ *
+ * Colors: success: hsl(142deg 71% 45%)
+ * overlay: rgb(0 0 0 / 50%) - Dims the page
+ * brand: oklch(54.6% 0.215 262.88)
+ * paper: lab(96% 0 2)
+ * vivid: color(display-p3 1 0.2 0.1)
+ * tint: hwb(200 10% 20%)
+ *
+ * Styleguide 1.0
+ */
+`
+    const result = await parse(scss, config)
+    const colors = result.content[0].colors
+    expect(colors?.map(c => c.color)).toEqual([
+      'hsl(142deg 71% 45%)',
+      'rgb(0 0 0 / 50%)',
+      'oklch(54.6% 0.215 262.88)',
+      'lab(96% 0 2)',
+      'color(display-p3 1 0.2 0.1)',
+      'hwb(200 10% 20%)',
+    ])
+    expect(colors![1].description).toBe('Dims the page')
+  })
+
+  it('parses hex colors with alpha', async () => {
+    const scss = `
+/**
+ * Alpha Hex
+ *
+ * Colors: veil: #0008
+ * shade: #00000080
+ *
+ * Styleguide 1.0
+ */
+`
+    const result = await parse(scss, config)
+    expect(result.content[0].colors?.map(c => c.color)).toEqual(['#0008', '#00000080'])
+  })
+
   it('parses var(--color) values', async () => {
     const scss = `
 /**
