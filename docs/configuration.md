@@ -44,6 +44,9 @@ await buildStyleguide({
 |---|---|---|---|
 | `previewThemes` | `PreviewTheme[]` | none | Adds a global **Theme** dropdown to the header, see [previewThemes](#previewthemes). |
 | `reloadPreviewsOnThemeChange` | `boolean` | `false` | Reload a preview when its theme changes instead of swapping classes in place. |
+| `reloadPlaygroundOnChange` | `boolean` | `false` | Reload the [mixin playground](mixin-playground.md) preview on every props change instead of swapping its markup in place. |
+| `cacheDir` | `string \| false` | `node_modules/.cache/kss-modern` | Where the persistent build cache lives. `false` keeps it in memory only. |
+| `mixinJsonSchemaDir` | `string` | none | Writes the JSON Schema of every [mixin](mixin-playground.md#json-schema-files) with a schema into this directory. |
 | `deactivateDarkMode` | `boolean` | `false` | Hides the System/Light/Dark toggle and skips the dark pass of the contrast audit. |
 | `allowSearchEngineIndexing` | `boolean` | `false` | Lets search engines index the styleguide. |
 | `launchInEditor` | `boolean \| { rootDir: string }` | none | Adds "Open in editor" links in development mode. |
@@ -85,7 +88,7 @@ html: {
 Each asset has a `src` and an optional `type`:
 
 - Without a `type`, or with `type: 'regular'`, the asset is loaded into the preview iframes only. This is where your component CSS and JavaScript belong. It never leaks into the styleguide UI.
-- With `type: 'overwriteStyleguide'`, the asset is loaded into the styleguide UI instead. Use it to adjust the look of the styleguide itself, or to define the custom properties that `var()` color swatches need.
+- With `type: 'overwriteStyleguide'`, the asset is loaded into the styleguide UI instead. Use it to adjust the look of the styleguide itself. `var()` color swatches don't need it, they resolve in your preview CSS.
 
 `src` is written into the pages as given. All pages sit in the root of `outDir`, so a relative path such as `assets/styles.css` resolves against `outDir` and keeps working when the styleguide is served from a subdirectory. Scripts accept `additionalAttributes`, for example `{ type: 'module' }` or `{ defer: '' }`.
 
@@ -115,6 +118,10 @@ A section's own `Themes:` entry picks up the same stylesheets when it resolves t
 A theme change normally swaps classes and stylesheets inside the loaded preview. That is instant and keeps the preview's state, but the preview's own JavaScript doesn't run again. Components that read styles once at startup, such as charts, canvas drawings or web components that cache tokens, keep the old theme.
 
 Set `reloadPreviewsOnThemeChange: true` to reload the affected previews instead. Only previews whose theme changed are reloaded, and the initial page load never reloads anything.
+
+## reloadPlaygroundOnChange
+
+The [mixin playground](mixin-playground.md) swaps the rendered markup into its preview and dispatches `kss-modern:playground-render` on the preview's `document`. Set `reloadPlaygroundOnChange: true` when your JavaScript only initialises components on page load and cannot listen for that event. The preview then reloads with the new props in its URL.
 
 ## launchInEditor
 

@@ -60,6 +60,21 @@ function calculateIframeHeight(iframe: HTMLIFrameElement) {
   iframe.style.height = `${contentHeight}px`
 }
 
+/**
+ * The element the URL hash points at. A hash can also carry state rather than an id (the mixin
+ * playground's `#props=…`), which is no valid selector, so it is looked up by id, never queried.
+ */
+function getHashTarget(): HTMLElement | null {
+  if (!window.location.hash)
+    return null
+  try {
+    return document.getElementById(decodeURIComponent(window.location.hash.slice(1)))
+  }
+  catch {
+    return null
+  }
+}
+
 export function removeDocumentLoadingClass() {
   document.body.classList.add('js-loaded')
 }
@@ -89,15 +104,13 @@ export default async (iframes: HTMLIFrameElement[]) => {
   })
 
   // jump to anchor links when iframes are calculated
-  if (window.location.hash) {
-    const target = document.querySelector(window.location.hash)
-    if (target) {
-      // TODO: check if we somehow can improve this dumb setTimeout functionality
-      // wait till iframes are resized, so we can jump to anchor links
-      await new Promise(resolve => setTimeout(resolve, 200))
+  const target = getHashTarget()
+  if (target) {
+    // TODO: check if we somehow can improve this dumb setTimeout functionality
+    // wait till iframes are resized, so we can jump to anchor links
+    await new Promise(resolve => setTimeout(resolve, 200))
 
-      target.scrollIntoView()
-    }
+    target.scrollIntoView()
   }
 
   removeDocumentLoadingClass()

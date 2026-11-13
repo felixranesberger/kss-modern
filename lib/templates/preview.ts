@@ -4,7 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { objectEntries } from '@antfu/utils'
 import { sectionSanitizeId } from '../../client/utils.ts'
-import { ensureStartingSlash, generateId, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
+import { COLOR_RESOLVER_FILE_NAME, ensureStartingSlash, generateId, modifierFullpageFileName, sanitizeSpecialCharacters, slugify, stripPugErrorOverlay, themeClassList } from '../shared.ts'
 import { attrs } from '../template-utils.ts'
 import { logicalWriteFile } from '../utils.ts'
 
@@ -337,7 +337,13 @@ function renderThemeSelect(section: in2Section, themes: ThemeOption[]) {
   )
 }
 
-export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: ResolvedStyleguideConfiguration) {
+/**
+ * Renders the "Show mixins" disclosure of a section (`lib/templates/mixin-usage.ts`); returns an
+ * empty string for a section without public mixins.
+ */
+export type MixinUsageRenderer = (section: in2Section) => string
+
+export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, config: ResolvedStyleguideConfiguration, renderMixinUsage: MixinUsageRenderer = () => '') {
   let output = ''
 
   function renderSection(section: in2Section) {
@@ -348,7 +354,7 @@ export function getMainContentHtml(secondLevelSection: in2SecondLevelSection, co
       output += getMainContentSectionWrapper(section, getMainContentIcons(section))
     }
     else {
-      const content = section.markup || (!section.markup && section.figma) ? getMainContentRegular(section, config) : undefined
+      const content = section.markup || (!section.markup && section.figma) ? getMainContentRegular(section, config, renderMixinUsage(section)) : undefined
       output += getMainContentSectionWrapper(section, content)
     }
   }
@@ -448,52 +454,34 @@ ${html ?? ''}
   `
 }
 
-function getMainContentRegular(section: in2Section, config: ResolvedStyleguideConfiguration): string {
-  // the section's source for the code views — without the dev-only pug compile-error overlay
-  const sourceCode = section.sourceCode ?? stripPugErrorOverlay(section.markup)
+export interface EditorLinks { vscode: string, phpstorm: string }
 
-  const openInEditorPaths: {
-    css?: { vscode: string, phpstorm: string }
-    html?: { vscode: string, phpstorm: string }
-  } = {}
+/**
+ * Deep links that open `file` (relative to the working directory) in an editor. Only in development
+ * with `launchInEditor` set; undefined otherwise.
+ */
+export function getOpenInEditorLinks(config: ResolvedStyleguideConfiguration, file: string, line?: number): EditorLinks | undefined {
+  if (config.mode !== 'development' || !config.launchInEditor)
+    return undefined
 
-  if (config.mode === 'development' && config.launchInEditor) {
-    const computedRootPath = config.launchInEditor && typeof config.launchInEditor === 'object' && 'rootDir' in config.launchInEditor
-      ? config.launchInEditor.rootDir
-      : process.cwd()
+  const computedRootPath = typeof config.launchInEditor === 'object' && 'rootDir' in config.launchInEditor
+    ? config.launchInEditor.rootDir
+    : process.cwd()
 
-    const cssFilePath = ensureStartingSlash(path.join(computedRootPath, section.source.css.file))
-    const cssLineNumber = getSectionTitleLine(section)
-    openInEditorPaths.css = {
-      vscode: `vscode://file//${cssFilePath}:${cssLineNumber}`,
-      phpstorm: `phpstorm://open?file=${cssFilePath}&line=${cssLineNumber}`,
-    }
-
-    if (section.source.markup && section.source.markup.file) {
-      const htmlFilePath = ensureStartingSlash(path.join(computedRootPath, section.source.markup.file))
-      openInEditorPaths.html = {
-        vscode: `vscode://file//${htmlFilePath}`,
-        phpstorm: `phpstorm://open?file=${htmlFilePath}`,
-      }
-    }
+  const filePath = ensureStartingSlash(path.join(computedRootPath, file))
+  return {
+    vscode: `vscode://file//${filePath}${line !== undefined ? `:${line}` : ''}`,
+    phpstorm: `phpstorm://open?file=${filePath}${line !== undefined ? `&line=${line}` : ''}`,
   }
+}
 
-  const computeFigmaExternalLink = (url?: string) => {
-    if (!url)
-      return ''
-
-    const urlObj = new URL(url)
-    urlObj.hostname = 'www.figma.com'
-
-    return urlObj.toString()
-  }
-
-  // Preserve classes in tailwind
-  // group/phpstorm
-  // group/vscode
-  // group-hover/phpstorm:saturate-100
-  // group-hover/vscode:saturate-100
-  const renderOpenInEditorLink = (editorType: 'phpstorm' | 'vscode', contentType: 'CSS' | 'HTML' | 'Pug', link: string) => `
+// Preserve classes in tailwind
+// group/phpstorm
+// group/vscode
+// group-hover/phpstorm:saturate-100
+// group-hover/vscode:saturate-100
+export function renderOpenInEditorLink(editorType: 'phpstorm' | 'vscode', contentType: 'CSS' | 'HTML' | 'Pug', link: string) {
+  return `
     <a
         class="pointer-events-auto hidden editor-${editorType}-only @md:inline-flex items-center group/${editorType} gap-1.5 p-4 desktop-device-only cursor-pointer active:scale-90 transition hover:text-styleguide-highlight duration-200"
         href="${link}"
@@ -510,6 +498,29 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
         >
     </a>
   `
+}
+
+function getMainContentRegular(section: in2Section, config: ResolvedStyleguideConfiguration, mixinUsageHtml = ''): string {
+  // the section's source for the code views — without the dev-only pug compile-error overlay
+  const sourceCode = section.sourceCode ?? stripPugErrorOverlay(section.markup)
+
+  const openInEditorPaths: {
+    css?: EditorLinks
+    html?: EditorLinks
+  } = {
+    css: getOpenInEditorLinks(config, section.source.css.file, getSectionTitleLine(section)),
+    html: section.source.markup?.file ? getOpenInEditorLinks(config, section.source.markup.file) : undefined,
+  }
+
+  const computeFigmaExternalLink = (url?: string) => {
+    if (!url)
+      return ''
+
+    const urlObj = new URL(url)
+    urlObj.hostname = 'www.figma.com'
+
+    return urlObj.toString()
+  }
 
   // A theme dropdown only makes sense for a section with a live preview to re-theme.
   const themeSelectMarkup = section.markup && section.themes && section.themes.length > 0
@@ -634,6 +645,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
                       : ''}
                 </span>
         </div>
+        ${mixinUsageHtml}
     </div>
     
     ${section.modifiers?.length > 0
@@ -646,7 +658,12 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
           </svg>
       </h3>
       <ul class="mt-4 grid gap-6 overflow-hidden rounded-2xl border p-6 border-styleguide-border bg-styleguide-bg-highlight md:gap-x-10 md:gap-y-14">
-          ${section.modifiers?.map(modifier => `
+          ${section.modifiers?.map((modifier, modifierIndex) => {
+            // pug markup has a fullpage per modifier, plain HTML swaps the placeholder in the base fullpage
+            const modifierFileName = section.modifierMarkup?.[modifierIndex] !== undefined
+              ? modifierFullpageFileName(section.fullpageFileName, modifierIndex)
+              : section.fullpageFileName
+            return `
               <li>
                 <div>
                     <div class="flex items-center justify-between gap-6">
@@ -666,7 +683,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
     
                         <a 
                             class="p-2 group"
-                            href="${section.fullpageFileName}?modifier=${modifier.value}" 
+                            href="${modifierFileName}?modifier=${modifier.value}" 
                             target="_blank" 
                             title="Open in fullpage"
                           >
@@ -680,7 +697,7 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
     
                     <div class="preview-resize-container relative max-w-full group/resize [&.is-resizing_iframe]:pointer-events-none mt-2">
                         <iframe
-                              src="${section.fullpageFileName}"
+                              src="${modifierFileName}"
                               class="preview-iframe"
                               data-preview="true"
                               data-modifier="${modifier.value}"
@@ -691,7 +708,8 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
                     </div>
                 </div>
             </li>
-          `).join('\n')}
+          `
+          }).join('\n')}
       </ul>
     `
       : ''}
@@ -754,21 +772,40 @@ function getMainContentRegular(section: in2Section, config: ResolvedStyleguideCo
 }
 
 function getMainContentColors(section: in2Section): string {
+  const hasCustomProperties = section.colors?.some(color => color.color.startsWith('var(')) ?? false
+
   return `
-    <ul class="my-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
-        ${section.colors?.map(
-          color => `<li>
-            <button 
-                class="relative w-full rounded-2xl px-4 py-6 cursor-copy" 
+    <ul
+        class="my-6 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6"
+        data-color-swatches
+        ${hasCustomProperties ? `data-color-resolver="${COLOR_RESOLVER_FILE_NAME}"` : ''}
+    >
+        ${section.colors?.map((color) => {
+          const label = sanitizeSpecialCharacters(color.name ?? color.color)
+          const value = sanitizeSpecialCharacters(color.color)
+
+          return `<li>
+            <button
+                class="c-color-swatch"
                 type="button"
-                style="background-color: ${color.color}"
-                data-clipboard-value="${color.color}"
-                data-clipboard-alert-message="Copied color to clipboard!"
+                style="background-color: ${value}"
+                data-color-value="${value}"
+                ${color.name ? `data-color-name="${sanitizeSpecialCharacters(color.name)}"` : ''}
+                ${color.description ? `data-color-description="${sanitizeSpecialCharacters(color.description)}"` : ''}
+                data-copied-label="Copied"
+                data-copy-failed-label="Copy failed"
+                aria-expanded="false"
               >
-                <span class="sr-only">Copy color to clipboard</span>  
+                <span class="sr-only">Copy formats of color ${label}</span>
+                <span class="c-color-swatch__hint" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25">
+                    <rect x="5.5" y="5.5" width="8" height="8" rx="1.75" />
+                    <path d="M10.5 3.5v-.25A1.75 1.75 0 0 0 8.75 1.5h-5.5A1.75 1.75 0 0 0 1.5 3.25v5.5c0 .97.78 1.75 1.75 1.75h.25" />
+                  </svg>
+                </span>
               </button>
-          </li>`,
-        ).join('\n')}
+          </li>`
+        }).join('\n')}
     </ul>
   `
 }

@@ -1,5 +1,5 @@
 import type { AxeResults, CrossTreeSelector, NodeResult, Result } from 'axe-core'
-import type { AccessibilityAuditDetail, ModifierContrastDetail } from './lib/audit-runner.ts'
+import type { AccessibilityAuditDetail } from './lib/audit-runner.ts'
 import type { AxeRunner } from './lib/color-contrast-audit.ts'
 import { stripPugErrorOverlay } from '../lib/shared.ts'
 import { AUDIT_CONTEXT, getAuditColorSchemes, runColorContrastAcrossSchemes } from './lib/color-contrast-audit.ts'
@@ -11,7 +11,6 @@ import { applyThemeToDocument } from './lib/theme-document.ts'
 declare global {
   interface Window {
     runAccessibilityTest: () => Promise<AccessibilityAuditDetail>
-    runColorContrastAudit: () => Promise<ModifierContrastDetail>
     querySelectorAnywhere: (selector: string) => Element | null
   }
 }
@@ -240,7 +239,13 @@ if (window.frameElement) {
       }
 
       // drop the dev-only pug compile-error overlay so it isn't reported as a section a11y issue
-      const html = stripPugErrorOverlay(await response.text())
+      let html = stripPugErrorOverlay(await response.text())
+
+      // A mixin playground renders its component in the browser, so the served page holds an empty
+      // root: validate the markup currently on screen in its place.
+      const playgroundRoot = document.querySelector('[data-kss-mixin-root]')
+      if (playgroundRoot)
+        html = html.replace('<div data-kss-mixin-root></div>', () => stripPugErrorOverlay(playgroundRoot.outerHTML))
       const { results } = await validator.validateString(html, {
         rules: {
           'no-trailing-whitespace': 'off',
@@ -281,20 +286,6 @@ if (window.frameElement) {
       axe: axeResult,
       htmlValidate: htmlValidateResult,
     }
-  }
-
-  // Executed by the parent on each modifier-variant iframe. A modifier is a pure
-  // class swap, so structure/aria are identical to the base — only color-contrast
-  // can differ, so that is all we re-run here. Results are tagged with the
-  // iframe's own data-modifier by the parent.
-  window.runColorContrastAudit = async () => {
-    const { default: axe } = await import('axe-core')
-
-    const colorContrast = await runContrastAudit(axe)
-    const targetMap = buildAxeTargetMap(axe, colorContrast.map(entry => entry.result))
-    const modifier = window.frameElement?.getAttribute('data-modifier') ?? undefined
-
-    return { modifier, colorContrast, targetMap }
   }
 }
 else {

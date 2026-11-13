@@ -1,12 +1,19 @@
 import type { Biome } from '@biomejs/js-api'
 import type { StyleguideConfiguration } from '../index'
+import type { LoadedSchemaRegistry } from '../mixins/schema-registry.ts'
+import type { MixinUsageNode } from './mixin-trace.ts'
 import { readFileSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import pug from 'pug'
-import { sectionSanitizeId } from '../../client/utils.ts'
 import { logger } from '../logger.ts'
+import { createDefineComponent } from '../mixins/define-component.ts'
+import { loadSchemaRegistry } from '../mixins/schema-registry.ts'
 import { fixAccessibilityIssues, INSERT_VITE_PUG_TAG_RE, PUG_MODIFIER_CLASS_RE, PUG_SRC_RE } from '../shared.ts'
+import { createUseId } from '../use-id.ts'
+import { requireZod } from '../zod.ts'
+import { mixinMarkerPlugin } from './mixin-markers.ts'
+import { createMixinTrace, mergeMixinUsage, MIXIN_TRACE_LOCAL, mixinTracePlugin } from './mixin-trace.ts'
 import { installPugParseCache } from './parse-cache.ts'
 
 export type Mode = StyleguideConfiguration['mode']
@@ -17,11 +24,31 @@ export type Mode = StyleguideConfiguration['mode']
 // shared include tree is otherwise re-parsed once per dependent section. See ./parse-cache.ts.
 installPugParseCache()
 
+export { createUseId }
+
 export interface CompileResult {
   /** Final HTML: pug-compiled and accessibility-fixed. Never formatted, see `formatSourceCode`. */
   html: string
   /** Absolute paths of every file this section's markup depends on (entry pug/html + includes/extends). */
   dependencies: string[]
+  /** The mixins the markup called while rendering, as a call tree. */
+  mixinUsage: MixinUsageNode[]
+}
+
+export interface SectionCompileResult extends CompileResult {
+  /**
+   * The markup rendered once per modifier, in the order of `modifiers`, with `modifierClass` set to
+   * that modifier's classes. Only for pug markup, plain HTML keeps the `{{modifier_class}}` placeholder.
+   */
+  modifierHtml?: string[]
+}
+
+/** The `{{modifier_class}}` placeholder that stands in for the modifier when none is rendered. */
+export const MODIFIER_CLASS_PLACEHOLDER = '{{modifier_class}}'
+
+/** The classes of a KSS modifier name: `.a.b` becomes `a b`, the same as the client's ModifierReplacer. */
+export function modifierClassList(modifier: string): string {
+  return modifier.split('.').filter(part => part.length > 0).join(' ')
 }
 
 // Memoised Biome instance + project key, created on first use and reused for the process lifetime.
@@ -87,38 +114,6 @@ export async function formatSourceCode(content: string, sectionId: string): Prom
   }
 }
 
-/**
- * Creates the `useId` helper exposed to Pug templates for a single render.
- *
- * Ids carry an `id-` prefix so they always start with a letter: a section id is numeric
- * (e.g. `80.90`), and a leading digit is a valid HTML id but NOT a valid CSS/querySelector token
- * (`document.querySelector('#80-90-x')` throws), so the prefix keeps generated ids safe to select.
- *
- * With a key, the id is derived purely from the section id and that key, e.g.
- * `useId('email')` inside section `2.30` returns `id-2-30-email`. It never depends on call
- * order, so the same key returns the same id on every re-render — a label and its input
- * can share one: `label(for=id)` / `input(id=id)`.
- *
- * Without a key, `useId()` hands out a fresh sequential id per call (`id-2-30-0`, `id-2-30-1`, …)
- * for "just give me a unique one" cases. The counter resets each render, so an unchanged
- * template stays stable across re-renders; it only shifts if no-arg calls are added/reordered.
- */
-export function createUseId(sectionId: string) {
-  const namespace = `id-${sectionSanitizeId(sectionId)}`
-  let autoCounter = 0
-  return (key?: string) => {
-    if (key === undefined) {
-      return `${namespace}-${autoCounter++}`
-    }
-
-    const suffix = String(key)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-    return suffix ? `${namespace}-${suffix}` : namespace
-  }
-}
-
 /** The `.pug` file path a pug error points at, if it carries one (raw, unresolved). */
 export function pugErrorFile(error: unknown): string | undefined {
   const candidate = error as { path?: string, filename?: string } | null
@@ -134,7 +129,9 @@ function compilePugFile(
   mode: Mode,
   sectionId: string,
   extraLocals: Record<string, unknown> = {},
-): { html: string, dependencies: string[] } {
+  schemaRegistry?: LoadedSchemaRegistry,
+  modifierClass: string = MODIFIER_CLASS_PLACEHOLDER,
+): CompileResult {
   const source = readFileSync(pugFilePath, 'utf8')
   const pugFn = pug.compile(source, {
     filename: pugFilePath,
@@ -147,16 +144,35 @@ function compilePugFile(
     // line-mapping — measurably bloating codegen and `new Function`. We surface compile errors via
     // our own overlay, so the precise pug line in a runtime stack isn't worth the cost.
     compileDebug: false,
+    // START/END comments around public mixins, see ./mixin-markers.ts; records which mixins the
+    // section calls, see ./mixin-trace.ts
+    plugins: [mixinMarkerPlugin, mixinTracePlugin],
   })
 
   const dependencies = [path.resolve(pugFilePath), ...pugFn.dependencies.map(dep => path.resolve(dep))]
-  // `modifierClass` defaults to the `{{modifier_class}}` placeholder so a template can place the
-  // section's modifier with `.c-tabs(class=modifierClass)` instead of writing the literal token; the
-  // placeholder survives compilation and is swapped per modifier at runtime (see ModifierReplacer).
+  // `modifierClass` is the modifier a section renders, or the `{{modifier_class}}` placeholder for the
+  // base render, so a template can place it with `.c-tabs(class=modifierClass)` or map it to a prop.
   // `extraLocals` wins, so `<insert-vite-pug modifierClass="…">` still bakes its fixed class instead.
-  const html = pugFn({ modifierClass: '{{modifier_class}}', ...extraLocals, useId: createUseId(sectionId) })
+  // a component resolved from a `.schema.ts` file makes its sources dependencies of the section
+  let isRegistryUsed = false
+  const defineComponent = createDefineComponent({
+    registry: schemaRegistry?.components,
+    onResolve: () => {
+      isRegistryUsed = true
+    },
+  })
+  const locals: Record<string, unknown> = { modifierClass, ...extraLocals, useId: createUseId(sectionId), defineComponent }
+  // `z` is zod (when installed), so markup can call mixins that declare their schema with
+  // `defineComponent` or `mixinSchema`, see lib/mixins. A getter, so zod only loads for a template
+  // that actually uses it.
+  Object.defineProperty(locals, 'z', { enumerable: true, get: requireZod })
+  const trace = createMixinTrace()
+  locals[MIXIN_TRACE_LOCAL] = trace
+  const html = pugFn(locals)
+  if (isRegistryUsed)
+    dependencies.push(...schemaRegistry!.sources)
 
-  return { html, dependencies }
+  return { html, dependencies, mixinUsage: trace.read() }
 }
 
 /**
@@ -169,14 +185,17 @@ async function expandVitePugTags(
   mode: Mode,
   html: string,
   sectionId: string,
+  schemaRegistry?: LoadedSchemaRegistry,
+  modifierClass?: string,
 ): Promise<CompileResult> {
   const vitePugTags = html.match(INSERT_VITE_PUG_TAG_RE)
   if (!vitePugTags) {
-    return { html, dependencies: [] }
+    return { html, dependencies: [], mixinUsage: [] }
   }
 
   let markupOutput = html
   const dependencies: string[] = []
+  const mixinUsage: MixinUsageNode[] = []
 
   await Promise.all(vitePugTags.map(async (vitePugTag) => {
     const pugSourcePath = vitePugTag.match(PUG_SRC_RE)?.[1]
@@ -189,18 +208,21 @@ async function expandVitePugTags(
       throw new Error(`${pugSourcePath} is not a valid .pug file`)
     }
 
+    // `modifierClass="{{modifier_class}}"` on the tag only hands the section's modifier on, so the
+    // modifier being rendered stays in place
     const pugModifierClass = vitePugTag.match(PUG_MODIFIER_CLASS_RE)
-    const pugLocals = pugModifierClass && pugModifierClass[1]
+    const pugLocals = pugModifierClass && pugModifierClass[1] && pugModifierClass[1] !== MODIFIER_CLASS_PLACEHOLDER
       ? { modifierClass: pugModifierClass[1] }
       : {}
 
     const pugFilePath = path.join(contentDir, pugSourcePath)
-    const { html: pugOutput, dependencies: pugDependencies } = compilePugFile(pugFilePath, mode, sectionId, pugLocals)
+    const { html: pugOutput, dependencies: pugDependencies, mixinUsage: pugMixinUsage } = compilePugFile(pugFilePath, mode, sectionId, pugLocals, schemaRegistry, modifierClass)
     dependencies.push(...pugDependencies)
+    mixinUsage.push(...pugMixinUsage)
     markupOutput = markupOutput.replaceAll(vitePugTag, pugOutput)
   }))
 
-  return { html: markupOutput, dependencies }
+  return { html: markupOutput, dependencies, mixinUsage }
 }
 
 /**
@@ -218,9 +240,15 @@ export async function compileMarkup(
   mode: Mode,
   html: string,
   sectionId: string,
+  /** The Node registry module of the `.schema.ts` files, see `lib/mixins/schema-registry.ts`. */
+  schemaRegistryFile?: string,
+  /** The classes of the modifier to render, the `{{modifier_class}}` placeholder when omitted. */
+  modifierClass?: string,
 ): Promise<CompileResult> {
+  const schemaRegistry = schemaRegistryFile ? await loadSchemaRegistry(schemaRegistryFile) : undefined
   let result = html
   const dependencies: string[] = []
+  const mixinUsage: MixinUsageNode[] = []
 
   const trimmed = html.trim()
   const isBarePath = !trimmed.includes('<') && !trimmed.includes('\n')
@@ -232,16 +260,51 @@ export async function compileMarkup(
   }
   else if (isBarePath && trimmed.endsWith('.pug')) {
     const pugFilePath = path.join(contentDir, trimmed)
-    const compiled = compilePugFile(pugFilePath, mode, sectionId)
+    const compiled = compilePugFile(pugFilePath, mode, sectionId, {}, schemaRegistry, modifierClass)
     result = compiled.html
     dependencies.push(...compiled.dependencies)
+    mixinUsage.push(...compiled.mixinUsage)
   }
 
-  const expanded = await expandVitePugTags(contentDir, mode, result, sectionId)
+  const expanded = await expandVitePugTags(contentDir, mode, result, sectionId, schemaRegistry, modifierClass)
   result = expanded.html
   dependencies.push(...expanded.dependencies)
+  mixinUsage.push(...expanded.mixinUsage)
 
   result = fixAccessibilityIssues(result)
 
-  return { html: result, dependencies: [...new Set(dependencies)] }
+  return { html: result, dependencies: [...new Set(dependencies)], mixinUsage: mergeMixinUsage(mixinUsage) }
+}
+
+/** True when the markup is compiled by pug: a bare `.pug` path or inline markup with `<insert-vite-pug>` tags. */
+function isPugMarkup(html: string): boolean {
+  const trimmed = html.trim()
+  const isBarePath = !trimmed.includes('<') && !trimmed.includes('\n')
+  return (isBarePath && trimmed.endsWith('.pug')) || html.includes('<insert-vite-pug')
+}
+
+/**
+ * Compiles a section's markup like {@link compileMarkup} and, for pug markup, renders it once more
+ * per modifier with `modifierClass` set to that modifier's classes. A template can then map the
+ * modifier to a prop instead of passing it through as a class. The modifier renders share the base
+ * render's dependencies, and the mixin usage is the base render's.
+ */
+export async function compileSection(
+  contentDir: `${string}/`,
+  mode: Mode,
+  html: string,
+  sectionId: string,
+  schemaRegistryFile?: string,
+  modifiers: string[] = [],
+): Promise<SectionCompileResult> {
+  const base = await compileMarkup(contentDir, mode, html, sectionId, schemaRegistryFile)
+  if (modifiers.length === 0 || !isPugMarkup(html))
+    return base
+
+  const modifierHtml = await Promise.all(modifiers.map(async (modifier) => {
+    const compiled = await compileMarkup(contentDir, mode, html, sectionId, schemaRegistryFile, modifierClassList(modifier))
+    return compiled.html
+  }))
+
+  return { ...base, modifierHtml }
 }

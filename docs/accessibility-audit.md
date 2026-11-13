@@ -11,7 +11,7 @@ The **Audit** button under a preview runs two checks at once:
 
 The results open in a dialog, grouped into violations, items that need a manual review, passes and rules that don't apply. Each finding links to its rule documentation.
 
-The audit runs against the theme that is currently selected. Modifier previews are included as well. They are pure class swaps, so only their contrast is checked again.
+The audit runs against the theme that is currently selected. Modifier previews are included as well and get the full audit, because a Pug section renders each modifier on its own and a modifier can change the markup. Their findings are merged into the section and tagged with the modifier. A finding the base preview already has, with the same rule, color scheme and element, is reported once for the base. Passes and rules that don't apply are only listed for the base.
 
 ## Color contrast in light and dark
 
@@ -104,7 +104,7 @@ Each finding carries what you need to fix it:
 | `sourceFile`, `sourceLine`, `markupFile` | The section's KSS comment and template, relative to `contentDir`. |
 | `source` | `axe` or `html-validate`. html-validate findings also carry `line` and `column` in the rendered preview. |
 | `mode` | The color scheme a contrast finding was measured in. |
-| `modifier` | Set when the finding comes from a modifier preview. |
+| `modifier` | Set when the finding comes from a modifier preview and the base preview doesn't have it. |
 | `measured`, `reviewReason` | For text on images, the measured ratio or the reason it needs a manual review. |
 
 The report contains only plain JSON values, so it survives `page.evaluate`, browser tool protocols and `JSON.stringify` unchanged.
@@ -113,7 +113,7 @@ The report contains only plain JSON values, so it survives `page.evaluate`, brow
 
 - The function audits the page it runs on. A styleguide has one page per second-level section, so a script visits each page linked in the sidebar.
 - A preview that doesn't respond within `timeout` is reported with `"status": "failed"` and an `error`, and `totals.failed` counts it. The other previews are still audited.
-- A failing modifier preview is listed in the section's `warnings`.
+- The modifier previews that were audited are listed in the section's `modifiers`. A failing one is listed in `warnings` instead.
 - The rules `region` and `landmark-one-main` are turned off, because a component preview is a fragment and would always fail them.
 
 ### Example with Playwright

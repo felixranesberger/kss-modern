@@ -4,14 +4,14 @@ import type {
   resultGroups,
   UnlabelledFrameSelector,
 } from 'axe-core'
-import type { ModifierContrastDetail } from './audit-runner.ts'
+import type { AccessibilityAuditDetail, ModifierAuditDetail } from './audit-runner.ts'
 import type { ColorSchemeMode, SchemeContrastResult } from './color-contrast-audit.ts'
 import type { AnnotatedNode, ContrastAnnotation, ReviewReason } from './text-over-image-contrast.ts'
 import { sanitizeSpecialCharacters } from '../../lib/shared.ts'
 import { each, when } from '../../lib/template-utils.ts'
 import { highlightCode } from '../code-highlight'
 import { id, queryRequired } from '../utils.ts'
-import { AXE_RESULT_GROUPS, flattenAxeTarget, htmlValidateImpact, runAccessibilityAudit, runModifierContrastAudit } from './audit-runner.ts'
+import { AXE_RESULT_GROUPS, flattenAxeTarget, htmlValidateImpact, runAccessibilityAudit, runModifierAudit, withoutBaseFindings } from './audit-runner.ts'
 import { getSectionPreviews, SECTION_SELECTOR } from './section-previews.ts'
 
 interface ValidatorReference {
@@ -145,15 +145,14 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
 
   const results = await runAccessibilityAudit(codeAuditIFrame)
 
-  // A modifier is a pure class swap, so only color-contrast can differ from the
-  // base. Audit each modifier variant's iframe (in the same section) for
-  // color-contrast and tag the findings with the modifier class.
+  // Each modifier variant in the same section gets the full audit. Its findings are tagged with
+  // the modifier class, without the ones the base already reports.
   const { modifiers: modifierIframes } = getSectionPreviews(codeAuditIFrame.closest(SECTION_SELECTOR))
 
   const modifierResults = (await Promise.all(
     modifierIframes.map(async (iframe) => {
       try {
-        return { iframe, detail: await runModifierContrastAudit(iframe) }
+        return { iframe, detail: withoutBaseFindings(results, await runModifierAudit(iframe)) }
       }
       catch (error) {
         // a single unloaded/broken modifier preview shouldn't fail the whole audit
@@ -161,7 +160,7 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
         return null
       }
     }),
-  )).filter(Boolean) as { iframe: HTMLIFrameElement, detail: ModifierContrastDetail }[]
+  )).filter(Boolean) as { iframe: HTMLIFrameElement, detail: ModifierAuditDetail }[]
 
   interface ResultNodeAxe {
     type: 'axe'
@@ -249,14 +248,9 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
 
   pushColorContrast(results.axe.colorContrast)
 
-  modifierResults.forEach(({ iframe, detail }) => {
-    const sourceIndex = auditSources.push({ iframe, targetMap: detail.targetMap }) - 1
-    pushColorContrast(detail.colorContrast, { modifier: detail.modifier, sourceIndex })
-  })
-
-  // add html-validate results
-  results.htmlValidate.forEach((message) => {
-    const alreadyPresentViolation = mergedResults.violations.find(violation => violation.id === message.ruleId)
+  // add html-validate results, one entry per rule and modifier
+  const pushHtmlValidate = (messages: AccessibilityAuditDetail['htmlValidate'], modifier?: string) => messages.forEach((message) => {
+    const alreadyPresentViolation = mergedResults.violations.find(violation => violation.id === message.ruleId && violation.modifier === modifier)
     if (alreadyPresentViolation) {
       alreadyPresentViolation.nodes.push({
         type: 'htmlvalidate',
@@ -271,11 +265,21 @@ export async function auditCode(codeAuditTrigger: HTMLButtonElement, auditResult
       description: message.ruleDescription || message.message,
       helpUrl: message.ruleUrl || '',
       impact: htmlValidateImpact(message.severity.toString()),
+      modifier,
       nodes: [{
         type: 'htmlvalidate',
         selector: message.selector ?? undefined,
       }],
     })
+  })
+
+  pushHtmlValidate(results.htmlValidate)
+
+  modifierResults.forEach(({ iframe, detail }) => {
+    const sourceIndex = auditSources.push({ iframe, targetMap: detail.axe.targetMap }) - 1
+    AXE_RESULT_GROUPS.forEach(group => pushAxeResults(group, detail.axe.result[group], { modifier: detail.modifier, sourceIndex }))
+    pushColorContrast(detail.axe.colorContrast, { modifier: detail.modifier, sourceIndex })
+    pushHtmlValidate(detail.htmlValidate, detail.modifier)
   })
 
   const renderSection = (

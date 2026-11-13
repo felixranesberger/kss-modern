@@ -1,6 +1,6 @@
 import type { Result as AxeResult, AxeResults, NodeResult } from 'axe-core'
 import type { AuditDeps } from '../../../client/lib/a11y-report.ts'
-import type { AccessibilityAuditDetail, ModifierContrastDetail } from '../../../client/lib/audit-runner.ts'
+import type { AccessibilityAuditDetail } from '../../../client/lib/audit-runner.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildSectionReport,
@@ -236,19 +236,46 @@ describe('buildSectionReport', () => {
   })
 
   it('tags modifier findings with their modifier class', () => {
-    const modifierDetail: ModifierContrastDetail = {
-      modifier: '.is-disabled',
-      colorContrast: [{ mode: 'light', result: axeResults({ violations: [axeRule('color-contrast')] }) }],
-      targetMap: new Map(),
-    }
-
     const report = buildSectionReport(sectionTarget, {
       base: baseDetail(),
-      modifiers: [modifierDetail],
+      modifiers: [{
+        ...baseDetail({ colorContrast: [{ mode: 'light', result: axeResults({ violations: [axeRule('color-contrast')] }) }] }),
+        modifier: '.is-disabled',
+      }],
     })
 
     expect(report.findings).toHaveLength(1)
     expect(report.findings[0]).toMatchObject({ modifier: '.is-disabled', mode: 'light' })
+  })
+
+  it('reports every check of a modifier, but not the findings the base already has', () => {
+    const shared = axeRule('button-name', [axeNode({ target: ['.shared'] })])
+    const htmlMessage = { ruleId: 'element-required-attributes', message: 'img is missing alt', selector: 'img', severity: 2, line: 1, column: 1, offset: 0, size: 1 } as AccessibilityAuditDetail['htmlValidate'][number]
+
+    const report = buildSectionReport(sectionTarget, {
+      base: baseDetail({ result: axeResults({ violations: [shared] }) }, [htmlMessage]),
+      modifiers: [{
+        ...baseDetail(
+          {
+            result: axeResults({
+              violations: [axeRule('button-name', [axeNode({ target: ['.shared'] }), axeNode({ target: ['.new'] })]), axeRule('aria-allowed-attr')],
+              passes: [axeRule('image-alt')],
+            }),
+          },
+          [htmlMessage, { ...htmlMessage, selector: 'video' }],
+        ),
+        modifier: '.is-open',
+      }],
+    })
+
+    const modifierFindings = report.findings.filter(finding => finding.modifier === '.is-open')
+    expect(modifierFindings.map(finding => [finding.source, finding.id, finding.nodes.map(node => node.target)])).toEqual([
+      ['axe', 'button-name', ['.new']],
+      ['axe', 'aria-allowed-attr', ['button']],
+      ['html-validate', 'element-required-attributes', ['video']],
+    ])
+    // the modifier's passes repeat the base and are not counted
+    expect(report.counts.passes).toBe(0)
   })
 
   it('keeps the measured text-over-image contrast and the review reason', () => {
@@ -332,7 +359,6 @@ describe('buildSectionReport', () => {
 
     expect(report.warnings).toEqual(['Modifier ".is-open" could not be audited: timed out'])
   })
-
 })
 
 describe('mapWithConcurrency', () => {
@@ -376,7 +402,7 @@ describe('runStyleguideAudit', () => {
     return {
       waitForIframes: vi.fn(async () => {}),
       runAccessibilityAudit: vi.fn(async () => baseDetail({ result: axeResults({ violations: [axeRule('button-name')] }) })),
-      runModifierContrastAudit: vi.fn(async () => ({ modifier: '.is-open', colorContrast: [], targetMap: new Map() })),
+      runModifierAudit: vi.fn(async () => ({ ...baseDetail(), modifier: '.is-open' })),
       ...overrides,
     }
   }
@@ -398,15 +424,15 @@ describe('runStyleguideAudit', () => {
     expect(vi.mocked(injected.waitForIframes).mock.calls.map(call => call[0].length)).toEqual([2, 1])
   })
 
-  it('audits modifier previews for color-contrast, and skips them on request', async () => {
+  it('audits modifier previews, and skips them on request', async () => {
     const withModifiers = deps()
     await runStyleguideAudit({}, withModifiers)
     expect(withModifiers.runAccessibilityAudit).toHaveBeenCalledTimes(2)
-    expect(withModifiers.runModifierContrastAudit).toHaveBeenCalledTimes(1)
+    expect(withModifiers.runModifierAudit).toHaveBeenCalledTimes(1)
 
     const withoutModifiers = deps()
     await runStyleguideAudit({ modifiers: false }, withoutModifiers)
-    expect(withoutModifiers.runModifierContrastAudit).not.toHaveBeenCalled()
+    expect(withoutModifiers.runModifierAudit).not.toHaveBeenCalled()
     // and it does not wait for previews it will not audit
     expect(vi.mocked(withoutModifiers.waitForIframes).mock.calls.map(call => call[0].length)).toEqual([1, 1])
   })
@@ -439,7 +465,7 @@ describe('runStyleguideAudit', () => {
 
   it('downgrades a broken modifier preview to a warning', async () => {
     const report = await runStyleguideAudit({}, deps({
-      runModifierContrastAudit: vi.fn(async () => {
+      runModifierAudit: vi.fn(async () => {
         throw new Error('runColorContrastAudit not found in iframe')
       }),
     }))
@@ -449,7 +475,6 @@ describe('runStyleguideAudit', () => {
       'Modifier ".is-open" could not be audited: runColorContrastAudit not found in iframe',
     ])
   })
-
 
   it('returns a fully JSON-serializable report', async () => {
     const report = await runStyleguideAudit({}, deps())

@@ -91,6 +91,13 @@ if (copyButtons.length > 0) {
     .catch(console.error)
 }
 
+const colorSwatchLists = document.querySelectorAll<HTMLElement>('[data-color-swatches]')
+if (colorSwatchLists.length > 0) {
+  import('./lib/color-swatches.ts')
+    .then(({ default: init }) => init(colorSwatchLists))
+    .catch(console.error)
+}
+
 const markdownFolded = document.querySelectorAll<HTMLElement>('.markdown-container-folded')
 if (markdownFolded.length > 0) {
   markdownFolded.forEach((container) => {
@@ -161,6 +168,14 @@ const sectionThemeSelects = document.querySelectorAll<HTMLSelectElement>('[data-
 if (sectionThemeSelects.length > 0) {
   import('./lib/section-theme-select.ts')
     .then(({ default: init }) => init(sectionThemeSelects))
+    .catch(console.error)
+}
+
+// the mixin explorer pulls in zod, so it loads only on the mixins page
+const mixinExplorer = document.querySelector<HTMLElement>('[data-mixin-explorer]')
+if (mixinExplorer) {
+  import('./lib/playground/explorer.ts')
+    .then(({ default: init }) => init(mixinExplorer))
     .catch(console.error)
 }
 

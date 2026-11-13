@@ -14,7 +14,7 @@ import type { SchemeContrastResult } from './color-contrast-audit.ts'
 
 export const AUDIT_TIMEOUT_MS = 30_000
 
-type AuditFunctionName = 'runAccessibilityTest' | 'runColorContrastAudit'
+type AuditFunctionName = 'runAccessibilityTest'
 
 /** The axe result groups, in the order they are reported. */
 export const AXE_RESULT_GROUPS: resultGroups[] = ['violations', 'incomplete', 'passes', 'inapplicable']
@@ -57,14 +57,9 @@ export interface AccessibilityAuditDetail {
   })[]
 }
 
-/**
- * Result of a modifier-variant iframe's `runColorContrastAudit`:
- * color-contrast only, tagged with the iframe's modifier class.
- */
-export interface ModifierContrastDetail {
-  modifier?: string
-  colorContrast: SchemeContrastResult[]
-  targetMap: Map<CrossTreeSelector, HTMLElement>
+/** The full audit of a modifier-variant iframe, tagged with its modifier class. */
+export interface ModifierAuditDetail extends AccessibilityAuditDetail {
+  modifier: string
 }
 
 export interface AuditCallOptions {
@@ -118,10 +113,60 @@ export function runAccessibilityAudit(
   return callInIframe<AccessibilityAuditDetail>(iframe, 'runAccessibilityTest', options)
 }
 
-/** Run the color-contrast-only audit inside a modifier-variant iframe. */
-export function runModifierContrastAudit(
+/**
+ * Run the full audit inside a modifier-variant iframe. A modifier of a Pug section is its own
+ * render and can change structure and ARIA, not only classes, so it gets the same checks as the base.
+ */
+export async function runModifierAudit(
   iframe: HTMLIFrameElement,
   options?: AuditCallOptions,
-): Promise<ModifierContrastDetail> {
-  return callInIframe<ModifierContrastDetail>(iframe, 'runColorContrastAudit', options)
+): Promise<ModifierAuditDetail> {
+  const detail = await callInIframe<AccessibilityAuditDetail>(iframe, 'runAccessibilityTest', options)
+  return { ...detail, modifier: iframe.getAttribute('data-modifier') ?? '' }
+}
+
+/** The groups a modifier reports. Its passes and inapplicable rules would repeat the base's. */
+const MODIFIER_GROUPS: resultGroups[] = ['violations', 'incomplete']
+
+function axeNodeKeys(result: AxeResults, prefix: string): Set<string> {
+  return new Set(MODIFIER_GROUPS.flatMap(group => result[group].flatMap(rule =>
+    rule.nodes.map(node => `${prefix}|${group}|${rule.id}|${flattenAxeTarget(node.target)}`),
+  )))
+}
+
+/** Keep the nodes of `result` whose key is not in `baseKeys`, and drop rules left without nodes. */
+function withoutAxeNodes(result: AxeResults, baseKeys: Set<string>, prefix: string): AxeResults {
+  const filtered = { ...result, passes: [], inapplicable: [] } as AxeResults
+  MODIFIER_GROUPS.forEach((group) => {
+    filtered[group] = result[group]
+      .map(rule => ({ ...rule, nodes: rule.nodes.filter(node => !baseKeys.has(`${prefix}|${group}|${rule.id}|${flattenAxeTarget(node.target)}`)) }))
+      .filter(rule => rule.nodes.length > 0)
+  })
+  return filtered
+}
+
+function htmlValidateKey(message: AccessibilityAuditDetail['htmlValidate'][number]): string {
+  return `${message.ruleId}|${message.selector ?? ''}|${message.message}`
+}
+
+/**
+ * A modifier's audit without the findings the base preview already has, so a problem shared by
+ * every variant is reported once. A finding counts as the same when rule, result group, color
+ * scheme and element selector match, for html-validate when rule, selector and message match.
+ * Passes and inapplicable rules stay with the base.
+ */
+export function withoutBaseFindings(base: AccessibilityAuditDetail, modifier: ModifierAuditDetail): ModifierAuditDetail {
+  const baseAxeKeys = axeNodeKeys(base.axe.result, 'axe')
+  const baseContrastKeys = new Set(base.axe.colorContrast.flatMap(({ mode, result }) => [...axeNodeKeys(result, mode)]))
+  const baseHtmlValidateKeys = new Set(base.htmlValidate.map(htmlValidateKey))
+
+  return {
+    ...modifier,
+    axe: {
+      ...modifier.axe,
+      result: withoutAxeNodes(modifier.axe.result, baseAxeKeys, 'axe'),
+      colorContrast: modifier.axe.colorContrast.map(entry => ({ ...entry, result: withoutAxeNodes(entry.result, baseContrastKeys, entry.mode) })),
+    },
+    htmlValidate: modifier.htmlValidate.filter(message => !baseHtmlValidateKeys.has(htmlValidateKey(message))),
+  }
 }

@@ -51,23 +51,24 @@ test.describe('window.kssAudit', () => {
     expect(section.counts.passes + section.counts.inapplicable).toBeGreaterThan(0)
   })
 
-  test('audits modifier previews for color-contrast and tags them', async ({ page }) => {
-    await page.goto('/preview-3.10.html')
+  test('audits modifier previews in full and merges only what the base lacks', async ({ page }) => {
+    await page.goto('/preview-3.20.html')
 
-    const report = await runAudit(page, { include: 'all' })
+    const report = await runAudit(page, { sections: ['3.20'], include: 'all' })
+    const [section] = report.sections
 
-    const modifierFindings = report.sections
-      .flatMap(section => section.findings)
-      .filter(finding => finding.modifier)
+    // every modifier preview was audited, none was skipped
+    expect(section.modifiers).toEqual(['.c-alert--warning', '.c-alert--error', '.c-alert--low-contrast'])
+    expect(section.warnings).toBeUndefined()
 
+    // warning and error render the same as the base here, so only the low-contrast variant adds findings
+    const modifierFindings = section.findings.filter(finding => finding.modifier)
     expect(modifierFindings.length).toBeGreaterThan(0)
     modifierFindings.forEach((finding) => {
-      expect(finding.id).toBe('color-contrast')
-      expect(finding.mode).toBeDefined()
+      expect(finding.modifier).toBe('.c-alert--low-contrast')
+      expect(['violations', 'incomplete']).toContain(finding.group)
     })
-
-    // no modifier preview was skipped
-    report.sections.forEach(section => expect(section.warnings).toBeUndefined())
+    expect(modifierFindings.some(finding => finding.id === 'color-contrast' && finding.group === 'violations')).toBe(true)
   })
 
   test('runs across all sections of a page and can be limited to some', async ({ page }) => {

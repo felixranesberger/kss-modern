@@ -12,6 +12,7 @@ kss-modern reads KSS comments from your CSS or SCSS files and builds a static st
 4. **[Configuration](configuration.md)** is the reference for every build option and the JavaScript API.
 5. **[The styleguide UI](styleguide-ui.md)** describes what visitors can do in the generated styleguide.
 6. **[Accessibility audit](accessibility-audit.md)** covers the Audit button and the `window.kssAudit()` API for CI and AI agents.
+7. **[Mixin playground](mixin-playground.md)** lists your Pug mixins and turns the ones with a zod schema into live, editable previews.
 
 ## Learn from the demo
 

@@ -7,6 +7,7 @@ const hashedFileNames = {
   'fullpage.js': manifest['client/fullpage.ts'].file,
   'preview.js': manifest['client/preview.ts'].file,
   'preview-inline.js': manifest['client/preview-inline.ts'].file,
+  'playground.js': manifest['client/playground.ts'].file,
   'style.css': manifest['style.css'].file,
 } as const
 
@@ -73,7 +74,7 @@ const previewInlineContent = `<script>
 
 export default defineBuildConfig({
   outDir: 'dist/node',
-  entries: ['./lib/index', './lib/pug/worker'],
+  entries: ['./lib/index', './lib/pug/worker', './lib/component-schema'],
   declaration: true,
   failOnWarn: false,
   externals: ['@antfu/utils', ...shikiExternalPackages],
@@ -82,5 +83,6 @@ export default defineBuildConfig({
     __STYLEGUIDE_PREVIEW_JS__: hashedFileNames['preview.js'],
     __STYLEGUIDE_PREVIEW_INLINE__: previewInlineContent,
     __STYLEGUIDE_FULLPAGE_JS__: hashedFileNames['fullpage.js'],
+    __STYLEGUIDE_PLAYGROUND_JS__: hashedFileNames['playground.js'],
   },
 })

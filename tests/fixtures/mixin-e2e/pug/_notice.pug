@@ -1,0 +1,13 @@
+mixin moleculeNotice(props)
+  -
+    const p = defineComponent({
+      name: 'molecules/Notice',
+      schema: z.strictObject({
+        text: z.string()
+          .refine(text => text !== 'forbidden', 'Must not be "forbidden"')
+          .meta({ examples: ['Saved'] }),
+        tone: z.enum(['info', 'warning']).default('info'),
+      }).describe('A short status notice'),
+    }, props)
+
+  p.notice(class=`notice--${p.tone}`)= p.text

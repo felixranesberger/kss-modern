@@ -2,6 +2,53 @@ import type { ResolvedStyleguideConfiguration } from '../index.ts'
 import { sanitizeSpecialCharacters, themeClassList } from '../shared.ts'
 import { logicalWriteFile } from '../utils.ts'
 
+function renderPreviewStyleTags(css: ResolvedStyleguideConfiguration['html']['assets']['css']): string {
+  return css
+    .filter(entry => entry.type !== 'overwriteStyleguide')
+    .map(entry => `<link rel="stylesheet" type="text/css" href="${entry.src}">`)
+    .join('\n')
+}
+
+// One <link> per themed stylesheet, keyed on the theme's class list so the dropdowns can find it
+// (`client/lib/preview-theme.ts`, `client/fullpage.ts`). They sit after the regular stylesheets so
+// a theme layers on top, and start as `media="not all"`: the browser still downloads them but
+// applies nothing, so selecting a theme is an instant, request-free switch.
+function renderThemeStyleTags(previewThemes: ResolvedStyleguideConfiguration['previewThemes'] = []): string {
+  return previewThemes
+    .flatMap(theme => (theme.css ?? []).map(src => ({ src, classList: themeClassList(theme.value) })))
+    .filter(entry => entry.classList)
+    .map(entry => `<link rel="stylesheet" type="text/css" href="${entry.src}" media="not all" data-theme-css="${sanitizeSpecialCharacters(entry.classList)}">`)
+    .join('\n')
+}
+
+/**
+ * An empty document that only loads the preview stylesheets. The styleguide UI resolves
+ * `var(--token)` color swatches in it (`client/lib/color-resolver.ts`), because the project's
+ * custom properties are usually defined in the preview CSS only. No scripts, so nothing runs.
+ */
+export async function generateColorResolverFile(data: {
+  filePath: string
+  lang: string
+  css: ResolvedStyleguideConfiguration['html']['assets']['css']
+  previewThemes?: ResolvedStyleguideConfiguration['previewThemes']
+}) {
+  const content = `
+<!DOCTYPE html>
+<html lang="${data.lang}">
+<head>
+    <title>Color resolver</title>
+    <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow">
+    ${renderPreviewStyleTags(data.css)}
+    ${renderThemeStyleTags(data.previewThemes)}
+</head>
+<body></body>
+</html>
+`.trim()
+
+  await logicalWriteFile(data.filePath, content)
+}
+
 export async function generateFullPageFile(data: {
   id: string
   filePath: string
@@ -20,6 +67,12 @@ export async function generateFullPageFile(data: {
   deactivateDarkMode?: boolean
   allowSearchEngineIndexing?: boolean
   ogImageUrl?: string
+  /**
+   * Turns the page into a mixin playground page: `html` is rendered by the playground client, which
+   * reads this JSON. The project's scripts are parked in a `<template>` and started by the client
+   * once the component is in the DOM, so scripts that initialise components on load find it.
+   */
+  playgroundConfig?: string
 }) {
   // The audit iframe reads this to decide whether to run the color-contrast
   // check in a forced dark scheme. Dark mode exists unless the styleguide
@@ -33,22 +86,8 @@ export async function generateFullPageFile(data: {
     })
     .join('\n')
 
-  const computedStyleTags = data.css
-    .filter(entry => entry.type !== 'overwriteStyleguide')
-    .map((css) => {
-      return `<link rel="stylesheet" type="text/css" href="${css.src}">`
-    })
-    .join('\n')
-
-  // One <link> per themed stylesheet, keyed on the theme's class list so the dropdowns can find it
-  // (`client/lib/preview-theme.ts`, `client/fullpage.ts`). They sit after the regular stylesheets so
-  // a theme layers on top, and start as `media="not all"`: the browser still downloads them but
-  // applies nothing, so selecting a theme is an instant, request-free switch.
-  const computedThemeStyleTags = (data.previewThemes ?? [])
-    .flatMap(theme => (theme.css ?? []).map(src => ({ src, classList: themeClassList(theme.value) })))
-    .filter(entry => entry.classList)
-    .map(entry => `<link rel="stylesheet" type="text/css" href="${entry.src}" media="not all" data-theme-css="${sanitizeSpecialCharacters(entry.classList)}">`)
-    .join('\n')
+  const computedStyleTags = renderPreviewStyleTags(data.css)
+  const computedThemeStyleTags = renderThemeStyleTags(data.previewThemes)
 
   const content = `
 <!DOCTYPE html>
@@ -69,12 +108,16 @@ export async function generateFullPageFile(data: {
       `
       : `<meta name="theme-color" content="${data.brandColor}">`}
     <script type="module" src="styleguide-assets/__STYLEGUIDE_FULLPAGE_JS__"></script>
+    ${data.playgroundConfig ? '<script type="module" src="styleguide-assets/__STYLEGUIDE_PLAYGROUND_JS__"></script>' : ''}
     ${computedStyleTags}
     ${computedThemeStyleTags}
 </head>
 <body${data.page.bodyclass ? ` class="${data.page.bodyclass}"` : ''}>
     ${data.html}
-    ${computedScriptTags}
+    ${data.playgroundConfig
+      ? `<script type="application/json" id="kss-playground-config">${data.playgroundConfig.replaceAll('<', '\\u003c')}</script>
+    <template id="kss-playground-project-scripts">${computedScriptTags}</template>`
+      : computedScriptTags}
 </body>
 </html>
 `.trim()

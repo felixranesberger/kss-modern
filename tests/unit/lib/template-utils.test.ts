@@ -19,7 +19,7 @@ describe('escape', () => {
   })
 
   it('escapes single quotes', () => {
-    expect(escape("it's")).toBe('it&#39;s')
+    expect(escape('it\'s')).toBe('it&#39;s')
   })
 
   it('escapes all special characters at once', () => {

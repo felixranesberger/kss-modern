@@ -53,7 +53,7 @@ Both work the same way. The theme's classes are added to the `<html>` element of
 
 ## Copy to clipboard
 
-Swatches in a `Colors:` block copy their value, icons in an `Icons:` gallery copy their markup, and the Copy button copies a preview's markup. Modifier class names copy the class.
+Swatches in a `Colors:` block open a popover to copy the color as HEX, RGB, HSL or OKLCH, icons in an `Icons:` gallery copy their markup, and the Copy button copies a preview's markup. Modifier class names copy the class.
 
 ## Open in editor
 

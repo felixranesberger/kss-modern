@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import path from 'node:path'
-import os from 'node:os'
 import crypto from 'node:crypto'
+import os from 'node:os'
+import path from 'node:path'
 import fs from 'fs-extra'
+import { afterEach, describe, expect, it } from 'vitest'
 import { generateFaviconFiles } from '../../../lib/favicon'
 
 function createTmpDir() {

@@ -1,0 +1,22 @@
+//- Alert with a mixinSchema, so it gets a playground in the mixin explorer.
+//- Uses the icon mixin from an included partial.
+include ./_icon
+
+mixin alert(props)
+  - var mixinName = 'molecules/Alert'
+  -
+    var mixinSchema = z.object({
+      message: z.string().min(1).describe('The alert text').meta({ examples: ['This is an alert message with important information.'] }),
+      variant: z.enum(['info', 'success', 'warning', 'error']).default('info'),
+      hasIcon: z.boolean().default(true).describe('Show the info icon'),
+      title: z.string().optional().describe('Bold lead-in before the message'),
+    }).describe('Inline message that informs about the result of an action.')
+  - const p = mixinSchema.parse(props)
+  .c-alert(class=p.variant !== 'info' && `c-alert--${p.variant}` role="alert")
+    if p.hasIcon
+      +icon('info')
+    .c-alert__content
+      if p.title
+        strong= p.title
+        |  
+      = p.message

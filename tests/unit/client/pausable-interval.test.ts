@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PausableInterval } from '../../../client/utils/pausable-interval'
 
-describe('PausableInterval', () => {
+describe('pausableInterval', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })

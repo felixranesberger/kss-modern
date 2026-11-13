@@ -25,6 +25,9 @@ export const PUG_MODIFIER_CLASS_RE = /modifierClass="(.+?)"/
  * attributes are HTML-escaped, so the element is always a single self-contained tag with no literal
  * `>` inside — which is what lets `stripPugErrorOverlay` match it with a tag-bounded regex.
  */
+/** The document `var()` color swatches are resolved in, written next to the preview pages. */
+export const COLOR_RESOLVER_FILE_NAME = 'color-resolver.html'
+
 export const PUG_ERROR_OVERLAY_TAG = 'pug-error-overlay'
 
 const PUG_ERROR_OVERLAY_RE = new RegExp(`<${PUG_ERROR_OVERLAY_TAG}\\b[^>]*></${PUG_ERROR_OVERLAY_TAG}>`, 'g')
@@ -163,4 +166,9 @@ const idGen = idGenerator()
 export function generateId(): number {
   const { value } = idGen.next()
   return value
+}
+
+/** The fullpage file of a section's modifier render: `fullpage-1.2.html` becomes `fullpage-1.2-modifier-0.html`. */
+export function modifierFullpageFileName(fullpageFileName: string, modifierIndex: number): string {
+  return fullpageFileName.replace(/\.html$/, `-modifier-${modifierIndex}.html`)
 }

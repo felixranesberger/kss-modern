@@ -6,3 +6,4 @@ This page has moved. Its content is now split across:
 - [Markup and templates](markup.md) for inline HTML, Pug templates and `<insert-markup>`
 - [The styleguide UI](styleguide-ui.md) for search, themes, dark mode and the other visitor features
 - [Accessibility audit](accessibility-audit.md) for the Audit button and `window.kssAudit()`
+- [Mixin playground](mixin-playground.md) for the mixin explorer, `defineComponent` and the standalone mixin pages
