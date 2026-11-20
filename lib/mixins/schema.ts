@@ -2,6 +2,7 @@ import type { ZodNamespace } from '../zod.ts'
 import type { ComponentDefinition } from './define-component.ts'
 import { getFake } from '../component-schema.ts'
 import { getArrayElement, getObjectShape } from '../fixtures/zod-internals.ts'
+import { logger } from '../logger.ts'
 import { checkSchemaSupport } from './schema-support.ts'
 
 export type MixinSchemaResult
@@ -96,6 +97,41 @@ async function resolveDefinitionExamples(definition: { name?: string, schema: un
   return resolveExamples({ name: definition.name ?? '', schema: definition.schema as never, examples }, { seed: DEFAULT_SEED })
 }
 
+function parses(schema: unknown, value: unknown): boolean {
+  return (schema as { safeParse: (value: unknown) => { success: boolean } }).safeParse(value).success
+}
+
+/**
+ * The values the playground starts with: the resolved `examples` when they parse together, else
+ * the props of `fakeProps` with the default seed. A `superRefine` may forbid some examples next to
+ * others, e.g. `image` next to `srcset`, then `fakeProps` gives up as few of them as it can.
+ * Without @faker-js/faker the examples stay as they are and a warning names the problem.
+ */
+async function startValues(definition: { name?: string, schema: unknown, examples?: unknown }, examples: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (Object.keys(examples).length === 0 || parses(definition.schema, examples))
+    return examples
+
+  const name = definition.name ?? 'the mixin'
+  let module: FixturesModule
+  try {
+    module = await loadFixtures()
+  }
+  catch (error) {
+    fixtures = undefined
+    const reason = error instanceof Error ? error.message : String(error)
+    logger.warn(`The \`examples\` of "${name}" are no valid props together, the playground starts with them anyway. A valid start needs @faker-js/faker. Install it with \`npm i -D @faker-js/faker\`.\n${reason}`)
+    return examples
+  }
+  const { DEFAULT_SEED, fakeProps } = module
+  try {
+    return fakeProps({ name, schema: definition.schema as never, examples: definition.examples }, { seed: DEFAULT_SEED }) as Record<string, unknown>
+  }
+  catch (error) {
+    logger.warn(`The \`examples\` of "${name}" are no valid props together, the playground starts with them anyway.\n${error instanceof Error ? error.message : String(error)}`)
+    return examples
+  }
+}
+
 /** Run a `mixinSchema` block and return the schema it assigns. */
 function runMixinSchemaBlock(z: ZodNamespace, source: string): EvaluatedDefinition {
   // eslint-disable-next-line no-new-func
@@ -140,8 +176,8 @@ export function readSchemaBlockDefinition(z: ZodNamespace, source: string, form:
 
 /**
  * Convert a schema to JSON Schema and check it against the zod features the playground supports
- * (see `./schema-support.ts`). The resolved `examples` set the first example of the top-level props
- * they name, an object prop gets its whole object.
+ * (see `./schema-support.ts`). The start values (see `startValues`) set the first example of the
+ * top-level props they name, an object prop gets its whole object.
  */
 async function toPlaygroundJsonSchema(z: ZodNamespace, definition: EvaluatedDefinition): Promise<Record<string, unknown>> {
   const { schema } = definition
@@ -152,10 +188,14 @@ async function toPlaygroundJsonSchema(z: ZodNamespace, definition: EvaluatedDefi
   }) as Record<string, unknown>
 
   const properties = jsonSchema.properties as Record<string, Record<string, unknown>> | undefined
-  for (const [key, value] of Object.entries(await resolveDefinitionExamples(definition))) {
+  const examples = await resolveDefinitionExamples(definition)
+  for (const key of Object.keys(examples)) {
     if (!properties?.[key])
       throw new Error(`\`examples\` names the prop "${key}", which the schema does not have`)
-    properties[key].examples = [value]
+  }
+  for (const [key, value] of Object.entries(await startValues(definition, examples))) {
+    if (properties?.[key])
+      properties[key].examples = [value]
   }
 
   const unsupported = checkSchemaSupport(jsonSchema)

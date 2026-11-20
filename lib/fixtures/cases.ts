@@ -285,17 +285,90 @@ export interface Solved {
   issues: string[]
 }
 
-/** One valid, filled set of props with `overlay` fixed, repaired around it. */
+/** Drop sets tried by {@link dropFilled} before it gives up, keeps `fakeProps` fast on large schemas. */
+const MAX_DROP_SETS = 2_000
+
+/** The k-element subsets of `items` in order, smallest indexes first. */
+function* subsets<T>(items: readonly T[], size: number, start = 0, prefix: T[] = []): Generator<T[]> {
+  if (prefix.length === size) {
+    yield prefix
+    return
+  }
+  for (let index = start; index <= items.length - (size - prefix.length); index++)
+    yield* subsets(items, size, index + 1, [...prefix, items[index]])
+}
+
+/** The dimensions `filled` sets beyond the minimal case, which a search may give up. */
+function setDimensions(dims: readonly Dimension[], filled: readonly number[], locked: readonly boolean[]): number[] {
+  const active = activeOf(dims, filled)
+  return [...dims.keys()].filter(index => active[index] && !locked[index] && dims[index].kind !== 'slot' && filled[index] !== dims[index].minimal)
+}
+
+/**
+ * The valid assignment that keeps the most of `filled`: drop one set dimension, then two, and so
+ * on, each drop set repaired with the kept ones locked. The first valid one wins, so the order of
+ * the dimensions decides ties. Undefined when no drop set within {@link MAX_DROP_SETS} works.
+ */
+function dropFilled(search: Search, filled: readonly number[], locked: readonly boolean[]): number[] | undefined {
+  const { dims } = search.plan
+  const candidates = setDimensions(dims, filled, locked)
+  const fixed = locked.map((isLocked, index) => isLocked || candidates.includes(index))
+  let tried = 0
+  for (let size = 1; size <= candidates.length; size++) {
+    for (const dropped of subsets(candidates, size)) {
+      if (++tried > MAX_DROP_SETS)
+        return undefined
+      const assignment = [...filled]
+      for (const index of dropped)
+        assignment[index] = dims[index].minimal
+      if (repair(search, assignment, fixed).valid)
+        return assignment
+    }
+  }
+  return undefined
+}
+
+/**
+ * Any valid assignment, then every value of `filled` put back that keeps it valid. The last
+ * resort when no drop set of {@link dropFilled} works, e.g. on a very large schema.
+ */
+function refill(search: Search, filled: readonly number[], locked: readonly boolean[]): number[] | undefined {
+  const { dims } = search.plan
+  const start = minimalCase(search)
+  if (!start.valid)
+    return undefined
+  let assignment = start.assignment.map((value, index) => locked[index] ? filled[index] : value)
+  if (!search.evaluate(assignment).valid)
+    return undefined
+  for (const index of setDimensions(dims, filled, locked)) {
+    const next = [...assignment]
+    next[index] = filled[index]
+    activate(dims, next, index)
+    if (search.evaluate(next).valid)
+      assignment = next
+  }
+  return assignment
+}
+
+/**
+ * One valid, filled set of props with `overlay` fixed. The filled assignment is repaired first, when
+ * that gets stuck the search gives up as few of its set props as it can, see {@link dropFilled}.
+ */
 export function solveProps(definition: FixtureDefinition, plan: Plan, options: { seed: number, overlay: Record<string, unknown>, isFile: IsFile }): Solved {
   const search = createSearch(definition, plan, { seed: options.seed, overlay: options.overlay })
   const keys = Object.keys(options.overlay)
   const locked = plan.dims.map(dimension => keys.some(key => within(key, dimension.key)))
   // resolved, so the fragments' fakes count as values too, e.g. `alt` from an image fake
   const examples = isPlainObject(definition.examples) ? definition.examples : {}
-  const assignment = filledAssignment(plan, resolveObject(createFaker(options.seed), getObjectShape(definition.schema), examples))
+  const filled = filledAssignment(plan, resolveObject(createFaker(options.seed), getObjectShape(definition.schema), examples))
+  let assignment = [...filled]
   const repaired = repair(search, assignment, locked)
-  if (!repaired.valid)
-    return { files: [], issues: repaired.issues }
+  if (!repaired.valid) {
+    const found = dropFilled(search, filled, locked) ?? refill(search, filled, locked)
+    if (!found)
+      return { files: [], issues: repaired.issues }
+    assignment = found
+  }
   const context = { faker: createFaker(options.seed), memo: new Map<string, unknown>() }
   const props = applyOverlay(buildProps(plan, assignment, definition.examples, context), options.overlay)
   const issues = parseIssues(definition.schema, props)

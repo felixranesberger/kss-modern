@@ -69,3 +69,68 @@ describe('fakeProps', () => {
     expect(() => fakeProps(card, { with: { title: '' } })).toThrow('title: Too small')
   })
 })
+
+// like atoms/media/Image of hss.de: the examples hold both sides of an either-or
+const imageLike = defineComponent({
+  name: 'atoms/media/Image',
+  schema: z.strictObject({
+    image: z.string().optional(),
+    ratio: z.enum(['16:9', '1:1']).optional(),
+    widths: z.array(z.int().positive()).optional(),
+    srcset: z.string().optional(),
+    width: z.int().positive(),
+    height: z.int().positive().optional(),
+    loading: z.enum(['lazy', 'eager']).default('lazy'),
+  }).superRefine((p, ctx) => {
+    const fail = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message })
+    if (Boolean(p.image) === Boolean(p.srcset))
+      fail('image', 'set either image or srcset')
+    if (p.image && (!p.ratio || !p.widths))
+      fail('image', 'image requires ratio and widths')
+    if (!p.image && (p.ratio || p.widths))
+      fail('ratio', 'ratio and widths require image')
+    if (p.srcset && !p.height)
+      fail('height', 'srcset requires height')
+    if (p.image && p.height)
+      fail('height', 'height follows from ratio with image')
+  }),
+  examples: { image: 'university/2', ratio: '16:9', widths: [400, 800], width: 800, srcset: 'a.jpg 400w', height: 450 },
+})
+
+describe('fakeProps with examples a refinement forbids together', () => {
+  it('keeps the larger valid side of an either-or', () => {
+    const props = fakeProps(imageLike)
+    expect(imageLike.schema.safeParse(props).success).toBe(true)
+    expect(props).toEqual({ image: 'university/2', ratio: '16:9', widths: [400], width: 800 })
+  })
+
+  it('is deterministic per seed and still fixes with', () => {
+    expect(fakeProps(imageLike, { seed: 3 })).toEqual(fakeProps(imageLike, { seed: 3 }))
+    const srcset = fakeProps(imageLike, { with: { srcset: 'b.jpg 800w' } })
+    expect(srcset).toEqual({ srcset: 'b.jpg 800w', width: 800, height: 450 })
+    expect(() => fakeProps(imageLike, { with: { image: 'x', srcset: 'y' } })).toThrow('give no valid props')
+  })
+
+  it('drops the prop that excludes the most others', () => {
+    // a requires b, c excludes b: keeping a and b and dropping c sets the most props
+    const chain = defineComponent({
+      name: 'atoms/Chain',
+      schema: z.strictObject({ a: z.string().optional(), b: z.string().optional(), c: z.string().optional() }).superRefine((p, ctx) => {
+        if (p.a && !p.b)
+          ctx.addIssue({ code: 'custom', path: ['a'], message: 'a requires b' })
+        if (p.c && p.b)
+          ctx.addIssue({ code: 'custom', path: ['c'], message: 'c excludes b' })
+      }),
+      examples: { a: 'A', b: 'B', c: 'C' },
+    })
+    const props = fakeProps(chain)
+    expect(props).toEqual({ a: 'A', b: 'B' })
+  })
+
+  it('stays well under 100 ms', () => {
+    const start = performance.now()
+    fakeProps(imageLike, { seed: 11 })
+    fakeProps(card, { seed: 11 })
+    expect(performance.now() - start).toBeLessThan(100)
+  })
+})

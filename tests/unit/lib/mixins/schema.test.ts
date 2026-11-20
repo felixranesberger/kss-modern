@@ -166,3 +166,51 @@ describe('examples', () => {
       .toEqual({ error: '`examples` names the prop "b", which the schema does not have' })
   })
 })
+
+describe('start values of examples a refinement forbids together', () => {
+  const imageLike = defineComponent({
+    name: 'atoms/media/Image',
+    schema: z.strictObject({
+      image: z.string().optional(),
+      ratio: z.enum(['16:9', '1:1']).optional(),
+      widths: z.array(z.int().positive()).optional(),
+      srcset: z.string().optional(),
+      width: z.int().positive(),
+      height: z.int().positive().optional(),
+    }).superRefine((p, ctx) => {
+      if (Boolean(p.image) === Boolean(p.srcset))
+        ctx.addIssue({ code: 'custom', path: ['image'], message: 'set either image or srcset' })
+      if (p.image && (!p.ratio || !p.widths))
+        ctx.addIssue({ code: 'custom', path: ['image'], message: 'image requires ratio and widths' })
+      if (!p.image && (p.ratio || p.widths))
+        ctx.addIssue({ code: 'custom', path: ['ratio'], message: 'ratio and widths require image' })
+      if (Boolean(p.srcset) !== Boolean(p.height))
+        ctx.addIssue({ code: 'custom', path: ['height'], message: 'height goes with srcset' })
+    }),
+    examples: { image: 'university/2', ratio: '16:9', widths: [400, 800], width: 800, srcset: 'a.jpg 400w', height: 450 },
+  })
+
+  function startOf(jsonSchema: Record<string, unknown>): Record<string, unknown> {
+    const properties = jsonSchema.properties as Record<string, { examples?: unknown[] }>
+    return Object.fromEntries(Object.entries(properties).flatMap(([key, property]) => property.examples ? [[key, property.examples[0]]] : []))
+  }
+
+  it('starts with values that parse together, without the side that yields', async () => {
+    const result = await evaluateComponentDefinition(z, imageLike, imageLike.name)
+    if (!('jsonSchema' in result))
+      throw new Error(result.error)
+
+    const start = startOf(result.jsonSchema)
+    expect(imageLike.schema.safeParse(start).success).toBe(true)
+    expect(start).toEqual({ image: 'university/2', ratio: '16:9', widths: [400], width: 800 })
+  })
+
+  it('keeps valid examples unchanged', async () => {
+    const valid = { ...imageLike, examples: { srcset: 'a.jpg 400w', height: 450, width: 800 } }
+    const result = await evaluateComponentDefinition(z, valid, valid.name)
+    if (!('jsonSchema' in result))
+      throw new Error(result.error)
+
+    expect(startOf(result.jsonSchema)).toEqual(valid.examples)
+  })
+})

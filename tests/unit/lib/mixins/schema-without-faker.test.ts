@@ -29,4 +29,15 @@ describe('examples without @faker-js/faker', () => {
     expect(await evaluateComponentDefinition(z, { ...teaser, examples: { title: 'Hello', image: { src: 'a.jpg' } } }, teaser.name))
       .toMatchObject({ jsonSchema: { properties: { image: { examples: [{ src: 'a.jpg' }] } } } })
   })
+
+  it('keeps plain examples a refinement forbids together and only warns', async () => {
+    const either = defineComponent({
+      name: 'atoms/Either',
+      schema: z.object({ a: z.string().optional(), b: z.string().optional() }).refine(p => !(p.a && p.b), { message: 'a or b' }),
+      examples: { a: 'A', b: 'B' },
+    })
+
+    expect(await evaluateComponentDefinition(z, either, either.name))
+      .toMatchObject({ jsonSchema: { properties: { a: { examples: ['A'] }, b: { examples: ['B'] } } } })
+  })
 })

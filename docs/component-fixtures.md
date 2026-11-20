@@ -53,7 +53,7 @@ The mark survives `.optional()`, `.default()`, `.describe()` and `.meta()`. A pr
 
 The slots come from the Pug mixin. The build reads them while it looks for mixins: `default` for a `block`, and the named slots of a mixin that splits its block with `const slots = pug_mixins.$fragments.collect(block)` and reads `slots.<name>`. The manifest lists them in `slots`. `slots` in `defineComponent` only provides the content, as HTML or a fake. A slot without an entry gets `<p data-slot="name">Slot name</p>`. Every slot is tested empty and filled.
 
-Faker's reference date is fixed to 2025-01-01, so date fakes like `f.date.recent()` give the same values for a seed on any day. The JSON Schema export and the explorer resolve the fakes once with seed 1, so they still see plain values.
+Faker's reference date is fixed to 2025-01-01, so date fakes like `f.date.recent()` give the same values for a seed on any day. The JSON Schema export and the explorer resolve the fakes once with seed 1, so they still see plain values. When a `superRefine` forbids some examples next to each other, for example `image` next to `srcset`, both start with the props of `fakeProps` with seed 1 instead. It keeps as many examples as a valid set allows, the props it leaves out start empty.
 
 ## How the cases are chosen
 

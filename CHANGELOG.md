@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+* start the explorer and the `mixinJsonSchemaDir` export with valid props when a `superRefine` forbids some `examples` next to each other, for example `image` next to `srcset`. They started with all examples and showed invalid props. Such a component now starts with the props of `fakeProps` with seed 1, valid examples stay as they are. `fakeProps` no longer throws when repairing the filled props gets stuck, it gives up as few of them as a valid set allows
+
 ## [1.7.0-beta.11](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.10...v1.7.0-beta.11) (2026-11-20)
 
 ### ⚠ BREAKING CHANGES

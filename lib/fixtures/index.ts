@@ -129,7 +129,9 @@ export function resolveExamples<D extends FixtureDefinition>(definition: D, { se
 /**
  * One valid, filled set of props: every prop with an example or a fake is set, enums take their
  * value from `examples`, the rest stays minimal. `with` is fixed, the others yield where the schema
- * forbids a combination. Throws when `with` allows no valid props.
+ * forbids a combination, as few of them as possible, e.g. `srcset` and `height` when they exclude
+ * `image`, `ratio` and `widths`. The same seed gives the same props. Throws only when no props are
+ * valid at all or `with` allows none.
  */
 export function fakeProps<D extends FixtureDefinition>(definition: D, options: FakePropsOptions<D> = {}): Props<D> {
   const overlay = (options.with ?? {}) as Record<string, unknown>
