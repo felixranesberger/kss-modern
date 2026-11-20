@@ -1,0 +1,14 @@
+{
+  "name": "component-fixtures-prototype",
+  "private": true,
+  "type": "module",
+  "description": "Type prototype for examples with Faker, checked with tsc. Not part of the package.",
+  "scripts": {
+    "check": "tsc -p ."
+  },
+  "devDependencies": {
+    "@faker-js/faker": "10.6.0",
+    "typescript": "5.9.3",
+    "zod": "4.6.6"
+  }
+}
