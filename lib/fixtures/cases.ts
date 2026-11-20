@@ -387,7 +387,8 @@ export function selectCases(definition: FixtureDefinition, options: TestCaseOpti
   }
 
   const reachable = reachability(dims, chosen.values(), mode === 'full')
-  const valueErrors: string[] = []
+  // no valid case at all: without dimensions nothing is unreachable, so say it here
+  const valueErrors = chosen.size > 0 ? [] : [`no valid props: ${search.evaluate(minimal.assignment).issues.join(', ')}`]
   const namedErrors: string[] = []
   const cases = [
     ...buildCases(definition, stages, seed, isFile, valueErrors),

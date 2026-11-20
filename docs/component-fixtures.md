@@ -36,7 +36,7 @@ export const card = defineComponent({
 })
 ```
 
-Enums, booleans, literals, props with a default and records need no entry. Named, they only set the starting value of the explorer. A list takes a list of templates, the cases use 0, 1 and 3 elements (from its `min`) and rotate through the templates. A choice among fixed strings is Faker as well: `f => f.helpers.arrayElement(['arrow', 'pin'])`.
+Enums, booleans, literals, props with a default and records need no entry. Named, they only set the starting value of the explorer. A list takes a list of templates, the cases use 0, 1 and 3 elements (moved into its `min`, `max` or `length`) and rotate through the templates. A choice among fixed strings is Faker as well: `f => f.helpers.arrayElement(['arrow', 'pin'])`.
 
 `withFake` attaches a fake to a shared fragment, so no component using it repeats the value:
 
@@ -53,11 +53,11 @@ The mark survives `.optional()`, `.default()`, `.describe()` and `.meta()`. A pr
 
 The slots come from the Pug mixin. The build reads them while it looks for mixins: `default` for a `block`, and the named slots of a mixin that splits its block with `const slots = pug_mixins.$fragments.collect(block)` and reads `slots.<name>`. The manifest lists them in `slots`. `slots` in `defineComponent` only provides the content, as HTML or a fake. A slot without an entry gets `<p data-slot="name">Slot name</p>`. Every slot is tested empty and filled.
 
-The JSON Schema export and the explorer resolve the fakes once with seed 1, so they still see plain values.
+Faker's reference date is fixed to 2025-01-01, so date fakes like `f.date.recent()` give the same values for a seed on any day. The JSON Schema export and the explorer resolve the fakes once with seed 1, so they still see plain values.
 
 ## How the cases are chosen
 
-The generator splits the schema into dimensions: every enum and literal value, `false` and `true` of a boolean, set or not set for an optional prop, 0, 1 or 3 elements for a list, the fields of an object or list element under the value that switches them on, empty or filled for a slot. `schema.safeParse()` decides which combinations are valid, so `refine` and `superRefine` apply without the generator knowing the rules.
+The generator splits the schema into dimensions: every enum and literal value, `false` and `true` of a boolean, set or not set for an optional prop, 0, 1 or 3 elements for a list, the fields of an object or list element under the value that switches them on, empty or filled for a slot. A list element is never left out, since JSON has no `undefined` in a list. `schema.safeParse()` decides which combinations are valid, so `refine` and `superRefine` apply without the generator knowing the rules.
 
 Up to 10,000 combinations every one is tested (stage `full`). Most components stay below. Above the limit the cases are chosen in stages:
 
@@ -130,9 +130,9 @@ mixinFixtureDir: '../../app/packages/hss_components/Tests/Functional/Fixtures/Ge
 - `files` lists the props that hold images, see below.
 - `report` is `explainCases()` of the component. `renderErrors` also lists the cases whose render threw.
 
-A file is only computed and written when its `inputHash` changes. The hash covers the schema (the `defineComponent` block, or the definition of a `.schema.ts` file with its fakes), the compiled template with its includes, the slots, the seed and the versions of kss-modern, zod and Faker. The hash is read from the file on disk as well, so a restarted build reuses unchanged files. A file whose component is gone is removed, also when the component went away before the process started. Files in the directory that are not fixtures stay.
+A file is only computed and written when its `inputHash` changes. The hash covers the schema (the `defineComponent` block, or the definition of a `.schema.ts` file with its fakes), the compiled template with its includes, the slots, the seed, the versions of kss-modern, zod and Faker, and all `.schema.ts` files with their imports, since a render reads the schemas of nested components. The hash is read from the file on disk as well, so a restarted build reuses unchanged files, and a file deleted while watching is written again. A file whose component is gone is removed, also when the component went away before the process started. A component that fails to build, for example on an error in a `.schema.ts` file or its Pug template, keeps its file until it builds again. Files in the directory that are not fixtures stay.
 
-A component with problems still gets its file. The build logs the problems: a render error on valid props, a value no valid case can hold, a fake that breaks the schema, a named case without valid props, or a missing `@faker-js/faker`. In production they fail the build, like an invalid schema. Impossible pairs are not a problem, they are the readable form of a rule.
+A component with problems still gets its file. The build logs the problems: a render error on valid props, a value no valid case can hold, a fake that breaks the schema, a schema that no props pass, a named case without valid props, or a missing `@faker-js/faker`. In production they fail the build, like an invalid schema. Impossible pairs are not a problem, they are the readable form of a rule.
 
 The cases are made on the main thread. For the 133 components of hss.de (about 19,000 cases and 21 MB, measured before the shape stage stopped counting theme classes in element paths, so the number is lower now) the first build takes about 5 seconds, a build without changes about 0.3 seconds in a new process and a few milliseconds in watch mode.
 

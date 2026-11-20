@@ -555,7 +555,8 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     if (config.mixinFixtureDir) {
       fixtureExporter ??= createMixinFixtureExporter(config.mixinFixtureDir)
       const sources = await getFixtureSources(discovered, entries, schemaKeys, modules, registry)
-      const versionKey = `${getKssModernVersion()}\n${zodVersion}\n${getFakerVersion()}`
+      // the registry too: a render reads nested components' schemas, a fake may read imported values
+      const versionKey = `${getKssModernVersion()}\n${zodVersion}\n${getFakerVersion()}\n${registryKey}`
       const { summaries, computed } = await fixtureExporter.write(manifest, sources, versionKey)
       const failures = summaries
         .map(summary => ({ summary, problems: getFixtureProblems(summary) }))
@@ -601,9 +602,16 @@ export function createMixinPipeline(config: ResolvedStyleguideConfiguration): Mi
     registry: SchemaRegistryResult,
   ): Promise<MixinFixtureSource[]> {
     const z = requireZod()!
-    const components = registry && !('error' in registry) && discovered.some(({ mixin }) => mixin.isSchemaModule)
-      ? (await loadSchemaRegistry(registry.nodeRegistry)).components
-      : undefined
+    let components: ComponentRegistry | undefined
+    if (registry && !('error' in registry) && discovered.some(({ mixin }) => mixin.isSchemaModule)) {
+      try {
+        components = (await loadSchemaRegistry(registry.nodeRegistry)).components
+      }
+      catch (error) {
+        // the components of `.schema.ts` files get no fixtures this time, their files stay
+        logger.warn(`The test fixtures skip the .schema.ts components, they could not be loaded: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
     const locals = (entry: MixinManifestEntry) => () => ({
       z,
       defineComponent: createDefineComponent({ registry: components }),

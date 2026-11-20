@@ -6,7 +6,7 @@ import type { Faker } from '@faker-js/faker'
 import type { Fake, SlotContent } from '../component-schema.ts'
 import { getFake } from '../component-schema.ts'
 import { fallbackValue, isPlainObject, resolveValue } from './values.ts'
-import { getCheck, getDef, getDescription, inspectSchema, parseIssues, unwrapSchema } from './zod-internals.ts'
+import { getDef, getDescription, getLengthBounds, inspectSchema, parseIssues, unwrapSchema } from './zod-internals.ts'
 
 export const ABSENT = Symbol('absent')
 export const PRESENT = Symbol('present')
@@ -90,8 +90,12 @@ function compileStandalone(schema: unknown): Standalone {
   return { schema, node, dims, minimal: dims.map(dimension => dimension.minimal) }
 }
 
-function compileNode(schema: unknown, key: string, scope: Scope): Node {
-  const { inner, optional, hasDefault, defaultValue } = inspectSchema(schema)
+/** `required` for array elements: JSON has no undefined element, so they are never left out. */
+function compileNode(schema: unknown, key: string, scope: Scope, required = false): Node {
+  const inspected = inspectSchema(schema)
+  const { inner, defaultValue } = inspected
+  const optional = inspected.optional && !required
+  const hasDefault = inspected.hasDefault && !required
   const def = getDef(inner)
   const absent = optional && !hasDefault
   switch (def?.type) {
@@ -113,15 +117,16 @@ function compileNode(schema: unknown, key: string, scope: Scope): Node {
       return { kind: 'object', dim, schema, fields }
     }
     case 'array': {
-      const min = getCheck(inner, 'min_length')?.minimum ?? 0
-      const max = getCheck(inner, 'max_length')?.maximum ?? Number.POSITIVE_INFINITY
+      const { min, max } = getLengthBounds(inner)
       const counts = [...new Set([0, 1, 3].map(count => Math.min(Math.max(count, min), max)))]
       const values = absent ? [ABSENT, ...counts] : counts
+      // an array that is always empty builds no element, so its dimensions stay out of the matrix
+      const element = (inside: Scope): Node => compileNode(def.element, `${key}[]`, counts.some(count => count > 0) ? inside : { ...inside, dims: [] }, true)
       if (values.length < 2)
-        return { kind: 'array', dim: -1, schema, element: compileNode(def.element, `${key}[]`, scope), count: counts[0] }
+        return { kind: 'array', dim: -1, schema, element: element(scope), count: counts[0] }
       const dim = addDimension(scope, { key, kind: 'count', values, labels: values.map(value => value === ABSENT ? `-${key}` : `${key}=${String(value)}`), minimal: 0, schema })
       const gate = new Set(values.flatMap((value, index) => typeof value === 'number' && value > 0 ? [index] : []))
-      return { kind: 'array', dim, schema, element: compileNode(def.element, `${key}[]`, below(scope, dim, gate)), count: 0 }
+      return { kind: 'array', dim, schema, element: element(below(scope, dim, gate)), count: 0 }
     }
     case 'union': {
       const options = (def.options ?? []).map(compileStandalone)

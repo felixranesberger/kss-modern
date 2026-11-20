@@ -1,13 +1,33 @@
 import type { Fake } from '../component-schema.ts'
 import { base, de, en, Faker } from '@faker-js/faker'
 import { getFake } from '../component-schema.ts'
-import { getArrayElement, getCheck, getDef, getObjectShape, unwrapSchema } from './zod-internals.ts'
+import { getArrayElement, getCheck, getDef, getFormat, getLengthBounds, getObjectShape, unwrapSchema } from './zod-internals.ts'
+
+/** The "now" of every Faker, so date fakes like `f.date.recent()` do not move with the clock. */
+const FAKER_REF_DATE = '2025-01-01T00:00:00.000Z'
 
 /** A Faker with German, English and base data, seeded, so the same seed gives the same values. */
 export function createFaker(seed: number): Faker {
   const faker = new Faker({ locale: [de, en, base] })
   faker.seed(seed)
+  faker.setDefaultRefDate(FAKER_REF_DATE)
   return faker
+}
+
+/** Values of the common string formats, `datetime` without offset as zod expects by default. */
+const FORMATS: Record<string, (faker: Faker) => string> = {
+  email: faker => faker.internet.email(),
+  url: faker => faker.internet.url(),
+  uuid: faker => faker.string.uuid(),
+  guid: faker => faker.string.uuid(),
+  nanoid: faker => faker.string.nanoid(),
+  ulid: faker => faker.string.ulid(),
+  datetime: faker => faker.date.anytime().toISOString(),
+  date: faker => faker.date.anytime().toISOString().slice(0, 10),
+  time: faker => faker.date.anytime().toISOString().slice(11, 19),
+  ipv4: faker => faker.internet.ipv4(),
+  ipv6: faker => faker.internet.ipv6(),
+  emoji: faker => faker.internet.emoji(),
 }
 
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -51,19 +71,22 @@ export function fallbackValue(schema: unknown, faker: Faker): unknown {
   const inner = unwrapSchema(schema)
   switch (getDef(inner)?.type) {
     case 'string': {
-      const min = getCheck(inner, 'min_length')?.minimum ?? 0
-      const max = getCheck(inner, 'max_length')?.maximum
+      const format = FORMATS[getFormat(inner) ?? '']
+      if (format)
+        return format(faker)
+      const { min, max } = getLengthBounds(inner)
       let text = faker.lorem.words(2)
       while (text.length < min)
         text += ` ${faker.lorem.word()}`
-      return max === undefined ? text : text.slice(0, max)
+      return text.slice(0, max)
     }
     case 'number': {
       const above = getCheck(inner, 'greater_than')
       const below = getCheck(inner, 'less_than')
-      const min = above ? Number(above.value) + (above.inclusive ? 0 : 1) : 1
-      const max = below ? Number(below.value) - (below.inclusive ? 0 : 1) : min + 99
-      return faker.number.int({ min, max: Math.max(min, max) })
+      const lower = above ? Number(above.value) + (above.inclusive ? 0 : 1) : undefined
+      const upper = below ? Number(below.value) - (below.inclusive ? 0 : 1) : undefined
+      const min = lower ?? (upper === undefined ? 1 : upper - 99)
+      return faker.number.int({ min, max: Math.max(min, upper ?? min + 99) })
     }
     case 'boolean':
       return true

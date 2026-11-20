@@ -109,7 +109,7 @@ export interface CasesReport {
   unreachable: string[]
   /** Valid props that `render` threw on: the schema checks too little. One entry per message. */
   renderErrors: { case: string, message: string }[]
-  /** Cases whose fakes broke the schema. They fall back to the values of the search. */
+  /** Cases whose fakes broke the schema, they fall back to the values of the search. Or `no valid props` when no case passes. */
   valueErrors: string[]
   /** Named cases that no valid props can hold. {@link testCases} throws on them. */
   namedErrors: string[]

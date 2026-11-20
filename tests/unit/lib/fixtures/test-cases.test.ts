@@ -1,8 +1,8 @@
-import type { FixtureDefinition, TestCase } from '../../../../lib/fixtures/index.ts'
-import { describe, expect, it } from 'vitest'
+import type { Faker, FixtureDefinition, TestCase } from '../../../../lib/fixtures/index.ts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { defineComponent, withFake } from '../../../../lib/component-schema.ts'
-import { explainCases, testCases } from '../../../../lib/fixtures/index.ts'
+import { explainCases, selectTestCases, testCases } from '../../../../lib/fixtures/index.ts'
 import { markupFeatures } from '../../../../lib/fixtures/markup.ts'
 
 const image = withFake(
@@ -352,6 +352,88 @@ describe('the stage shape', () => {
       },
     })
     expect(report.renderErrors).toEqual([{ case: expect.stringContaining('d=q'), message: 'unknown icon q' }])
+  })
+})
+
+describe('schemas at the edges', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  /** The props as the fixture file holds them, so `undefined` turns into `null`. */
+  function expectValidJson(definition: FixtureDefinition, cases: TestCase[]): void {
+    for (const testCase of cases)
+      expect(definition.schema.safeParse(JSON.parse(JSON.stringify(testCase.props))).success, testCase.name).toBe(true)
+  }
+
+  it('reports a schema without dimensions that no props pass', () => {
+    const definition = { name: 'atoms/Code', schema: z.strictObject({ code: z.string().regex(/^\d+$/) }) }
+    const { cases, report } = selectTestCases(definition)
+    expect(cases).toEqual([])
+    expect(report.valueErrors).toEqual([expect.stringMatching(/^no valid props: code: /)])
+  })
+
+  it('gives arrays of a fixed length that length', () => {
+    const definition = { name: 'atoms/Pair', schema: z.strictObject({ items: z.array(z.strictObject({ kind: z.enum(['x', 'y']) })).length(2) }) }
+    const { cases, report } = selectTestCases(definition)
+    expect(report.unreachable).toEqual([])
+    expect(cases.map(testCase => (testCase.props.items as unknown[]).length)).toEqual([2, 2])
+  })
+
+  it('makes fallback values that fit formats, lengths and bounds', () => {
+    const definition = {
+      name: 'atoms/Formats',
+      schema: z.strictObject({
+        email: z.email(),
+        url: z.string().url(),
+        uuid: z.uuid(),
+        datetime: z.iso.datetime(),
+        date: z.iso.date(),
+        time: z.iso.time(),
+        ip: z.ipv4(),
+        code: z.string().length(5),
+        short: z.string().max(3),
+        negative: z.number().max(0),
+        positive: z.int().positive(),
+        flag: z.boolean().optional(),
+      }),
+    }
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const { cases, report } = selectTestCases(definition, { seed })
+      expect(report).toMatchObject({ unreachable: [], valueErrors: [] })
+      // -flag, flag=false, flag=true
+      expect(cases).toHaveLength(3)
+    }
+  })
+
+  it('gives the same date fakes for a seed whatever the clock says', () => {
+    const definition = { name: 'atoms/Date', schema: z.strictObject({ at: z.string(), when: z.iso.datetime().optional() }), examples: { at: (f: Faker) => f.date.recent().toISOString() } }
+    vi.useFakeTimers({ now: new Date('2026-03-01T12:00:00Z') })
+    const first = testCases(definition)
+    vi.setSystemTime(new Date('2031-07-15T08:30:00Z'))
+    expect(testCases(definition)).toEqual(first)
+  })
+
+  it('never leaves an array element out', () => {
+    const definition = { name: 'atoms/Tags', schema: z.strictObject({ tags: z.array(z.string().optional()).min(1), sizes: z.array(z.enum(['s', 'm']).default('s')).max(1) }), examples: { tags: ['a'] } }
+    const cases = testCases(definition)
+    expect(cases.length).toBeGreaterThan(0)
+    expectValidJson(definition, cases)
+  })
+
+  it('gives an array that is always empty no element dimensions', () => {
+    const definition = {
+      name: 'atoms/Empty',
+      schema: z.strictObject({ none: z.array(z.strictObject({ kind: z.enum(['p', 'q']) })).max(0).optional(), size: z.enum(['1', '2', '3']) }),
+    }
+    for (const limit of [1, 10_000]) {
+      const { cases, report } = selectTestCases(definition, { limit })
+      const names = cases.map(testCase => testCase.name)
+      expect(report.dimensions.map(dimension => dimension.key)).toEqual(['none', 'size'])
+      expect(report.unreachable).toEqual([])
+      expect(new Set(names).size).toBe(names.length)
+      expect(names.join(' ')).not.toMatch(/undefined|^ | $/)
+    }
   })
 })
 

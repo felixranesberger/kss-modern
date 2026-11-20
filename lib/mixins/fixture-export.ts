@@ -244,7 +244,8 @@ function componentOf(entry: MixinManifestEntry): string {
 export interface MixinFixtureExporter {
   /**
    * Bring the fixture files up to date. A file whose input hash is unchanged, in memory or on
-   * disk, is neither recomputed nor rewritten. A file no component claims any more is removed.
+   * disk, is neither recomputed nor rewritten. A file no component claims any more is removed,
+   * the file of a component in `manifest` without a source (it failed this time) stays.
    * Never throws for a component, its problems are in the summary.
    */
   write: (manifest: MixinManifest, sources: MixinFixtureSource[], versionKey: string) => Promise<MixinFixtureResult>
@@ -271,7 +272,8 @@ export function createMixinFixtureExporter(directory: string): MixinFixtureExpor
       const inputHash = hashContent(JSON.stringify([FIXTURE_FORMAT, versionKey, source.definitionKey, hashContent(source.code), source.entry.slots ?? [], component]))
 
       let summary = known.get(file)
-      if (summary?.inputHash !== inputHash) {
+      // a file deleted since is made again
+      if (summary?.inputHash !== inputHash || !await fs.access(file).then(() => true, () => false)) {
         const onDisk = await readFixtureFile(file)
         summary = onDisk?.inputHash === inputHash
           ? { component, file: relative, report: onDisk.report, errors: onDisk.errors ?? [], inputHash }
@@ -289,13 +291,25 @@ export function createMixinFixtureExporter(directory: string): MixinFixtureExpor
       summaries.push(summary)
     }
 
+    // a component still in the manifest without a source failed this time (schema or Pug error): its file stays
+    const sourced = new Set(sources.map(source => componentOf(source.entry)))
+    const isFailed = (component: string | undefined): boolean => component !== undefined && !sourced.has(component)
+      && manifest.mixins.some(entry => componentOf(entry) === component)
     // files of components that are gone; on the first call also those of an earlier process
-    const stale = new Set([...known.keys()].filter(file => !current.has(file)))
+    const stale = new Set<string>()
+    for (const [file, summary] of known) {
+      if (current.has(file))
+        continue
+      if (isFailed(summary.component))
+        current.set(file, summary)
+      else
+        stale.add(file)
+    }
     if (!isScanned) {
       isScanned = true
       for (const file of await glob('**/*.json', { cwd: root, absolute: true }).catch(() => [] as string[])) {
         const absolute = path.resolve(file)
-        if (!current.has(absolute) && await isFixtureFile(absolute))
+        if (!current.has(absolute) && await isFixtureFile(absolute) && !isFailed((await readFixtureFile(absolute))?.component))
           stale.add(absolute)
       }
     }

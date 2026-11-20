@@ -183,6 +183,67 @@ describe('mixinFixtureDir', () => {
     expect(await fs.pathExists(path.join(fixtureDir, 'README.json'))).toBe(true)
   })
 
+  it('makes the cases anew when a value a .schema.ts file imports changes', async () => {
+    const fragments = (pool: string): string => `import { withFake } from 'kss-modern/schema'
+import { z } from 'zod'
+
+const POOL = ${pool}
+
+export const image = withFake(
+  z.strictObject({ src: z.string().min(1), alt: z.string().default('') }),
+  f => ({ src: f.helpers.arrayElement(POOL), alt: f.lorem.words(2) }),
+)
+`
+    await writeFile('fragments.ts', fragments(`['people/1']`))
+    const pipeline = createMixinPipeline(createConfig())
+    await pipeline.build()
+    expect((await readFixture('molecules/Teaser.json')).cases.some(testCase => testCase.html?.includes('people/1'))).toBe(true)
+
+    // the fake's source stays the same, only the constant it reads changes
+    await writeFile('fragments.ts', fragments(`['places/9']`))
+    await pipeline.build([path.join(tmpContent, 'fragments.ts')])
+    const teaser = await readFixture('molecules/Teaser.json')
+    expect(teaser.cases.some(testCase => testCase.html?.includes('places/9'))).toBe(true)
+    expect(teaser.cases.some(testCase => testCase.html?.includes('people/1'))).toBe(false)
+  })
+
+  it('keeps the file of a component whose .schema.ts fails while watching', async () => {
+    const pipeline = createMixinPipeline(createConfig())
+    await pipeline.build()
+    const before = await readFixture('molecules/Teaser.json')
+
+    // throws at import
+    const schema = await writeFile('molecules/teaser.schema.ts', `${FILES['molecules/teaser.schema.ts']}\nthrow new Error('broken on import')\n`)
+    await expect(pipeline.build([schema])).resolves.toBeDefined()
+    expect(await readFixture('molecules/Teaser.json')).toEqual(before)
+
+    // cannot be bundled
+    await writeFile('molecules/teaser.schema.ts', `${FILES['molecules/teaser.schema.ts']}\nexport const = \n`)
+    await pipeline.build([schema])
+    expect(await readFixture('molecules/Teaser.json')).toEqual(before)
+    expect(await fs.pathExists(path.join(fixtureDir, 'atoms/Box.json'))).toBe(true)
+  })
+
+  it('keeps the file of a mixin that fails to compile in the first build of a process', async () => {
+    await createMixinPipeline(createConfig()).build()
+    const before = await readFixture('atoms/Box.json')
+
+    resetPugState()
+    await writeFile('atoms/box.pug', `include ./missing\n\n${FILES['atoms/box.pug']}`)
+    const manifest = (await createMixinPipeline(createConfig()).build()).manifest
+    expect(manifest.mixins.find(entry => entry.name === 'box')?.error).toBeDefined()
+    expect(await readFixture('atoms/Box.json')).toEqual(before)
+  })
+
+  it('writes a file again that was deleted while watching', async () => {
+    const pipeline = createMixinPipeline(createConfig())
+    await pipeline.build()
+    await fs.remove(fixtureDir)
+    await pipeline.build()
+    expect(await fs.pathExists(path.join(fixtureDir, 'atoms/Box.json'))).toBe(true)
+    expect(await fs.pathExists(path.join(fixtureDir, 'molecules/Teaser.json'))).toBe(true)
+  })
+
   it('reports a render error and fails a production build with it', async () => {
     await writeFile('atoms/box.pug', FILES['atoms/box.pug'].replace(`div.box(class=p.dark && 'box--dark')`, `- if (p.dark) throw new Error('dark is broken')\n  div.box`))
     await createMixinPipeline(createConfig()).build()

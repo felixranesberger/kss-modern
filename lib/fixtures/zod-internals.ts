@@ -7,6 +7,8 @@ interface ZodCheckDef {
   check?: string
   minimum?: number
   maximum?: number
+  length?: number
+  format?: string
   value?: unknown
   inclusive?: boolean
 }
@@ -21,6 +23,7 @@ interface ZodDef {
   values?: unknown[]
   options?: unknown[]
   discriminator?: string
+  format?: string
   defaultValue?: unknown
   checks?: { _zod?: { def?: ZodCheckDef } }[]
 }
@@ -89,6 +92,20 @@ export function getCheck(schema: unknown, name: string): ZodCheckDef | undefined
       return check._zod.def
   }
   return undefined
+}
+
+/** The length bounds of a string or array schema, `.length()` sets both. */
+export function getLengthBounds(schema: unknown): { min: number, max: number } {
+  const exact = getCheck(schema, 'length_equals')?.length
+  return {
+    min: exact ?? getCheck(schema, 'min_length')?.minimum ?? 0,
+    max: exact ?? getCheck(schema, 'max_length')?.maximum ?? Number.POSITIVE_INFINITY,
+  }
+}
+
+/** The string format, from `z.email()` or a check like `z.string().email()`. */
+export function getFormat(schema: unknown): string | undefined {
+  return getDef(unwrapSchema(schema))?.format ?? getCheck(schema, 'string_format')?.format
 }
 
 /** The first `.describe()` text along the wrappers, zod passes it on to clones like `.meta()`. */
