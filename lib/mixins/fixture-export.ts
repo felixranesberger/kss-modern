@@ -86,9 +86,6 @@ let fixturesModule: Promise<FixturesModule> | undefined
 
 function loadFixtures(): Promise<FixturesModule> {
   fixturesModule ??= import('../fixtures/index.ts')
-  fixturesModule.catch(() => {
-    fixturesModule = undefined
-  })
   return fixturesModule
 }
 
@@ -171,13 +168,7 @@ function emptyReport(): CasesReport {
 }
 
 async function makeFixtureFile(source: MixinFixtureSource, inputHash: string, component: string, loadRender: () => MixinRender): Promise<MixinFixtureFile> {
-  let fixtures: FixturesModule
-  try {
-    fixtures = await loadFixtures()
-  }
-  catch (error) {
-    return { inputHash, component, seed: 1, report: emptyReport(), errors: [`The fixtures need @faker-js/faker. Install it with \`npm i -D @faker-js/faker\`. ${messageOf(error)}`], cases: [] }
-  }
+  const fixtures = await loadFixtures()
   const seed = fixtures.DEFAULT_SEED
   try {
     const definition = await source.loadDefinition()

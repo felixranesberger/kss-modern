@@ -115,8 +115,7 @@ interface StyleguideOptions {
   /**
    * Write the test cases of every mixin with a schema into this directory, with the markup its Pug
    * mixin renders for each: `name: 'atoms/Button'` -> `<dir>/atoms/Button.json`. A backend test
-   * renders the same props with its own templates and compares. Needs `@faker-js/faker`. Relative
-   * to the working directory. Off unless set, see `docs/component-fixtures.md`.
+   * renders the same props with its own templates and compares. Relative to the working directory. Off unless set, see `docs/component-fixtures.md`.
    */
   mixinFixtureDir?: string
   /**

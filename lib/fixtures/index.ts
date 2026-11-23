@@ -1,6 +1,6 @@
 /**
  * `kss-modern/fixtures`: props and test cases from the `examples` of a component definition.
- * Node only, needs `@faker-js/faker`.
+ * Node only.
  *
  * ```ts
  * import { fakeProps, testCases } from 'kss-modern/fixtures'

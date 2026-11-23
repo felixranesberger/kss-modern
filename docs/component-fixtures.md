@@ -2,10 +2,10 @@
 
 A component that declares its props with `defineComponent` can produce its own test cases. kss-modern combines the values of its schema, fills the free values from `examples` and renders every case with the Pug mixin. The result is a set of props, slots and the expected markup per component. A backend that renders the same component with its own templates, for example a Fluid component in TYPO3, renders the same props and compares.
 
-The fixtures need [`@faker-js/faker`](https://fakerjs.dev) and [zod](https://zod.dev) 4, both optional peer dependencies:
+The fixtures need [zod](https://zod.dev) 4, an optional peer dependency. [Faker](https://fakerjs.dev) comes with kss-modern:
 
 ```bash
-npm i -D @faker-js/faker zod
+npm i -D zod
 ```
 
 ## Values: `examples`, `withFake` and `slots`
@@ -132,7 +132,7 @@ mixinFixtureDir: '../../app/packages/hss_components/Tests/Functional/Fixtures/Ge
 
 A file is only computed and written when its `inputHash` changes. The hash covers the schema (the `defineComponent` block, or the definition of a `.schema.ts` file with its fakes), the compiled template with its includes, the slots, the seed, the versions of kss-modern, zod and Faker, and all `.schema.ts` files with their imports, since a render reads the schemas of nested components. The hash is read from the file on disk as well, so a restarted build reuses unchanged files, and a file deleted while watching is written again. A file whose component is gone is removed, also when the component went away before the process started. A component that fails to build, for example on an error in a `.schema.ts` file or its Pug template, keeps its file until it builds again. Files in the directory that are not fixtures stay.
 
-A component with problems still gets its file. The build logs the problems: a render error on valid props, a value no valid case can hold, a fake that breaks the schema, a schema that no props pass, a named case without valid props, or a missing `@faker-js/faker`. In production they fail the build, like an invalid schema. Impossible pairs are not a problem, they are the readable form of a rule.
+A component with problems still gets its file. The build logs the problems: a render error on valid props, a value no valid case can hold, a fake that breaks the schema, a schema that no props pass or a named case without valid props. In production they fail the build, like an invalid schema. Impossible pairs are not a problem, they are the readable form of a rule.
 
 The cases are made on the main thread. For the 133 components of hss.de (about 19,000 cases and 21 MB, measured before the shape stage stopped counting theme classes in element paths, so the number is lower now) the first build takes about 5 seconds, a build without changes about 0.3 seconds in a new process and a few milliseconds in watch mode.
 

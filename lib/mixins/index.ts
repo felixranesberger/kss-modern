@@ -96,14 +96,7 @@ let fakerVersion: string | undefined
 
 /** The installed `@faker-js/faker`, part of the schema keys: the faked `examples` change with it. */
 function getFakerVersion(): string {
-  if (fakerVersion === undefined) {
-    try {
-      fakerVersion = (nodeRequire('@faker-js/faker/package.json') as { version: string }).version
-    }
-    catch {
-      fakerVersion = 'none'
-    }
-  }
+  fakerVersion ??= (nodeRequire('@faker-js/faker/package.json') as { version: string }).version
   return fakerVersion
 }
 

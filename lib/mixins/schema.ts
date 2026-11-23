@@ -32,7 +32,7 @@ type FixturesModule = typeof import('../fixtures/index.ts')
 
 let fixtures: Promise<FixturesModule> | undefined
 
-/** `kss-modern/fixtures`, imported on first use: it needs `@faker-js/faker`, an optional peer. */
+/** `kss-modern/fixtures`, imported on first use, so a styleguide without fakes never loads Faker. */
 function loadFixtures(): Promise<FixturesModule> {
   fixtures ??= import('../fixtures/index.ts')
   return fixtures
@@ -84,16 +84,7 @@ async function resolveDefinitionExamples(definition: { name?: string, schema: un
   if (fakePath === undefined)
     return examples
 
-  let module: FixturesModule
-  try {
-    module = await loadFixtures()
-  }
-  catch (error) {
-    fixtures = undefined
-    const reason = error instanceof Error ? error.message : String(error)
-    throw new Error(`\`examples.${fakePath}\` is made with Faker, which needs @faker-js/faker. Install it with \`npm i -D @faker-js/faker\`.\n${reason}`)
-  }
-  const { DEFAULT_SEED, resolveExamples } = module
+  const { DEFAULT_SEED, resolveExamples } = await loadFixtures()
   return resolveExamples({ name: definition.name ?? '', schema: definition.schema as never, examples }, { seed: DEFAULT_SEED })
 }
 
@@ -105,24 +96,13 @@ function parses(schema: unknown, value: unknown): boolean {
  * The values the playground starts with: the resolved `examples` when they parse together, else
  * the props of `fakeProps` with the default seed. A `superRefine` may forbid some examples next to
  * others, e.g. `image` next to `srcset`, then `fakeProps` gives up as few of them as it can.
- * Without @faker-js/faker the examples stay as they are and a warning names the problem.
  */
 async function startValues(definition: { name?: string, schema: unknown, examples?: unknown }, examples: Record<string, unknown>): Promise<Record<string, unknown>> {
   if (Object.keys(examples).length === 0 || parses(definition.schema, examples))
     return examples
 
   const name = definition.name ?? 'the mixin'
-  let module: FixturesModule
-  try {
-    module = await loadFixtures()
-  }
-  catch (error) {
-    fixtures = undefined
-    const reason = error instanceof Error ? error.message : String(error)
-    logger.warn(`The \`examples\` of "${name}" are no valid props together, the playground starts with them anyway. A valid start needs @faker-js/faker. Install it with \`npm i -D @faker-js/faker\`.\n${reason}`)
-    return examples
-  }
-  const { DEFAULT_SEED, fakeProps } = module
+  const { DEFAULT_SEED, fakeProps } = await loadFixtures()
   try {
     return fakeProps({ name, schema: definition.schema as never, examples: definition.examples }, { seed: DEFAULT_SEED }) as Record<string, unknown>
   }

@@ -61,6 +61,7 @@
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^6.0.0",
     "@biomejs/wasm-nodejs": "^2.5.3",
+    "@faker-js/faker": "^10.6.0",
     "@shikijs/langs": "^4.3.1",
     "@shikijs/markdown-it": "^4.3.1",
     "@shikijs/themes": "^4.3.1",
@@ -77,20 +78,15 @@
     "tinyglobby": "^0.2.17"
   },
   "peerDependencies": {
-    "@faker-js/faker": "^10.0.0",
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@faker-js/faker": {
-      "optional": true
-    },
     "zod": {
       "optional": true
     }
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",
-    "@faker-js/faker": "10.6.0",
     "@leeoniya/ufuzzy": "^1.0.19",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.3.2",
