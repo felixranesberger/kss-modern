@@ -1,11 +1,37 @@
 # Changelog
 
-## Unreleased
+## [1.7.0-beta.13](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.12...v1.7.0-beta.13) (2026-11-23)
+
+### Build System
+
+* install `@faker-js/faker` with kss-modern. It was an optional peer dependency, but `examples` are required and their functions are typed with Faker, so every project with schemas needed it anyway. Projects can drop it from their own `package.json`. `zod` stays a peer dependency, because the project and kss-modern must share its instance. The warnings and errors for a missing Faker are gone ([933fcc5](https://github.com/felixranesberger/kss-modern/commit/933fcc5))
+
+## [1.7.0-beta.12](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.11...v1.7.0-beta.12) (2026-11-20)
+
+### Bug Fixes
+
+* start the explorer and the `mixinJsonSchemaDir` export with valid props when a `superRefine` forbids some `examples` next to each other, for example `image` next to `srcset`. They started with all examples and showed invalid props. Such a component now starts with the props of `fakeProps` with seed 1, valid examples stay as they are. `fakeProps` no longer throws when repairing the filled props gets stuck, it gives up as few of them as a valid set allows ([61be313](https://github.com/felixranesberger/kss-modern/commit/61be313))
+
+## [1.7.0-beta.11](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.10...v1.7.0-beta.11) (2026-11-20)
+
+### ⚠ BREAKING CHANGES
+
+* `examples` in `defineComponent` of `kss-modern/schema` is now required and must be complete. Every prop with a free value (string, number, array, object without default) needs an entry, optional ones included. Enums, booleans, literals, props with a default, records and fragments with `withFake` may be left out. Existing `.schema.ts` files fail the type check until the missing entries are added, tsc names each one. Nothing changes at runtime ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
 
 ### Features
 
-* open a popover on a color swatch that copies the color as HEX, RGB, HSL or OKLCH, a `var(--token)` swatch also as `var()` and property name. It shows the color, its name and the description from the `Colors:` line, and confirms a copy in the row itself, so several formats can be copied in a row. A copy the clipboard refuses, for example outside a secure context, shows as failed instead. Hovering a swatch shows a copy hint. Such a swatch resolves in a hidden document with the preview CSS (`color-resolver.html`), so it shows its color and follows the light/dark toggle and the global theme. The popover is anchored with CSS anchor positioning and reusable through `toggleCopyPopover()` in `client/lib/copy-popover.ts`. The browser converts the colors via relative color syntax
-* recognize every CSS color function in `Colors:`, also space-separated with units and alpha like `hsl(142deg 71% 45%)`, plus `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()` and hex with alpha. Such lines were dropped before
+* open a popover on a color swatch that copies the color as HEX, RGB, HSL or OKLCH, a `var(--token)` swatch also as `var()` and property name. It shows the color, its name and the description from the `Colors:` line, and confirms a copy in the row itself, so several formats can be copied in a row. A copy the clipboard refuses, for example outside a secure context, shows as failed instead. Hovering a swatch shows a copy hint. Such a swatch resolves in a hidden document with the preview CSS (`color-resolver.html`), so it shows its color and follows the light/dark toggle and the global theme. The popover is anchored with CSS anchor positioning and reusable through `toggleCopyPopover()` in `client/lib/copy-popover.ts`. The browser converts the colors via relative color syntax ([a406514](https://github.com/felixranesberger/kss-modern/commit/a406514))
+* recognize every CSS color function in `Colors:`, also space-separated with units and alpha like `hsl(142deg 71% 45%)`, plus `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color()` and hex with alpha. Such lines were dropped before ([a406514](https://github.com/felixranesberger/kss-modern/commit/a406514))
+* take Faker in `examples`. Every value may be a function `f => f.lorem.sentence()` that gets a [Faker](https://fakerjs.dev) instance, in objects and list elements as well, and tsc checks what it returns. `defineComponent` also takes `slots` (content per slot name), `cases` (named cases that are always tested) and `strength` for the coming fixture generator. `@faker-js/faker` is an optional peer dependency like `zod`, `kss-modern/schema` imports only its types ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
+* add `withFake(schema, fake)` to `kss-modern/schema`. It attaches a fake to a shared fragment like a link or an image, so a prop using it needs no entry in `examples`. The mark survives `.optional()`, `.default()` and `.describe()`, and `getFake(schema)` reads it back. The fakes live in a registry on `globalThis`, so the copy of `kss-modern/schema` the `.schema.ts` modules get and the package see the same ones ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
+* add the entry `kss-modern/fixtures` with `createFaker(seed)` (reference date fixed to 2025-01-01, so a seed gives the same dates on any day), `resolveExamples(definition, { seed })`, `fakeProps`, `testCases`, `explainCases` and `selectTestCases`. `resolveExamples` turns `examples` into plain values with a fixed seed and fills the props whose fragment has a fake. Up to 10,000 combinations every one is tested, above it the cases cover every value pair (`strength: 3` every triple) plus the cases whose Pug markup brings a new feature. `impossible` lists value tuples as `string[][]` ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
+* list the slots of a mixin in `slots` of its manifest entry: `default` for its `block`, plus the named slots read with `pug_mixins.$fragments.collect(block)`. The render module fills them through the local `__kssSlots` ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
+* resolve the fakes in `examples` with seed 1 for the explorer and `mixinJsonSchemaDir`, so both keep plain values ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
+* write test fixtures with `mixinFixtureDir`. Each component with a schema gets `<dir>/<name>.json` with its cases (`id`, `name`, `stage`, input `props`, `slots`, image paths in `files`) and the markup of its mixin per case, plus the report. A file is only recomputed when the hash of schema, template, slots, seed, versions and `.schema.ts` files changes, also across restarts. The file of a removed component is deleted, a component that fails to build keeps its file. Render errors, unreachable values, fakes that break the schema, schemas no props pass and a missing Faker are logged, and fail a production build. `mixinFixtureReport` logs an overview or the report of single components, `formatMixinFixtureReport(dir, component?)` prints it from the files. See [docs/component-fixtures.md](docs/component-fixtures.md) ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
+
+### Bug Fixes
+
+* keep the `.schema.ts` copies in `node_modules/.cache/kss-modern/schemas/` of other builds for ten minutes. A second build of the same project, like a test run next to the watcher, deleted the directory the first one still imported ([d0acc3e](https://github.com/felixranesberger/kss-modern/commit/d0acc3e))
 
 ## [1.7.0-beta.10](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.9...v1.7.0-beta.10) (2026-11-11)
 

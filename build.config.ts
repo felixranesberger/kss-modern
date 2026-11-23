@@ -74,10 +74,10 @@ const previewInlineContent = `<script>
 
 export default defineBuildConfig({
   outDir: 'dist/node',
-  entries: ['./lib/index', './lib/pug/worker', './lib/component-schema'],
+  entries: ['./lib/index', './lib/pug/worker', './lib/component-schema', './lib/fixtures/index'],
   declaration: true,
   failOnWarn: false,
-  externals: ['@antfu/utils', ...shikiExternalPackages],
+  externals: ['@antfu/utils', '@faker-js/faker', ...shikiExternalPackages],
   replace: {
     __STYLEGUIDE_CSS__: hashedFileNames['style.css'],
     __STYLEGUIDE_PREVIEW_JS__: hashedFileNames['preview.js'],

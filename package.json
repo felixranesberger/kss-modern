@@ -1,7 +1,7 @@
 {
   "name": "kss-modern",
   "type": "module",
-  "version": "1.7.0-beta.10",
+  "version": "1.7.0-beta.13",
   "description": "Modern KSS compatible styleguide generator",
   "keywords": [
     "kss",
@@ -36,6 +36,10 @@
       "types": "./dist/node/lib/component-schema.d.ts",
       "import": "./dist/node/lib/component-schema.mjs"
     },
+    "./fixtures": {
+      "types": "./dist/node/lib/fixtures/index.d.ts",
+      "import": "./dist/node/lib/fixtures/index.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -57,6 +61,7 @@
     "@antfu/utils": "^9.3.0",
     "@biomejs/js-api": "^6.0.0",
     "@biomejs/wasm-nodejs": "^2.5.3",
+    "@faker-js/faker": "^10.6.0",
     "@shikijs/langs": "^4.3.1",
     "@shikijs/markdown-it": "^4.3.1",
     "@shikijs/themes": "^4.3.1",
@@ -96,6 +101,7 @@
     "jsdom": "^29.1.1",
     "keyux": "^0.11.5",
     "motion": "^12.42.2",
+    "typescript": "~6.0.3",
     "unbuild": "^3.6.1",
     "vite": "^8.1.3",
     "vitest": "^4.1.10",
