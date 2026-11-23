@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0-beta.13](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.12...v1.7.0-beta.13) (2026-11-23)
+
+### Build System
+
+* install `@faker-js/faker` with kss-modern. It was an optional peer dependency, but `examples` are required and their functions are typed with Faker, so every project with schemas needed it anyway. Projects can drop it from their own `package.json`. `zod` stays a peer dependency, because the project and kss-modern must share its instance. The warnings and errors for a missing Faker are gone ([933fcc5](https://github.com/felixranesberger/kss-modern/commit/933fcc5))
+
 ## [1.7.0-beta.12](https://github.com/felixranesberger/kss-modern/compare/v1.7.0-beta.11...v1.7.0-beta.12) (2026-11-20)
 
 ### Bug Fixes
